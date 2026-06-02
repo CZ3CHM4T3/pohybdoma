@@ -46,3 +46,6 @@ desktop.ini
 # osobní dokumenty (nepatří do repa)
 *.pdf
 faktura_*
+
+# lokální nastavení nástrojů
+.claude/settings.local.json
