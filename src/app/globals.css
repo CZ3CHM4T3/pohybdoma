@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Brand colors ── */
+  --color-brand-dark: #062A6B;
+  --color-brand-blue: #1976FF;
+  --color-brand-light: #EEF4FF;
+
+  /* ── Typography ── */
+  --font-sans: "Montserrat", system-ui, sans-serif;
+
+  /* ── Radius ── */
+  --radius-card: 1rem;
+  --radius-btn: 0.5rem;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--color-brand-dark);
+    background-color: #ffffff;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+}
+
+@layer utilities {
+  .text-brand-dark { color: var(--color-brand-dark); }
+  .text-brand-blue { color: var(--color-brand-blue); }
+  .bg-brand-dark { background-color: var(--color-brand-dark); }
+  .bg-brand-blue { background-color: var(--color-brand-blue); }
+  .bg-brand-light { background-color: var(--color-brand-light); }
+  .border-brand-blue { border-color: var(--color-brand-blue); }
+  .border-brand-dark { border-color: var(--color-brand-dark); }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: var(--color-brand-blue);
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--radius-btn);
+    transition: opacity 0.15s, transform 0.1s;
+    cursor: pointer;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 2px solid var(--color-brand-blue);
+    color: var(--color-brand-blue);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 0.75rem 1.75rem;
+    border-radius: var(--radius-btn);
+    transition: background-color 0.15s, color 0.15s;
+    cursor: pointer;
+    background-color: transparent;
+  }
+  .btn-outline:hover {
+    background-color: var(--color-brand-blue);
+    color: #ffffff;
+  }
+
+  .card {
+    background-color: #ffffff;
+    border-radius: var(--radius-card);
+    box-shadow: 0 2px 16px 0 rgba(6, 42, 107, 0.08);
+    overflow: hidden;
+  }
+}

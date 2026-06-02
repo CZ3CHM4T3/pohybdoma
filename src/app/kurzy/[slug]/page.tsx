@@ -1,0 +1,129 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { MOCK_COURSES } from "@/lib/mock-data";
+import { formatDuration } from "@/lib/access";
+import { AccessBadge } from "@/components/ui/Badge";
+
+interface Props {
+  params: Promise<{ slug: string }>;
+}
+
+export async function generateStaticParams() {
+  return MOCK_COURSES.map((c) => ({ slug: c.slug }));
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const course = MOCK_COURSES.find((c) => c.slug === slug);
+  if (!course) return { title: "Kurz nenalezen" };
+  return { title: course.title, description: course.description };
+}
+
+export default async function CourseDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const course = MOCK_COURSES.find((c) => c.slug === slug);
+  if (!course) notFound();
+
+  const totalDuration = course.lessons.reduce((sum, l) => sum + l.durationSeconds, 0);
+  const freeLessons = course.lessons.filter((l) => l.accessLevel === "FREE").length;
+
+  return (
+    <div className="min-h-screen bg-brand-light">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
+        <Link href="/kurzy" className="inline-flex items-center gap-2 text-sm text-brand-blue font-semibold mb-6 hover:underline">
+          ← Zpět na kurzy
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main */}
+          <div className="lg:col-span-2">
+            {/* Hero card */}
+            <div className="card mb-6">
+              <div className="aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
+                <span className="text-6xl">📚</span>
+              </div>
+              <div className="p-6">
+                <h1 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-2">{course.title}</h1>
+                <p className="text-brand-blue font-medium mb-4">{course.subtitle}</p>
+                <p className="text-gray-600 leading-relaxed">{course.description}</p>
+                <div className="mt-4 flex flex-wrap gap-1">
+                  {course.tags.map((tag) => (
+                    <span key={tag} className="text-xs bg-brand-light text-brand-blue px-2.5 py-1 rounded-full font-medium">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Lessons list */}
+            <div className="card p-6">
+              <h2 className="text-lg font-semibold text-brand-dark mb-4">
+                Obsah kurzu ({course.lessons.length} lekcí · {formatDuration(totalDuration)})
+              </h2>
+              <ul className="space-y-2">
+                {course.lessons.map((lesson) => (
+                  <li
+                    key={lesson.id}
+                    className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0"
+                  >
+                    <span className="shrink-0 w-7 h-7 rounded-full bg-brand-light text-brand-blue text-xs font-bold flex items-center justify-center">
+                      {lesson.order}
+                    </span>
+                    <span className="flex-1 text-sm text-brand-dark font-medium">{lesson.title}</span>
+                    <span className="text-xs text-gray-400 shrink-0">{formatDuration(lesson.durationSeconds)}</span>
+                    <AccessBadge level={lesson.accessLevel} />
+                  </li>
+                ))}
+              </ul>
+              {freeLessons > 0 && (
+                <p className="mt-4 text-xs text-gray-400">
+                  {freeLessons} {freeLessons === 1 ? "lekce je" : "lekce jsou"} zdarma – vyzkoušejte před koupí.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <aside className="space-y-5">
+            <div className="card p-6 sticky top-24">
+              <div className="text-3xl font-semibold text-brand-dark mb-1">{course.priceKc} Kč</div>
+              <p className="text-xs text-gray-400 mb-5">Jednorázová platba – přístup navždy</p>
+
+              <button type="button" className="btn-primary w-full mb-3">
+                Koupit kurz
+                <span className="text-white/60 font-normal text-xs ml-1">(platba brzy)</span>
+              </button>
+              <button type="button" className="btn-outline w-full text-sm">
+                Vyzkoušet zdarma
+              </button>
+
+              <div className="mt-6 space-y-2 text-sm text-gray-600">
+                <p className="flex items-center gap-2">
+                  <span className="text-brand-blue">✓</span> {course.lessons.length} videolekcí
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-brand-blue">✓</span> Celkem {formatDuration(totalDuration)} obsahu
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-brand-blue">✓</span> Přístup navždy
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="text-brand-blue">✓</span> Na mobilu i PC
+                </p>
+              </div>
+
+              <p className="mt-5 pt-5 border-t border-gray-100 text-xs text-center text-gray-400">
+                Členové VIP mají slevu 20 % →{" "}
+                <Link href="/clenstvi" className="text-brand-blue hover:underline">
+                  Zjistit více
+                </Link>
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
