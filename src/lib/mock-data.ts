@@ -5,6 +5,7 @@ import type {
   MembershipPlan,
   Service,
   ScheduleSlot,
+  CalendarEvent,
 } from "@/types";
 
 // ─── Spádová oblast (kam Honza dojíždí na osobní lekce) ────────────────────────
@@ -181,6 +182,57 @@ function dateKey(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+// ─── Akce / workshopy v kalendáři ──────────────────────────────────────────────
+// Zobrazí se v kalendáři jiným (oranžovým) puntíkem. Po rozkliku dne se ukáže
+// detail akce. Stačí přidat položku s datem "YYYY-MM-DD".
+
+export const CALENDAR_EVENTS: CalendarEvent[] = [
+  {
+    id: "ev1",
+    date: "2026-06-13",
+    title: "Workshop: Zdravá záda",
+    kind: "Workshop",
+    time: "10:00–13:00",
+    location: "Dobřichovice",
+    description:
+      "Půldenní workshop zaměřený na úlevu a prevenci bolestí zad. Teorie i praxe, vhodné pro každého.",
+    priceKc: 890,
+  },
+  {
+    id: "ev2",
+    date: "2026-06-21",
+    title: "Mobilita pro běžce",
+    kind: "Seminář",
+    time: "09:00–11:30",
+    location: "Řevnice",
+    description:
+      "Praktický seminář, jak si jako běžec udržet zdravé kyčle, kolena a kotníky.",
+    priceKc: 690,
+  },
+  {
+    id: "ev3",
+    date: "2026-07-04",
+    title: "Letní pohybový den pro rodiny",
+    kind: "Akce",
+    time: "14:00–17:00",
+    location: "Karlík",
+    description:
+      "Odpoledne plné pohybu a her pro rodiče s dětmi. Společně, venku, v pohodě.",
+    priceKc: 0,
+  },
+];
+
+/** Akce pro daný den (může být víc). */
+export function getEventsForDate(date: Date): CalendarEvent[] {
+  const key = dateKey(date);
+  return CALENDAR_EVENTS.filter((e) => e.date === key);
+}
+
+/** Má den nějakou akci? */
+export function hasEvent(date: Date): boolean {
+  return getEventsForDate(date).length > 0;
 }
 
 /**

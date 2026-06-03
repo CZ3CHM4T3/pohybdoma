@@ -9,6 +9,8 @@ import {
   hasFreeSlot,
   getServicePrice,
   hasDayPricing,
+  getEventsForDate,
+  hasEvent,
 } from "@/lib/mock-data";
 import type { Service } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -80,6 +82,7 @@ export default function RezervacePage() {
 
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
   const slots = selectedDate ? getDaySlots(selectedDate) : [];
+  const dayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   const canPrev = startOfMonth(viewMonth) > minMonth;
   const canNext = startOfMonth(viewMonth) < maxMonth;
@@ -299,36 +302,47 @@ export default function RezervacePage() {
                   const inMonth = d.getMonth() === viewMonth.getMonth();
                   const isPast = d < today;
                   const free = inMonth && !isPast && hasFreeSlot(d);
+                  const eventDay = inMonth && !isPast && hasEvent(d);
+                  const clickable = free || eventDay;
                   const isSelected = selectedDate && sameDay(d, selectedDate);
                   return (
                     <button
                       key={d.toISOString()}
                       type="button"
-                      disabled={!free}
+                      disabled={!clickable}
                       onClick={() => { setSelectedDate(d); setSelectedTime(null); }}
                       className={`relative aspect-square rounded-lg text-sm font-medium transition-all ${
                         !inMonth
                           ? "text-gray-300"
                           : isSelected
                             ? "bg-emerald-600 text-white shadow-md"
-                            : free
+                            : clickable
                               ? "text-brand-dark hover:bg-emerald-50"
                               : "text-gray-300 cursor-not-allowed"
                       }`}
                     >
                       {d.getDate()}
-                      {free && !isSelected && (
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      {!isSelected && (free || eventDay) && (
+                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+                          {free && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                          {eventDay && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                        </span>
                       )}
                     </button>
                   );
                 })}
               </div>
 
-              <p className="mt-4 text-xs text-gray-400 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                Den s volným termínem
-              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  Volný termín
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                  Akce / workshop
+                </span>
+              </div>
             </div>
 
             {/* Časy */}
@@ -350,6 +364,29 @@ export default function RezervacePage() {
                     </span>
                   </div>
                 </div>
+
+                {/* Akce v tento den */}
+                {dayEvents.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="mb-4 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        {ev.kind}
+                      </span>
+                      {ev.time && <span className="text-xs font-medium text-amber-800">{ev.time}</span>}
+                    </div>
+                    <h4 className="font-semibold text-brand-dark">{ev.title}</h4>
+                    <p className="mt-1 text-sm text-gray-600 leading-relaxed">{ev.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                      {ev.location && <span>📍 {ev.location}</span>}
+                      <span>
+                        {ev.priceKc === 0 ? "Zdarma" : ev.priceKc != null ? `${ev.priceKc} Kč` : ""}
+                      </span>
+                    </div>
+                  </div>
+                ))}
                 {slots.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {slots.map((slot) => {
@@ -375,6 +412,10 @@ export default function RezervacePage() {
                       );
                     })}
                   </div>
+                ) : dayEvents.length > 0 ? (
+                  <p className="text-sm text-gray-500">
+                    V tento den nemám individuální lekce – ale koná se akce (viz výše).
+                  </p>
                 ) : (
                   <p className="text-sm text-gray-500">V tento den necvičím.</p>
                 )}

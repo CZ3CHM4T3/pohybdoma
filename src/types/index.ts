@@ -112,6 +112,21 @@ export interface ScheduleSlot {
   status: SlotStatus;
 }
 
+/** Akce / workshop v kalendáři (jiná barva puntíku). */
+export interface CalendarEvent {
+  id: string;
+  date: string; // "YYYY-MM-DD"
+  title: string;
+  /** Typ akce – např. "Workshop", "Seminář", "Online". */
+  kind: string;
+  time?: string; // "HH:MM" nebo rozsah, volitelné
+  location?: string;
+  description: string;
+  priceKc?: number;
+  /** Cílová stránka / přihláška (volitelné). */
+  href?: string;
+}
+
 // ─── Personal lessons / bookings ──────────────────────────────────────────────
 
 export type LessonType = "online" | "domů" | "na místě";
