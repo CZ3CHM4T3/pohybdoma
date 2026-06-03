@@ -133,7 +133,7 @@ export default function HomePage() {
               },
               {
                 icon: "🎬",
-                title: "Videoknihovna",
+                title: "Knihovna pohybu",
                 desc: "Stovky videí třídění dle části těla, obtížnosti a problému. Cvičte kdy a kde chcete.",
                 href: "/videoknihovna",
                 cta: "Procházet videa",

@@ -9,13 +9,19 @@ export const metadata: Metadata = {
 };
 
 const COURSE_ICONS: Record<string, string> = {
-  "office-cviceni": "💼",
-  "bolava-zada": "🦴",
-  "zdravotni-noha": "🦵",
-  "kycle": "🔄",
-  "rameno": "💪",
-  "dech": "🌬️",
+  "znovuzrozeni": "🌱",
+  "kalistenika-doma": "🤸",
+  "kettlebell": "🏋️",
+  "animal-flow": "🐾",
+  "flowrope": "🪢",
+  "schody": "🪜",
+  "office": "💼",
   "rodic-a-dite": "👨‍👧",
+  "reset-dychani": "🌬️",
+  "noha": "🦵",
+  "kycel": "🔄",
+  "rameno": "💪",
+  "panev": "🧘",
 };
 
 export default function KuryPage() {

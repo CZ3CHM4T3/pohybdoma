@@ -59,7 +59,7 @@ export default function VideoknihovnaPage() {
       {/* Header */}
       <section className="bg-brand-light py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Videoknihovna</p>
+          <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Knihovna pohybu</p>
           <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">
             Videa pro každé tělo
           </h1>

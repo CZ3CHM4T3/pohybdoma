@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const VIP_SECTIONS = [
-  { icon: "🎬", title: "VIP Videoknihovna", desc: "Vaše VIP a VIP PLUS videa na jednom místě.", href: "/videoknihovna", cta: "Otevřít" },
+  { icon: "🎬", title: "VIP Knihovna pohybu", desc: "Vaše VIP a VIP PLUS videa na jednom místě.", href: "/videoknihovna", cta: "Otevřít" },
   { icon: "📚", title: "VIP Kurzy", desc: "Prémiové videokurzy se slevou pro VIP členy.", href: "/kurzy", cta: "Kurzy" },
   { icon: "💬", title: "Přímý chat", desc: "Napište mi přímo – odpovídám do 24 hodin. (VIP PLUS)", href: "#", cta: "Brzy" },
   { icon: "📡", title: "Živé streamy", desc: "Záznamy a přístupy k živým tréninkům. (VIP PLUS)", href: "#", cta: "Brzy" },

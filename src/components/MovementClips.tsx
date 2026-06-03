@@ -68,7 +68,7 @@ export function MovementClips() {
             </h2>
             <p className="mt-5 text-lg text-white/70 leading-relaxed">
               Nejde o dokonalý pohyb. Jde o objevování možností. Nakoukni do
-              krátkých ukázek – přesně takhle se hýbeme společně v Klubu.
+              krátkých ukázek – přesně takhle se hýbeme společně v členství.
             </p>
           </Reveal>
         </div>
@@ -120,9 +120,9 @@ export function MovementClips() {
                   {clip.duration}
                 </span>
 
-                {/* Štítek Klub */}
+                {/* Štítek úrovně */}
                 <span className="absolute top-3 left-3 rounded-full bg-brand-blue px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                  Klub
+                  VIP
                 </span>
 
                 {/* Název */}
