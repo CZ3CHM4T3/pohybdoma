@@ -79,24 +79,34 @@ alter table public.events                enable row level security;
 alter table public.bookings              enable row level security;
 
 -- Dostupnost a akce smí číst kdokoliv (zobrazují se v kalendáři):
+drop policy if exists "verejne cteni rozvrhu" on public.availability_weekly;
 create policy "verejne cteni rozvrhu"
   on public.availability_weekly for select using (true);
+
+drop policy if exists "verejne cteni vyjimek" on public.availability_overrides;
 create policy "verejne cteni vyjimek"
   on public.availability_overrides for select using (true);
+
+drop policy if exists "verejne cteni akci" on public.events;
 create policy "verejne cteni akci"
   on public.events for select using (true);
 
 -- Rezervaci může vytvořit kdokoliv (i nepřihlášený host):
+drop policy if exists "vytvoreni rezervace" on public.bookings;
 create policy "vytvoreni rezervace"
   on public.bookings for insert with check (true);
 
 -- Svoje rezervace vidí přihlášený uživatel:
+drop policy if exists "ctu svoje rezervace" on public.bookings;
 create policy "ctu svoje rezervace"
   on public.bookings for select using (auth.uid() = user_id);
 
 -- Svůj profil vidí/edituje přihlášený uživatel:
+drop policy if exists "ctu svuj profil" on public.profiles;
 create policy "ctu svuj profil"
   on public.profiles for select using (auth.uid() = id);
+
+drop policy if exists "edituji svuj profil" on public.profiles;
 create policy "edituji svuj profil"
   on public.profiles for update using (auth.uid() = id);
 
