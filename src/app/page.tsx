@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+import { MovementClips } from "@/components/MovementClips";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { VideoCard } from "@/components/VideoCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -44,11 +45,8 @@ export default function HomePage() {
   return (
     <>
       {/* ── Hero – fullscreen logo splash ── */}
+      {/* Pozadí je čistě bílé (#fff) = stejné jako pozadí loga, takže rámeček loga splývá. */}
       <section className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden bg-white px-4 py-16 text-center">
-        {/* Jemné modré akcenty (daleko v rozích, aby nezasahovaly do loga) */}
-        <div className="pointer-events-none absolute -top-40 -right-40 w-[26rem] h-[26rem] rounded-full bg-brand-blue/[0.06] blur-3xl animate-float-slow" />
-        <div className="pointer-events-none absolute -bottom-48 -left-40 w-[24rem] h-[24rem] rounded-full bg-[#5aadff]/[0.06] blur-3xl animate-float" />
-
         {/* Logo přes celou šířku */}
         <Reveal variant="scale">
           <Image
@@ -65,11 +63,11 @@ export default function HomePage() {
         {/* CTA tlačítka */}
         <Reveal variant="up" delay={200}>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/videoknihovna" className="btn-primary text-base py-3 px-8">
-              Procházet videa zdarma
+            <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
+              Začít svou cestu
             </Link>
-            <Link href="/clenstvi" className="btn-outline text-base py-3 px-8">
-              Prozkoumat členství
+            <Link href="/videoknihovna" className="btn-outline text-base py-3 px-8">
+              Procházet videa zdarma
             </Link>
           </div>
         </Reveal>
@@ -92,6 +90,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Ukázky cvičení (videosekvence) ── */}
+      <MovementClips />
 
       {/* ── Stats band ── */}
       <section className="bg-white border-b border-gray-100">
