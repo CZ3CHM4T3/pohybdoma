@@ -129,13 +129,20 @@ export function hasDayPricing(service: Service): boolean {
 //
 // Dny: 1=Po, 2=Út, 3=St, 4=Čt, 5=Pá, 6=So, 0=Ne. Čas = začátek hodiny "HH:MM".
 
+// Celý pracovní den 8–19 (začátky hodin 08:00 … 18:00). Všechny hodiny se zobrazí;
+// obsazené šedě, volné (z FREE_HOURS) zeleně – působí to, že je hodně práce.
+const FULL_DAY = [
+  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
+  "14:00", "15:00", "16:00", "17:00", "18:00",
+];
+
 const WORKING_HOURS: Record<number, string[]> = {
   0: [], // neděle – nepracuji
-  1: ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00", "17:00", "18:00"], // pondělí
-  2: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"], // úterý
-  3: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "15:00", "16:00", "17:00", "18:00"], // středa
-  4: ["13:00", "18:00"], // čtvrtek
-  5: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"], // pátek
+  1: FULL_DAY, // pondělí
+  2: FULL_DAY, // úterý
+  3: FULL_DAY, // středa
+  4: FULL_DAY, // čtvrtek
+  5: FULL_DAY, // pátek
   6: [], // sobota – zatím nepracuji (klidně doplň hodiny)
 };
 
