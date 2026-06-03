@@ -5,8 +5,8 @@ import {
   SERVICES,
   SERVICE_AREA,
   HOME_BASE,
-  getAvailableTimes,
-  hasAvailability,
+  getDaySlots,
+  hasFreeSlot,
   getServicePrice,
   hasDayPricing,
 } from "@/lib/mock-data";
@@ -75,7 +75,7 @@ export default function RezervacePage() {
   const price = service ? getServicePrice(service, selectedDate) : 0;
 
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
-  const times = selectedDate ? getAvailableTimes(selectedDate) : [];
+  const slots = selectedDate ? getDaySlots(selectedDate) : [];
 
   const canPrev = startOfMonth(viewMonth) > minMonth;
   const canNext = startOfMonth(viewMonth) < maxMonth;
@@ -294,7 +294,7 @@ export default function RezervacePage() {
                 {days.map((d) => {
                   const inMonth = d.getMonth() === viewMonth.getMonth();
                   const isPast = d < today;
-                  const free = inMonth && !isPast && hasAvailability(d);
+                  const free = inMonth && !isPast && hasFreeSlot(d);
                   const isSelected = selectedDate && sameDay(d, selectedDate);
                   return (
                     <button
@@ -306,15 +306,15 @@ export default function RezervacePage() {
                         !inMonth
                           ? "text-gray-300"
                           : isSelected
-                            ? "bg-brand-blue text-white shadow-md"
+                            ? "bg-emerald-600 text-white shadow-md"
                             : free
-                              ? "text-brand-dark hover:bg-brand-light"
+                              ? "text-brand-dark hover:bg-emerald-50"
                               : "text-gray-300 cursor-not-allowed"
                       }`}
                     >
                       {d.getDate()}
                       {free && !isSelected && (
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-blue" />
+                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       )}
                     </button>
                   );
@@ -322,7 +322,7 @@ export default function RezervacePage() {
               </div>
 
               <p className="mt-4 text-xs text-gray-400 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-brand-blue inline-block" />
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                 Den s volným termínem
               </p>
             </div>
@@ -330,30 +330,49 @@ export default function RezervacePage() {
             {/* Časy */}
             {selectedDate && (
               <div className="mt-6">
-                <p className="text-sm font-semibold text-brand-dark mb-3 capitalize">
-                  {selectedDate.toLocaleDateString("cs-CZ", {
-                    weekday: "long", day: "numeric", month: "long",
-                  })}
-                </p>
-                {times.length > 0 ? (
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-brand-dark capitalize">
+                    {selectedDate.toLocaleDateString("cs-CZ", {
+                      weekday: "long", day: "numeric", month: "long",
+                    })}
+                  </p>
+                  {/* Legenda */}
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> volno
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> obsazeno
+                    </span>
+                  </div>
+                </div>
+                {slots.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {times.map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setSelectedTime(t)}
-                        className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                          selectedTime === t
-                            ? "bg-brand-blue text-white shadow-md"
-                            : "card hover:shadow-md text-brand-dark"
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                    {slots.map((slot) => {
+                      const isFree = slot.status === "free";
+                      const isSel = selectedTime === slot.time;
+                      return (
+                        <button
+                          key={slot.time}
+                          type="button"
+                          disabled={!isFree}
+                          onClick={() => isFree && setSelectedTime(slot.time)}
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 ${
+                            isSel
+                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md"
+                              : isFree
+                                ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                : "border-transparent bg-gray-100 text-gray-400 line-through cursor-not-allowed"
+                          }`}
+                          aria-label={isFree ? `${slot.time} – volno` : `${slot.time} – obsazeno`}
+                        >
+                          {slot.time}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">V tento den nemám volný termín.</p>
+                  <p className="text-sm text-gray-500">V tento den necvičím.</p>
                 )}
               </div>
             )}

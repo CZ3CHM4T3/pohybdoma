@@ -102,6 +102,16 @@ export interface Service {
   highlighted?: boolean;
 }
 
+// ─── Rozvrh / sloty ───────────────────────────────────────────────────────────
+
+/** Stav slotu: "free" = volno (zeleně), "booked" = obsazeno (šedě). */
+export type SlotStatus = "free" | "booked";
+
+export interface ScheduleSlot {
+  time: string; // "HH:MM"
+  status: SlotStatus;
+}
+
 // ─── Personal lessons / bookings ──────────────────────────────────────────────
 
 export type LessonType = "online" | "domů" | "na místě";
