@@ -14,19 +14,34 @@ export const HOME_BASE = "Dobřichovice";
 
 export const SERVICE_AREA: string[] = [
   "Dobřichovice",
-  "Černošice",
-  "Všenory",
-  "Řevnice",
   "Lety",
+  "Řevnice",
+  "Všenory",
   "Karlík",
-  "Svinaře",
-  "Nesvačily",
+  "Černošice",
+  "Vonoklasy",
+  "Roblín",
+  "Černolice",
+  "Mořinka",
+  "Hlásná Třebaň",
+  "Zadní Třebaň",
+  "Karlštejn",
+  "Řitka",
+  "Radotín",
+  "Lipence",
+  "Zbraslav",
 ];
 
 /** Je daná obec ve spádové oblasti? (case-insensitive, bez ohledu na diakritiku okolo) */
 export function isInServiceArea(municipality: string): boolean {
   const norm = (s: string) => s.trim().toLowerCase();
   return SERVICE_AREA.some((m) => norm(m) === norm(municipality));
+}
+
+/** Je datum víkend (sobota/neděle)? */
+export function isWeekend(date: Date): boolean {
+  const d = date.getDay();
+  return d === 0 || d === 6;
 }
 
 // ─── Služby k rezervaci ────────────────────────────────────────────────────────
@@ -45,7 +60,9 @@ export const SERVICES: Service[] = [
     id: "svc-lekce-60",
     name: "Pohybová lekce 60 min",
     durationMin: 60,
-    priceKc: 800,
+    priceKc: 900,
+    priceWeekdayKc: 900,
+    priceWeekendKc: 1200,
     mode: "inPerson",
     description:
       "Klasická osobní lekce u tebe doma nebo na dohodnutém místě. Přesně na míru tvému tělu.",
@@ -79,6 +96,24 @@ export const SERVICES: Service[] = [
       "Pět osobních lekcí se zvýhodněnou cenou. Pro ty, kdo to s pohybem myslí vážně.",
   },
 ];
+
+/**
+ * Cena služby pro daný den. U služeb s denní sazbou (priceWeekdayKc/
+ * priceWeekendKc) vrátí cenu dle všedního dne / víkendu, jinak pevnou priceKc.
+ * Bez data vrací výchozí (všední) cenu.
+ */
+export function getServicePrice(service: Service, date?: Date | null): number {
+  if (service.priceWeekdayKc != null && service.priceWeekendKc != null) {
+    if (date) return isWeekend(date) ? service.priceWeekendKc : service.priceWeekdayKc;
+    return service.priceWeekdayKc;
+  }
+  return service.priceKc;
+}
+
+/** Má služba denní (všední/víkendovou) sazbu? */
+export function hasDayPricing(service: Service): boolean {
+  return service.priceWeekdayKc != null && service.priceWeekendKc != null;
+}
 
 // ─── Generátor dostupných termínů ──────────────────────────────────────────────
 // Deterministicky vygeneruje volné časy pro daný den. Později nahradíš reálnou

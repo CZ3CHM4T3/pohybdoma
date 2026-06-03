@@ -7,6 +7,8 @@ import {
   HOME_BASE,
   getAvailableTimes,
   hasAvailability,
+  getServicePrice,
+  hasDayPricing,
 } from "@/lib/mock-data";
 import type { Service } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -70,6 +72,7 @@ export default function RezervacePage() {
   const service: Service | null =
     SERVICES.find((s) => s.id === serviceId) ?? null;
   const isInPerson = service?.mode === "inPerson";
+  const price = service ? getServicePrice(service, selectedDate) : 0;
 
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
   const times = selectedDate ? getAvailableTimes(selectedDate) : [];
@@ -140,7 +143,7 @@ export default function RezervacePage() {
                 })}{" "}v {selectedTime}
               </p>
               {isInPerson && <p><strong>Místo:</strong> {address}, {municipality}</p>}
-              <p><strong>Cena:</strong> {service.priceKc} Kč</p>
+              <p><strong>Cena:</strong> {price} Kč</p>
             </div>
             <p className="text-gray-600 text-sm mb-6">
               Brzy se ti ozvu s potvrzením a platebními údaji. Těším se na pohyb!
@@ -227,8 +230,16 @@ export default function RezervacePage() {
                   <h3 className="text-lg font-semibold text-brand-dark mb-1">{s.name}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed mb-4">{s.description}</p>
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
-                    <span className="text-xs text-gray-400">{s.durationMin} min</span>
+                    {hasDayPricing(s) ? (
+                      <span className="text-brand-dark">
+                        <span className="text-xl font-semibold">{s.priceWeekdayKc}</span>
+                        <span className="text-sm font-semibold"> / {s.priceWeekendKc} Kč</span>
+                        <span className="block text-[11px] font-normal text-gray-400">všední den / víkend</span>
+                      </span>
+                    ) : (
+                      <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
+                    )}
+                    <span className="text-xs text-gray-400 self-start">{s.durationMin} min</span>
                   </div>
                 </button>
               );
@@ -361,7 +372,12 @@ export default function RezervacePage() {
               <div className="rounded-xl bg-brand-light p-4 mb-6 text-sm text-brand-dark">
                 <strong>{service.name}</strong> ·{" "}
                 {selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })} v {selectedTime} ·{" "}
-                {service.priceKc} Kč
+                <strong>{price} Kč</strong>
+                {hasDayPricing(service) && (
+                  <span className="text-gray-500">
+                    {" "}({selectedDate.getDay() === 0 || selectedDate.getDay() === 6 ? "víkendová" : "všední"} sazba)
+                  </span>
+                )}
               </div>
 
               {/* Místo (jen osobní) */}
@@ -449,7 +465,7 @@ export default function RezervacePage() {
               </div>
 
               <button type="submit" disabled={!formValid} className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed">
-                Rezervovat a zaplatit {service.priceKc} Kč
+                Rezervovat a zaplatit {price} Kč
                 <span className="text-white/70 font-normal text-xs ml-1">(platba zatím neaktivní)</span>
               </button>
               <p className="mt-3 text-xs text-center text-gray-400">

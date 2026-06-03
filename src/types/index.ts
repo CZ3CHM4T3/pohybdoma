@@ -89,7 +89,12 @@ export interface Service {
   id: string;
   name: string;
   durationMin: number;
+  /** Pevná cena. Pokud je cena závislá na dni, použijí se pole níže. */
   priceKc: number;
+  /** Volitelně: cena ve všední den (Po–Pá). */
+  priceWeekdayKc?: number;
+  /** Volitelně: cena o víkendu (So–Ne). */
+  priceWeekendKc?: number;
   /** "online" = odkudkoliv, "inPerson" = jen ve spádové oblasti. */
   mode: ServiceMode;
   description: string;
