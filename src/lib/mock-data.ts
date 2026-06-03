@@ -3,7 +3,119 @@ import type {
   Course,
   OpenSlot,
   MembershipPlan,
+  Service,
 } from "@/types";
+
+// ─── Spádová oblast (kam Honza dojíždí na osobní lekce) ────────────────────────
+// Osobní (dojezdové) lekce lze rezervovat jen v těchto obcích. Online konzultace
+// jsou dostupné odkudkoliv. Stačí upravit seznam.
+
+export const HOME_BASE = "Dobřichovice";
+
+export const SERVICE_AREA: string[] = [
+  "Dobřichovice",
+  "Černošice",
+  "Všenory",
+  "Řevnice",
+  "Lety",
+  "Karlík",
+  "Svinaře",
+  "Nesvačily",
+];
+
+/** Je daná obec ve spádové oblasti? (case-insensitive, bez ohledu na diakritiku okolo) */
+export function isInServiceArea(municipality: string): boolean {
+  const norm = (s: string) => s.trim().toLowerCase();
+  return SERVICE_AREA.some((m) => norm(m) === norm(municipality));
+}
+
+// ─── Služby k rezervaci ────────────────────────────────────────────────────────
+
+export const SERVICES: Service[] = [
+  {
+    id: "svc-diagnostika",
+    name: "Úvodní diagnostika",
+    durationMin: 75,
+    priceKc: 1200,
+    mode: "inPerson",
+    description:
+      "První setkání: projdeme tvůj pohyb, bolesti a cíle. Odejdeš s jasným plánem, jak dál.",
+  },
+  {
+    id: "svc-lekce-60",
+    name: "Pohybová lekce 60 min",
+    durationMin: 60,
+    priceKc: 800,
+    mode: "inPerson",
+    description:
+      "Klasická osobní lekce u tebe doma nebo na dohodnutém místě. Přesně na míru tvému tělu.",
+    highlighted: true,
+  },
+  {
+    id: "svc-online-30",
+    name: "Online konzultace 30 min",
+    durationMin: 30,
+    priceKc: 500,
+    mode: "online",
+    description:
+      "Konzultace přes video hovor odkudkoliv. Ideální na otázky, kontrolu techniky nebo úvodní seznámení.",
+  },
+  {
+    id: "svc-plan-doma",
+    name: "Osobní plán na doma",
+    durationMin: 45,
+    priceKc: 1500,
+    mode: "online",
+    description:
+      "Sestavím ti pohybový plán na míru a online si ho spolu projdeme. Cvičíš pak samostatně doma.",
+  },
+  {
+    id: "svc-balicek-5",
+    name: "Balíček 5 lekcí",
+    durationMin: 60,
+    priceKc: 3600,
+    mode: "inPerson",
+    description:
+      "Pět osobních lekcí se zvýhodněnou cenou. Pro ty, kdo to s pohybem myslí vážně.",
+  },
+];
+
+// ─── Generátor dostupných termínů ──────────────────────────────────────────────
+// Deterministicky vygeneruje volné časy pro daný den. Později nahradíš reálnou
+// dostupností z kalendáře / databáze.
+
+const WEEKDAY_TIMES: Record<number, string[]> = {
+  0: [], // neděle – volno
+  1: ["09:00", "11:00", "16:00", "17:30"], // pondělí
+  2: ["10:00", "14:00"], // úterý
+  3: ["09:00", "11:00", "16:00", "17:30"], // středa
+  4: ["10:00", "14:00", "17:00"], // čtvrtek
+  5: ["09:00", "11:00", "15:00"], // pátek
+  6: ["09:00", "10:30"], // sobota
+};
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+/** Vrátí volné časy (HH:MM) pro daný den. Minulé dny jsou prázdné. */
+export function getAvailableTimes(date: Date): string[] {
+  const today = startOfDay(new Date());
+  const day = startOfDay(date);
+  if (day < today) return [];
+
+  const base = WEEKDAY_TIMES[date.getDay()] ?? [];
+  // Simulace obsazenosti – část termínů "zabraná" podle data (deterministicky).
+  const dayNum = date.getDate();
+  return base.filter((_, i) => (dayNum + i) % 3 !== 0);
+}
+
+/** Má den aspoň jeden volný termín? */
+export function hasAvailability(date: Date): boolean {
+  return getAvailableTimes(date).length > 0;
+}
 
 // ─── Videos ──────────────────────────────────────────────────────────────────
 

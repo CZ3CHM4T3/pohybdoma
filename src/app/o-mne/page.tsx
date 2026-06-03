@@ -33,7 +33,7 @@ export default function AboutPage() {
               <p className="text-lg text-gray-600 leading-relaxed mb-8">
                 Pohyb doma vznikl z přesvědčení, že kvalitní pohybová výuka by měla být dostupná každému – bez dojíždění, drahého členství ve fitku nebo složitého vybavení.
               </p>
-              <Link href="/osobni-lekce" className="btn-primary">
+              <Link href="/rezervace" className="btn-primary">
                 Rezervovat osobní lekci
               </Link>
             </div>

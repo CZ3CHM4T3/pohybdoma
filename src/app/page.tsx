@@ -127,8 +127,8 @@ export default function HomePage() {
               {
                 icon: "👤",
                 title: "Osobní lekce",
-                desc: "1:1 lekce v pohodlí domova nebo online. Přesně na míru vašemu tělu a cílům. Rezervujte si termín.",
-                href: "/osobni-lekce",
+                desc: "1:1 lekce u tebe doma (okolí Dobřichovic) nebo online odkudkoliv. Přesně na míru tvému tělu. Rezervuj si termín.",
+                href: "/rezervace",
                 cta: "Rezervovat lekci",
               },
               {

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 const NAV_LINKS = [
   { href: "/", label: "Domů" },
   { href: "/o-mne", label: "O mně" },
-  { href: "/osobni-lekce", label: "Osobní lekce" },
+  { href: "/rezervace", label: "Rezervace" },
   { href: "/videoknihovna", label: "Knihovna pohybu" },
   { href: "/kurzy", label: "Kurzy" },
   { href: "/clenstvi", label: "Členství" },

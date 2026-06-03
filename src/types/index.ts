@@ -81,6 +81,22 @@ export interface Course {
   publishedAt: string;
 }
 
+// ─── Services (rezervace) ─────────────────────────────────────────────────────
+
+export type ServiceMode = "online" | "inPerson";
+
+export interface Service {
+  id: string;
+  name: string;
+  durationMin: number;
+  priceKc: number;
+  /** "online" = odkudkoliv, "inPerson" = jen ve spádové oblasti. */
+  mode: ServiceMode;
+  description: string;
+  /** Zvýraznit jako doporučenou / nejoblíbenější. */
+  highlighted?: boolean;
+}
+
 // ─── Personal lessons / bookings ──────────────────────────────────────────────
 
 export type LessonType = "online" | "domů" | "na místě";
