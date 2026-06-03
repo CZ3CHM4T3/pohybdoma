@@ -146,7 +146,7 @@ const WORKING_HOURS: Record<number, string[]> = {
   6: [], // sobota – zatím nepracuji (klidně doplň hodiny)
 };
 
-// 🟢 VOLNÉ HODINY – tohle je seznam, který budeš měnit nejčastěji.
+// 🟢 VOLNÉ HODINY – pravidelně volné hodiny (platí každý týden stejně).
 const FREE_HOURS: Record<number, string[]> = {
   0: [],
   1: ["10:00"], // pondělí: volno 10–11
@@ -157,23 +157,61 @@ const FREE_HOURS: Record<number, string[]> = {
   6: [],
 };
 
+// ─── Výjimky pro KONKRÉTNÍ datum ("pro tentokrát") ─────────────────────────────
+// Mají PŘEDNOST před týdenním rozvrhem. Klíč = datum "YYYY-MM-DD".
+// U času nastav "free" (uvolnit) nebo "booked" (zabrat) – jen pro ten den.
+//
+// Příklady (odkomentuj a uprav):
+//   "2026-06-25": { "16:00": "free" },                 // tento čtvrtek NAVÍC volno 16–17
+//   "2026-06-08": { "10:00": "booked" },               // toto pondělí 10–11 zrušeno
+//   "2026-06-13": { "09:00": "free", "10:00": "free" } // mimořádně i v sobotu volno
+const DATE_OVERRIDES: Record<string, Record<string, SlotStatus>> = {
+  // zatím žádné výjimky
+};
+
 function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
 }
 
-/** Vrátí všechny sloty (volné i obsazené) pro daný den. Minulé dny jsou prázdné. */
+/** Datum → klíč "YYYY-MM-DD" (lokální čas). */
+function dateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Vrátí všechny sloty (volné i obsazené) pro daný den. Minulé dny jsou prázdné.
+ * Nejprve týdenní rozvrh, poté se aplikují výjimky pro konkrétní datum.
+ */
 export function getDaySlots(date: Date): ScheduleSlot[] {
   const today = startOfDay(new Date());
   const day = startOfDay(date);
   if (day < today) return [];
+
   const wd = date.getDay();
   const free = FREE_HOURS[wd] ?? [];
-  return (WORKING_HOURS[wd] ?? []).map((time) => ({
-    time,
-    status: free.includes(time) ? "free" : "booked",
-  }));
+
+  // Základ z týdenního rozvrhu
+  const map = new Map<string, SlotStatus>();
+  (WORKING_HOURS[wd] ?? []).forEach((time) => {
+    map.set(time, free.includes(time) ? "free" : "booked");
+  });
+
+  // Výjimky pro tento konkrétní den (přidají nebo přepíšou hodinu)
+  const overrides = DATE_OVERRIDES[dateKey(date)];
+  if (overrides) {
+    for (const [time, status] of Object.entries(overrides)) {
+      map.set(time, status);
+    }
+  }
+
+  return [...map.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([time, status]) => ({ time, status }));
 }
 
 /** Má den aspoň jeden VOLNÝ termín? */
