@@ -56,7 +56,11 @@ export default function RezervacePage() {
   const minMonth = useMemo(() => startOfMonth(today), [today]);
   const maxMonth = useMemo(() => addMonths(minMonth, 11), [minMonth]);
 
-  const [serviceId, setServiceId] = useState<string | null>(null);
+  // Výchozí předvybraná služba (doporučená, jinak první) – aby byl kalendář
+  // vidět hned po otevření stránky.
+  const defaultServiceId =
+    SERVICES.find((s) => s.highlighted)?.id ?? SERVICES[0]?.id ?? null;
+  const [serviceId, setServiceId] = useState<string | null>(defaultServiceId);
   const [viewMonth, setViewMonth] = useState<Date>(minMonth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
