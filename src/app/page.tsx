@@ -43,90 +43,40 @@ const STEPS = [
 export default function HomePage() {
   return (
     <>
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#062A6B] via-[#0a3a8a] to-[#1256c0] text-white animate-gradient">
-        {/* Floating decorative blobs */}
-        <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-[#1976FF]/30 blur-3xl animate-float" />
-        <div className="pointer-events-none absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-[#5aadff]/20 blur-3xl animate-float-slow" />
-        <div className="pointer-events-none absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_#1976FF_0%,_transparent_60%)]" />
+      {/* ── Hero – fullscreen logo splash ── */}
+      <section className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden bg-white px-4 py-16 text-center">
+        {/* Jemné modré akcenty (daleko v rozích, aby nezasahovaly do loga) */}
+        <div className="pointer-events-none absolute -top-40 -right-40 w-[26rem] h-[26rem] rounded-full bg-brand-blue/[0.06] blur-3xl animate-float-slow" />
+        <div className="pointer-events-none absolute -bottom-48 -left-40 w-[24rem] h-[24rem] rounded-full bg-[#5aadff]/[0.06] blur-3xl animate-float" />
 
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-28 flex flex-col lg:flex-row items-center gap-12">
-          {/* Text */}
-          <div className="flex-1 text-center lg:text-left">
-            <Reveal variant="up">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-4 py-1.5 text-xs font-semibold tracking-wide backdrop-blur-sm">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#5aadff] opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#5aadff]" />
-                </span>
-                Lektor pohybu · cvičení doma
-              </span>
-            </Reveal>
+        {/* Logo přes celou šířku */}
+        <Reveal variant="scale">
+          <Image
+            src="/LOGO.png"
+            alt="POHYB DOMA – Tvoje možnosti. Tvoje cesta."
+            width={1535}
+            height={1024}
+            className="h-auto w-[90vw] max-w-3xl lg:max-w-5xl animate-float-slow"
+            sizes="(max-width: 1024px) 90vw, 1024px"
+            priority
+          />
+        </Reveal>
 
-            <Reveal variant="up" delay={80}>
-              <div className="mt-6 mb-6 inline-flex rounded-2xl bg-white px-5 py-3 shadow-lg shadow-black/10">
-                <Image
-                  src="/LOGO.png"
-                  alt="POHYB DOMA"
-                  width={200}
-                  height={68}
-                  className="h-14 w-auto object-contain"
-                  priority
-                />
-              </div>
-            </Reveal>
-
-            <Reveal variant="up" delay={140}>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight tracking-wide">
-                Cvič doma.
-                <br />
-                Naprav si tělo.
-                <br />
-                <span className="text-gradient">Rostu na pohybové cestě.</span>
-              </h1>
-            </Reveal>
-
-            <Reveal variant="up" delay={220}>
-              <p className="mt-6 text-lg sm:text-xl text-white/75 font-normal max-w-xl mx-auto lg:mx-0">
-                Tvoje možnosti. Tvoje cesta.
-              </p>
-            </Reveal>
-
-            <Reveal variant="up" delay={300}>
-              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link
-                  href="/videoknihovna"
-                  className="btn-primary text-base py-3 px-8"
-                >
-                  Procházet videa zdarma
-                </Link>
-                <Link
-                  href="/clenstvi"
-                  className="btn-outline border-white/50 text-white hover:bg-white hover:text-brand-dark text-base py-3 px-8"
-                >
-                  Prozkoumat členství
-                </Link>
-              </div>
-            </Reveal>
+        {/* CTA tlačítka */}
+        <Reveal variant="up" delay={200}>
+          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/videoknihovna" className="btn-primary text-base py-3 px-8">
+              Procházet videa zdarma
+            </Link>
+            <Link href="/clenstvi" className="btn-outline text-base py-3 px-8">
+              Prozkoumat členství
+            </Link>
           </div>
-
-          {/* Illustration placeholder */}
-          <div className="flex-1 flex justify-center lg:justify-end">
-            <Reveal variant="scale" delay={200}>
-              <div className="relative w-72 h-72 lg:w-96 lg:h-96 rounded-3xl overflow-hidden bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm animate-float-slow">
-                <div className="text-center text-white/40">
-                  <div className="text-6xl mb-3">🏃</div>
-                  <p className="text-sm font-medium">Foto / ilustrace</p>
-                  <p className="text-xs opacity-60">placeholder</p>
-                </div>
-              </div>
-            </Reveal>
-          </div>
-        </div>
+        </Reveal>
 
         {/* Scroll hint */}
-        <div className="relative pb-8 flex justify-center">
-          <div className="flex flex-col items-center gap-1 text-white/50">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <div className="flex flex-col items-center gap-1 text-brand-dark/40">
             <span className="text-[11px] font-medium tracking-widest uppercase">
               Scrolluj
             </span>
