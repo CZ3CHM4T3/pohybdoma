@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const NAV_LINKS = [
   { href: "/", label: "Domů" },
@@ -18,11 +18,29 @@ const NAV_LINKS = [
 export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+    <header
+      className={`sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b transition-shadow duration-300 ${
+        scrolled
+          ? "border-gray-200 shadow-md"
+          : "border-gray-100 shadow-sm"
+      }`}
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div
+          className={`flex items-center justify-between gap-4 transition-all duration-300 ${
+            scrolled ? "h-14" : "h-16"
+          }`}
+        >
           {/* Logo */}
           <Link href="/" className="shrink-0 flex items-center" aria-label="POHYB DOMA – domovská stránka">
             <Image
@@ -30,7 +48,9 @@ export function Header() {
               alt="POHYB DOMA"
               width={140}
               height={48}
-              className="h-10 w-auto object-contain"
+              className={`w-auto object-contain transition-all duration-300 ${
+                scrolled ? "h-8" : "h-10"
+              }`}
               priority
             />
           </Link>

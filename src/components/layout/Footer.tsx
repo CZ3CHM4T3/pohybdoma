@@ -29,13 +29,17 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-16">
           {/* Brand column */}
           <div>
-            <Link href="/" aria-label="POHYB DOMA – domů">
+            <Link
+              href="/"
+              aria-label="POHYB DOMA – domů"
+              className="inline-flex rounded-xl bg-white px-3 py-2 shadow-sm"
+            >
               <Image
                 src="/LOGO.png"
                 alt="POHYB DOMA"
                 width={140}
                 height={48}
-                className="h-10 w-auto object-contain brightness-0 invert"
+                className="h-9 w-auto object-contain"
               />
             </Link>
             <p className="mt-4 text-sm text-white/70 leading-relaxed">
