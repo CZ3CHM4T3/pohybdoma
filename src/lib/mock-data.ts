@@ -117,45 +117,37 @@ export function hasDayPricing(service: Service): boolean {
 }
 
 // ─── Týdenní rozvrh ─────────────────────────────────────────────────────────
-// Rozvrh je každý týden STEJNÝ. Každá hodina má stav:
-//   "free"   = volno → zobrazí se zeleně a jde rezervovat
-//   "booked" = obsazeno → zobrazí se šedě (opticky obsazené)
-// 👉 Stačí upravit tento rozvrh podle reálné dostupnosti. Den bez slotů = volno
-//    (nepracuješ). Jakmile se hodina uvolní, přepni její status na "free".
+// Rozvrh je každý týden STEJNÝ. Pracuje se se dvěma seznamy:
+//
+//   WORKING_HOURS = všechny tvoje pracovní hodiny (zobrazí se klientům).
+//   FREE_HOURS    = které hodiny jsou VOLNÉ k rezervaci (zeleně).
+//
+// 👉 ZMĚNA DOSTUPNOSTI = upravuješ JEN seznam FREE_HOURS:
+//    • Uvolnila se ti hodina? Přidej její čas do FREE_HOURS[den].
+//    • Zase je obsazená? Čas zase odeber.
+//    Vše ostatní z WORKING_HOURS se ukáže šedě jako „obsazeno".
+//
+// Dny: 1=Po, 2=Út, 3=St, 4=Čt, 5=Pá, 6=So, 0=Ne. Čas = začátek hodiny "HH:MM".
 
-export const WEEKLY_SCHEDULE: Record<number, ScheduleSlot[]> = {
+const WORKING_HOURS: Record<number, string[]> = {
   0: [], // neděle – nepracuji
-  1: [ // pondělí
-    { time: "09:00", status: "booked" },
-    { time: "10:00", status: "free" },
-    { time: "16:00", status: "free" },
-    { time: "17:00", status: "booked" },
-  ],
-  2: [ // úterý
-    { time: "10:00", status: "free" },
-    { time: "14:00", status: "booked" },
-    { time: "15:00", status: "free" },
-  ],
-  3: [ // středa
-    { time: "09:00", status: "free" },
-    { time: "11:00", status: "booked" },
-    { time: "16:00", status: "free" },
-    { time: "17:30", status: "booked" },
-  ],
-  4: [ // čtvrtek
-    { time: "10:00", status: "booked" },
-    { time: "14:00", status: "free" },
-    { time: "17:00", status: "free" },
-  ],
-  5: [ // pátek
-    { time: "09:00", status: "free" },
-    { time: "11:00", status: "free" },
-    { time: "15:00", status: "booked" },
-  ],
-  6: [ // sobota
-    { time: "09:00", status: "free" },
-    { time: "10:30", status: "free" },
-  ],
+  1: ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00", "17:00", "18:00"], // pondělí
+  2: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00", "18:00"], // úterý
+  3: ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "15:00", "16:00", "17:00", "18:00"], // středa
+  4: ["13:00", "18:00"], // čtvrtek
+  5: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"], // pátek
+  6: [], // sobota – zatím nepracuji (klidně doplň hodiny)
+};
+
+// 🟢 VOLNÉ HODINY – tohle je seznam, který budeš měnit nejčastěji.
+const FREE_HOURS: Record<number, string[]> = {
+  0: [],
+  1: ["10:00"], // pondělí: volno 10–11
+  2: ["14:00"], // úterý: volno 14–15
+  3: [], // středa: zatím nic volného
+  4: ["13:00"], // čtvrtek: volno 13–14
+  5: [], // pátek: zatím nic volného
+  6: [],
 };
 
 function startOfDay(d: Date): Date {
@@ -169,7 +161,12 @@ export function getDaySlots(date: Date): ScheduleSlot[] {
   const today = startOfDay(new Date());
   const day = startOfDay(date);
   if (day < today) return [];
-  return WEEKLY_SCHEDULE[date.getDay()] ?? [];
+  const wd = date.getDay();
+  const free = FREE_HOURS[wd] ?? [];
+  return (WORKING_HOURS[wd] ?? []).map((time) => ({
+    time,
+    status: free.includes(time) ? "free" : "booked",
+  }));
 }
 
 /** Má den aspoň jeden VOLNÝ termín? */
