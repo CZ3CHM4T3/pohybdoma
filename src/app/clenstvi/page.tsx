@@ -42,18 +42,29 @@ export default function ClenstviPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {MOCK_MEMBERSHIP_PLANS.map((plan) => {
               const isHighlighted = plan.highlighted;
+              const badge = isHighlighted
+                ? "Nejoblíbenější"
+                : plan.tier === "VIP_PLUS"
+                  ? "Nejvýhodnější investice"
+                  : null;
               return (
                 <div
                   key={plan.id}
                   className={`relative rounded-2xl border-2 bg-gradient-to-b overflow-hidden ${
                     isHighlighted
                       ? "border-brand-dark shadow-2xl scale-105 z-10"
-                      : "border-gray-200 shadow-sm"
+                      : plan.tier === "VIP_PLUS"
+                        ? "border-brand-blue shadow-md"
+                        : "border-gray-200 shadow-sm"
                   } ${PLAN_COLORS[plan.tier]}`}
                 >
-                  {isHighlighted && (
-                    <div className="bg-brand-blue text-white text-xs font-bold tracking-widest uppercase text-center py-2">
-                      Nejoblíbenější
+                  {badge && (
+                    <div
+                      className={`text-white text-xs font-bold tracking-wide uppercase text-center py-2 ${
+                        isHighlighted ? "bg-brand-blue" : "bg-brand-dark"
+                      }`}
+                    >
+                      {badge}
                     </div>
                   )}
 
