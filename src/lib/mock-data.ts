@@ -5,6 +5,7 @@ import type {
   MembershipPlan,
   Service,
   ScheduleSlot,
+  SlotStatus,
   CalendarEvent,
 } from "@/types";
 
