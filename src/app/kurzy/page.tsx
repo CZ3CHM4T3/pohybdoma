@@ -35,7 +35,8 @@ export default function KuryPage() {
             Strukturované programy
           </h1>
           <p className="text-lg text-gray-600 max-w-xl">
-            Každý kurz je ucelený program krok za krokem. Zakoupíte jednou – máte navždy.
+            Ucelené programy krok za krokem. <strong>Kurzy se připravují</strong> – níže je
+            přehled toho, co chystám. Brzy je bude možné zakoupit.
           </p>
         </div>
       </section>
@@ -70,20 +71,20 @@ export default function KuryPage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div>
-                      <span className="text-2xl font-semibold text-brand-dark">{course.priceKc} Kč</span>
-                      <span className="text-xs text-gray-400 ml-1">jednorázově</span>
-                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue">
+                      <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-blue opacity-60" />
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-blue" />
+                      </span>
+                      Připravujeme
+                    </span>
                     <span className="text-xs text-gray-400">{course.lessons.length} lekcí</span>
                   </div>
 
-                  <div className="mt-4 flex gap-3">
-                    <Link href={`/kurzy/${course.slug}`} className="btn-outline flex-1 text-sm py-2.5">
-                      Detail
+                  <div className="mt-4">
+                    <Link href={`/kurzy/${course.slug}`} className="btn-outline w-full text-sm py-2.5">
+                      Zobrazit obsah
                     </Link>
-                    <button type="button" className="btn-primary flex-1 text-sm py-2.5">
-                      Koupit
-                    </button>
                   </div>
                 </div>
               </div>
@@ -95,8 +96,8 @@ export default function KuryPage() {
       {/* Upsell */}
       <section className="bg-brand-dark text-white py-12">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-semibold mb-3">Máte zájem o celou knihovnu?</h2>
-          <p className="text-white/70 mb-6">Členství VIP zahrnuje slevy na kurzy a přístup k videoknihovně.</p>
+          <h2 className="text-2xl font-semibold mb-3">Než kurzy vyjdou, mrkni do knihovny</h2>
+          <p className="text-white/70 mb-6">Členství ti dá přístup k video-knihovně a VIP+ navíc 15% slevu na kurzy.</p>
           <Link href="/clenstvi" className="btn-primary">
             Zobrazit členství
           </Link>

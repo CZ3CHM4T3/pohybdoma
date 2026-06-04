@@ -89,6 +89,8 @@ export interface Service {
   id: string;
   name: string;
   durationMin: number;
+  /** Volitelný vlastní popisek místo "X min" (např. "na celý týden"). */
+  durationLabel?: string;
   /** Pevná cena. Pokud je cena závislá na dni, použijí se pole níže. */
   priceKc: number;
   /** Volitelně: cena ve všední den (Po–Pá). */

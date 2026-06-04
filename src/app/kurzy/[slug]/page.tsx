@@ -88,16 +88,18 @@ export default async function CourseDetailPage({ params }: Props) {
           {/* Sidebar */}
           <aside className="space-y-5">
             <div className="card p-6 sticky top-24">
-              <div className="text-3xl font-semibold text-brand-dark mb-1">{course.priceKc} Kč</div>
-              <p className="text-xs text-gray-400 mb-5">Jednorázová platba – přístup navždy</p>
+              <div className="inline-flex items-center gap-2 rounded-full bg-brand-light px-3 py-1 text-sm font-semibold text-brand-blue mb-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-blue opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-blue" />
+                </span>
+                Připravujeme
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Kurz finišuje – cena a koupě budou doplněny brzy.</p>
 
-              <button type="button" className="btn-primary w-full mb-3">
-                Koupit kurz
-                <span className="text-white/60 font-normal text-xs ml-1">(platba brzy)</span>
-              </button>
-              <button type="button" className="btn-outline w-full text-sm">
-                Vyzkoušet zdarma
-              </button>
+              <Link href="/ucet" className="btn-primary w-full mb-3">
+                Dej mi vědět, až vyjde
+              </Link>
 
               <div className="mt-6 space-y-2 text-sm text-gray-600">
                 <p className="flex items-center gap-2">
@@ -115,7 +117,7 @@ export default async function CourseDetailPage({ params }: Props) {
               </div>
 
               <p className="mt-5 pt-5 border-t border-gray-100 text-xs text-center text-gray-400">
-                Členové VIP mají slevu 20 % →{" "}
+                Členové VIP+ budou mít slevu 15 % →{" "}
                 <Link href="/clenstvi" className="text-brand-blue hover:underline">
                   Zjistit více
                 </Link>

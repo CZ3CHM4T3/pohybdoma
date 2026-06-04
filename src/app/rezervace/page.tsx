@@ -348,7 +348,7 @@ export default function RezervacePage() {
                     ) : (
                       <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
                     )}
-                    <span className="text-xs text-gray-400 self-start">{s.durationMin} min</span>
+                    <span className="text-xs text-gray-400 self-start">{s.durationLabel ?? `${s.durationMin} min`}</span>
                   </div>
                 </button>
               );

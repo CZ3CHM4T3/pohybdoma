@@ -51,29 +51,18 @@ export function isWeekend(date: Date): boolean {
 
 export const SERVICES: Service[] = [
   {
-    id: "svc-diagnostika",
-    name: "Úvodní diagnostika",
-    durationMin: 75,
-    priceKc: 1200,
-    mode: "inPerson",
-    description:
-      "První setkání: projdeme tvůj pohyb, bolesti a cíle. Odejdeš s jasným plánem, jak dál.",
-  },
-  {
     id: "svc-lekce-60",
-    name: "Pohybová lekce 60 min",
+    name: "Osobní lekce",
     durationMin: 60,
-    priceKc: 900,
-    priceWeekdayKc: 900,
-    priceWeekendKc: 1200,
+    priceKc: 1000,
     mode: "inPerson",
     description:
-      "Klasická osobní lekce u tebe doma nebo na dohodnutém místě. Přesně na míru tvému tělu.",
+      "Osobní lekce u tebe doma nebo na dohodnutém místě, přesně na míru tvému tělu. Ve dvojici 1500 Kč (napiš mi do poznámky).",
     highlighted: true,
   },
   {
     id: "svc-online-30",
-    name: "Online konzultace 30 min",
+    name: "Online konzultace",
     durationMin: 30,
     priceKc: 500,
     mode: "online",
@@ -83,20 +72,12 @@ export const SERVICES: Service[] = [
   {
     id: "svc-plan-doma",
     name: "Osobní plán na doma",
-    durationMin: 45,
-    priceKc: 1500,
+    durationMin: 0,
+    durationLabel: "na celý týden",
+    priceKc: 3000,
     mode: "online",
     description:
-      "Sestavím ti pohybový plán na míru a online si ho spolu projdeme. Cvičíš pak samostatně doma.",
-  },
-  {
-    id: "svc-balicek-5",
-    name: "Balíček 5 lekcí",
-    durationMin: 60,
-    priceKc: 3600,
-    mode: "inPerson",
-    description:
-      "Pět osobních lekcí se zvýhodněnou cenou. Pro ty, kdo to s pohybem myslí vážně.",
+      "Pohybový plán na míru na každý den v týdnu. Sestavím ti ho a online si ho spolu projdeme – pak cvičíš samostatně doma.",
   },
 ];
 
@@ -702,11 +683,7 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     priceKcMonth: 199,
     highlighted: false,
     features: [
-      "Přístup k celé VIP videoknihovně",
-      "Nová videa každý týden",
-      "Filtry dle části těla a problému",
-      "Streamování v HD kvalitě",
-      "Zrušení kdykoliv",
+      "Přístup k video-knihovně",
     ],
   },
   {
@@ -716,26 +693,21 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     priceKcMonth: 399,
     highlighted: true,
     features: [
-      "Vše z plánu MEMBER",
-      "Prémiová VIP videa (pokročilé sestavy)",
-      "Přístup k VIP kurzům se slevou 20 %",
-      "Prioritní přístup k novému obsahu",
-      "Zrušení kdykoliv",
+      "Vše z MEMBER",
+      "10% sleva na workshopy",
+      "Živé streamy",
     ],
   },
   {
     id: "mp3",
     tier: "VIP_PLUS",
-    name: "VIP PLUS",
+    name: "VIP+",
     priceKcMonth: 599,
     highlighted: false,
     features: [
-      "Vše z plánu VIP",
-      "Přímá komunikace se mnou (chat)",
-      "Přístup k živým streamům",
-      "Slevy na osobní lekce a akce",
-      "Exkluzivní obsah VIP PLUS",
-      "Zrušení kdykoliv",
+      "Vše z VIP",
+      "Chat kanál se mnou",
+      "15% sleva na workshopy i kurzy",
     ],
   },
 ];
