@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 const NAV_LINKS = [
   { href: "/", label: "Domů" },
@@ -20,12 +21,22 @@ export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+      setSignedIn(!!session?.user)
+    );
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   return (
@@ -79,12 +90,22 @@ export function Header() {
 
           {/* CTA + hamburger */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/clenstvi"
-              className="hidden sm:inline-flex btn-primary text-sm py-2 px-4"
-            >
-              Začít hned
-            </Link>
+            {signedIn ? (
+              <Link
+                href="/ucet"
+                className="hidden sm:inline-flex items-center gap-2 rounded-lg border-2 border-brand-blue px-4 py-1.5 text-sm font-semibold text-brand-blue hover:bg-brand-light transition-colors"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-blue text-[11px] text-white">✓</span>
+                Můj účet
+              </Link>
+            ) : (
+              <Link
+                href="/clenstvi"
+                className="hidden sm:inline-flex btn-primary text-sm py-2 px-4"
+              >
+                Začít hned
+              </Link>
+            )}
 
             {/* Hamburger */}
             <button
