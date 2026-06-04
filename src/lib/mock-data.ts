@@ -696,6 +696,7 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     highlighted: true,
     features: [
       "Vše z MEMBER",
+      "Měsíční pohybová výzva",
       "Živé streamy",
       "10% sleva na workshopy",
       "10% sleva na online skupinové tréninky",
@@ -710,6 +711,9 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     features: [
       "Vše z VIP",
       "Chat kanál se mnou",
+      "Předběžný přístup k novým videím i kurzům",
+      "Prioritní rezervace termínů",
+      "Přístup do komunity",
       "15% sleva na workshopy i kurzy",
       "15% sleva na online skupinové tréninky",
     ],
