@@ -36,8 +36,8 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Rosť dál",
-    desc: "Postupně napravuj tělo, přidávej obtížnost a sleduj svůj posun.",
+    title: "Sleduj progres",
+    desc: "Postupně napravuj tělo i své návyky, edukuj se, získávej poznatky a zkušenosti a sleduj svůj posun.",
   },
 ];
 
