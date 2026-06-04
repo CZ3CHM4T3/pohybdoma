@@ -27,12 +27,12 @@ const STEPS = [
   {
     num: "01",
     title: "Vyber si cestu",
-    desc: "Osobní lekce, videoknihovna nebo členství – podle toho, jak chceš cvičit.",
+    desc: "Osobní lekce, stále se rozšiřující videoknihovna nebo VIP členství s mojí plnou podporou, radami i feedbackem – rozhodni se podle toho, co potřebuješ. Jsem tu pro tebe, ať jsou tvé cíle jakékoliv.",
   },
   {
     num: "02",
     title: "Cvič doma",
-    desc: "Pusť si video nebo se připoj na lekci. Stačí kousek místa na zemi.",
+    desc: "Čas je to nejcennější. Být nekonečným začátečníkem, co sleduje generická youtube videa a doufá ve změnu – to je cyklus hrůzy a frustrace. Nabízím jinou cestu: za zlomek ceny se edukuj v domácím prostředí, identifikuj příčiny svých pohybových obtíží a nauč se je řešit efektivně a sám. Nauč se využívat svůj domov na maximum a ušetříš čas, peníze i nervy.",
   },
   {
     num: "03",
