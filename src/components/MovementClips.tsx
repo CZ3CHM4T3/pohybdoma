@@ -9,9 +9,13 @@ import { Reveal } from "@/components/ui/Reveal";
  *    <video autoPlay muted loop playsInline> místo placeholderu.
  *    Doporučení: krátké MP4 (H.264), 9:16, ~8–20 s, bez zvuku.
  */
+type Access = "FREE" | "VIP" | "VIP+";
+
 type Clip = {
   title: string;
   duration: string;
+  /** Úroveň přístupu – ukáže se jako štítek. */
+  access: Access;
   /** Cesta k videu v /public, např. "/videos/rana-mobilita.mp4". Zatím prázdné. */
   src?: string;
   /** Náhledový obrázek (poster). */
@@ -22,28 +26,38 @@ type Clip = {
   gradient: string;
 };
 
+const ACCESS_STYLE: Record<Access, string> = {
+  FREE: "bg-emerald-500",
+  VIP: "bg-brand-blue",
+  "VIP+": "bg-amber-500",
+};
+
 const CLIPS: Clip[] = [
   {
     title: "Ranní mobilita",
     duration: "0:18",
+    access: "FREE",
     hint: "🌅",
     gradient: "from-[#062A6B] to-[#1976FF]",
   },
   {
     title: "Záda bez bolesti",
     duration: "0:24",
+    access: "VIP",
     hint: "🧘",
     gradient: "from-[#0a3a8a] to-[#5aadff]",
   },
   {
     title: "Síla bez vybavení",
     duration: "0:20",
+    access: "FREE",
     hint: "💪",
     gradient: "from-[#1256c0] to-[#1976FF]",
   },
   {
     title: "Dech a uvolnění",
     duration: "0:16",
+    access: "VIP+",
     hint: "🌬️",
     gradient: "from-[#062A6B] to-[#0a3a8a]",
   },
@@ -68,7 +82,9 @@ export function MovementClips() {
             </h2>
             <p className="mt-5 text-lg text-white/70 leading-relaxed">
               Nejde o dokonalý pohyb. Jde o objevování možností. Nakoukni do
-              krátkých ukázek – přesně takhle se hýbeme společně v členství.
+              krátkých video ukázek z domácího cvičení – něco je volně dostupné,
+              to nejlepší čeká na tebe ve VIP a VIP+. Přesně takhle se hýbeme
+              společně. Tak co, jdeš do toho?
             </p>
           </Reveal>
         </div>
@@ -121,8 +137,8 @@ export function MovementClips() {
                 </span>
 
                 {/* Štítek úrovně */}
-                <span className="absolute top-3 left-3 rounded-full bg-brand-blue px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
-                  VIP
+                <span className={`absolute top-3 left-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase text-white ${ACCESS_STYLE[clip.access]}`}>
+                  {clip.access}
                 </span>
 
                 {/* Název */}

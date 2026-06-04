@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
-import { MOCK_VIDEOS } from "@/lib/mock-data";
+import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
 import { VideoCard } from "@/components/VideoCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
 
@@ -17,10 +17,10 @@ export const metadata: Metadata = {
 const FREE_VIDEOS = MOCK_VIDEOS.filter((v) => v.accessLevel === "FREE").slice(0, 4);
 
 const STATS = [
-  { value: "100+", label: "cvičebních videí" },
-  { value: "7", label: "ucelených kurzů" },
+  { value: `${MOCK_COURSES.length}`, label: "kurzů v přípravě" },
+  { value: `${SERVICE_AREA.length}`, label: "obcí, kam dojíždím" },
   { value: "1:1", label: "osobní přístup" },
-  { value: "0", label: "potřebné vybavení" },
+  { value: "0", label: "nutné vybavení" },
 ];
 
 const STEPS = [
@@ -131,10 +131,10 @@ export default function HomePage() {
               },
               {
                 icon: "🎬",
-                title: "Knihovna pohybu",
-                desc: "Stovky videí třídění dle části těla, obtížnosti a problému. Cvičte kdy a kde chcete.",
+                title: "Video-knihovna pohybu",
+                desc: "Videa tříděná dle části těla, obtížnosti a problému. Cvič kdy a kde chceš.",
                 href: "/videoknihovna",
-                cta: "Procházet videa",
+                cta: "Procházet ukázky zdarma",
               },
               {
                 icon: "⭐",
