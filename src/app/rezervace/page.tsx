@@ -1,18 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   SERVICES,
   SERVICE_AREA,
   HOME_BASE,
-  getDaySlots,
-  hasFreeSlot,
   getServicePrice,
   hasDayPricing,
-  getEventsForDate,
-  hasEvent,
 } from "@/lib/mock-data";
-import type { Service } from "@/types";
+import type { Service, ScheduleSlot, SlotStatus, CalendarEvent } from "@/types";
+import { createClient } from "@/lib/supabase/client";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 const MONTHS_CS = [
@@ -22,6 +19,21 @@ const MONTHS_CS = [
 const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
 
+// Řádky z databáze
+type WeeklyRow = { weekday: number; time: string; is_free: boolean };
+type OverrideRow = { date: string; time: string; status: SlotStatus };
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+function dateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
@@ -74,15 +86,80 @@ export default function RezervacePage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // ── Data z databáze (rozvrh, výjimky, akce) ──
+  const [weekly, setWeekly] = useState<WeeklyRow[]>([]);
+  const [overrides, setOverrides] = useState<OverrideRow[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const [w, o, e] = await Promise.all([
+        supabase.from("availability_weekly").select("weekday,time,is_free"),
+        supabase.from("availability_overrides").select("date,time,status"),
+        supabase.from("events").select("*").order("date"),
+      ]);
+      if (w.data) setWeekly(w.data as WeeklyRow[]);
+      if (o.data) setOverrides(o.data as OverrideRow[]);
+      if (e.data) {
+        setEvents(
+          (e.data as Record<string, unknown>[]).map((r) => ({
+            id: String(r.id),
+            date: String(r.date),
+            title: String(r.title),
+            kind: String(r.kind ?? "Akce"),
+            time: r.time ? String(r.time) : undefined,
+            location: r.location ? String(r.location) : undefined,
+            description: String(r.description ?? ""),
+            priceKc: r.price_kc == null ? undefined : Number(r.price_kc),
+            href: r.href ? String(r.href) : undefined,
+          }))
+        );
+      }
+      setLoadingData(false);
+    })();
+  }, []);
 
   const service: Service | null =
     SERVICES.find((s) => s.id === serviceId) ?? null;
   const isInPerson = service?.mode === "inPerson";
   const price = service ? getServicePrice(service, selectedDate) : 0;
 
+  // ── Výpočet slotů a akcí z načtených dat ──
+  const slotsFor = useCallback(
+    (date: Date): ScheduleSlot[] => {
+      if (startOfDay(date) < today) return [];
+      const wd = date.getDay();
+      const key = dateKey(date);
+      const map = new Map<string, SlotStatus>();
+      weekly
+        .filter((r) => r.weekday === wd)
+        .forEach((r) => map.set(r.time, r.is_free ? "free" : "booked"));
+      overrides
+        .filter((r) => r.date === key)
+        .forEach((r) => map.set(r.time, r.status));
+      return [...map.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([time, status]) => ({ time, status }));
+    },
+    [weekly, overrides, today]
+  );
+  const dayHasFree = useCallback(
+    (date: Date) => slotsFor(date).some((s) => s.status === "free"),
+    [slotsFor]
+  );
+  const eventsFor = useCallback(
+    (date: Date) => events.filter((e) => e.date === dateKey(date)),
+    [events]
+  );
+
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
-  const slots = selectedDate ? getDaySlots(selectedDate) : [];
-  const dayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+  const slots = selectedDate ? slotsFor(selectedDate) : [];
+  const dayEvents = selectedDate ? eventsFor(selectedDate) : [];
 
   const canPrev = startOfMonth(viewMonth) > minMonth;
   const canNext = startOfMonth(viewMonth) < maxMonth;
@@ -111,9 +188,34 @@ export default function RezervacePage() {
     setAddress("");
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formValid) return;
+    if (!formValid || !service || !selectedDate || !selectedTime) return;
+    setSaving(true);
+    setSaveError(null);
+
+    const supabase = createClient();
+    const { error } = await supabase.from("bookings").insert({
+      service_id: service.id,
+      service_name: service.name,
+      date: dateKey(selectedDate),
+      time: selectedTime,
+      mode: service.mode,
+      municipality: isInPerson ? municipality : null,
+      address: isInPerson ? address : null,
+      reason,
+      contact_name: name,
+      contact_email: email,
+      contact_phone: phone || null,
+      price_kc: price,
+      status: "pending",
+    });
+
+    setSaving(false);
+    if (error) {
+      setSaveError("Rezervaci se nepodařilo odeslat. Zkus to prosím znovu.");
+      return;
+    }
     setSubmitted(true);
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -261,7 +363,11 @@ export default function RezervacePage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <SectionHeading label="Krok 2" title="Vyber termín" />
 
-            <div className="mt-8 card p-5 lg:p-6">
+            {loadingData && (
+              <p className="mt-8 text-sm text-gray-500">Načítám dostupné termíny…</p>
+            )}
+
+            <div className={`mt-8 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
               {/* Navigace měsíců */}
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -301,8 +407,8 @@ export default function RezervacePage() {
                 {days.map((d) => {
                   const inMonth = d.getMonth() === viewMonth.getMonth();
                   const isPast = d < today;
-                  const free = inMonth && !isPast && hasFreeSlot(d);
-                  const eventDay = inMonth && !isPast && hasEvent(d);
+                  const free = inMonth && !isPast && dayHasFree(d);
+                  const eventDay = inMonth && !isPast && eventsFor(d).length > 0;
                   const clickable = free || eventDay;
                   const isSelected = selectedDate && sameDay(d, selectedDate);
                   return (
@@ -528,9 +634,20 @@ export default function RezervacePage() {
                 </div>
               </div>
 
-              <button type="submit" disabled={!formValid} className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed">
-                Rezervovat a zaplatit {price} Kč
-                <span className="text-white/70 font-normal text-xs ml-1">(platba zatím neaktivní)</span>
+              {saveError && (
+                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {saveError}
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={!formValid || saving}
+                className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saving ? "Odesílám…" : `Rezervovat a zaplatit ${price} Kč`}
+                {!saving && (
+                  <span className="text-white/70 font-normal text-xs ml-1">(platba zatím neaktivní)</span>
+                )}
               </button>
               <p className="mt-3 text-xs text-center text-gray-400">
                 Termín ti potvrdím e-mailem. Zrušení / přesun možný 24 h předem.
