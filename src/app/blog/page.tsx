@@ -79,7 +79,7 @@ export default function BlogPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {PLANNED_POSTS.map((post, i) => (
               <Reveal key={post.title} variant="up" delay={i * 90}>
-                <article className="card card-lift h-full p-0 flex flex-col">
+                <article className="card card-3d h-full p-0 flex flex-col">
                   {/* Náhled */}
                   <div className="relative aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
                     <span className="text-4xl opacity-30">✍️</span>

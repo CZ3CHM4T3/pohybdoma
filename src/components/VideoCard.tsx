@@ -12,7 +12,7 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
   const accessible = canAccess(userTier, video.accessLevel);
 
   return (
-    <Link href={`/videoknihovna/${video.slug}`} className="card group block hover:shadow-lg transition-shadow duration-200">
+    <Link href={`/videoknihovna/${video.slug}`} className="card card-3d group block">
       {/* Thumbnail */}
       <div className="relative aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] overflow-hidden">
         {/* Placeholder thumbnail */}

@@ -149,7 +149,7 @@ export default function HomePage() {
                 variant={i === 0 ? "left" : i === 2 ? "right" : "up"}
                 delay={i * 120}
               >
-                <div className="card card-lift group relative p-8 flex flex-col h-full">
+                <div className="card card-3d group relative p-8 flex flex-col h-full">
                   {/* Accent top bar */}
                   <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-brand-blue to-[#5aadff] transition-transform duration-300 group-hover:scale-x-100" />
                   <div className="text-4xl mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
@@ -285,7 +285,7 @@ export default function HomePage() {
             {["OFFICE CVIČENÍ", "BOLAVÁ ZÁDA", "KYČLE", "RAMENO"].map(
               (name, i) => (
                 <Reveal key={name} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
-                  <div className="card card-lift group p-6 flex flex-col items-center text-center gap-3 cursor-pointer">
+                  <div className="card card-3d group p-6 flex flex-col items-center text-center gap-3 cursor-pointer">
                     <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center text-xl transition-transform duration-300 group-hover:scale-110">
                       {name === "OFFICE CVIČENÍ"
                         ? "💼"

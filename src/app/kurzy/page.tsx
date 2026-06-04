@@ -46,7 +46,7 @@ export default function KuryPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {MOCK_COURSES.map((course) => (
-              <div key={course.id} className="card flex flex-col hover:shadow-lg transition-shadow duration-200">
+              <div key={course.id} className="card card-3d flex flex-col">
                 {/* Thumbnail */}
                 <div className="aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
                   <span className="text-5xl">{COURSE_ICONS[course.slug] ?? "📚"}</span>
