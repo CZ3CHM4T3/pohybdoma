@@ -19,6 +19,22 @@ const DAYS = [
 ];
 
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
+type EventRow = {
+  id: string;
+  date: string;
+  title: string;
+  kind: string;
+  time: string | null;
+  location: string | null;
+  description: string | null;
+  price_kc: number | null;
+};
+type OverrideRow = {
+  id: string;
+  date: string;
+  time: string;
+  status: "free" | "booked";
+};
 type Booking = {
   id: string;
   service_name: string;
@@ -43,8 +59,24 @@ export default function AdminPage() {
 
   const [weekly, setWeekly] = useState<WeeklyRow[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Formulář nové akce
+  const [evDate, setEvDate] = useState("");
+  const [evTitle, setEvTitle] = useState("");
+  const [evKind, setEvKind] = useState("Workshop");
+  const [evTime, setEvTime] = useState("");
+  const [evLocation, setEvLocation] = useState("");
+  const [evDesc, setEvDesc] = useState("");
+  const [evPrice, setEvPrice] = useState("");
+
+  // Formulář nové výjimky
+  const [ovDate, setOvDate] = useState("");
+  const [ovTime, setOvTime] = useState("08:00");
+  const [ovStatus, setOvStatus] = useState<"free" | "booked">("free");
 
   const admin = isAdminEmail(user?.email);
 
@@ -57,14 +89,61 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b] = await Promise.all([
+    const [w, b, e, o] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
+      supabase.from("events").select("*").order("date"),
+      supabase.from("availability_overrides").select("*").order("date"),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
+    if (e.data) setEvents(e.data as EventRow[]);
+    if (o.data) setOverrides(o.data as OverrideRow[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Akce ──
+  async function addEvent(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const { error } = await supabase.from("events").insert({
+      date: evDate,
+      title: evTitle,
+      kind: evKind || "Akce",
+      time: evTime || null,
+      location: evLocation || null,
+      description: evDesc || null,
+      price_kc: evPrice === "" ? null : Number(evPrice),
+    });
+    if (error) { setError("Akci se nepodařilo uložit: " + error.message); return; }
+    setEvDate(""); setEvTitle(""); setEvKind("Workshop"); setEvTime("");
+    setEvLocation(""); setEvDesc(""); setEvPrice("");
+    loadData();
+  }
+  async function deleteEvent(id: string) {
+    setError(null);
+    const { error } = await supabase.from("events").delete().eq("id", id);
+    if (error) { setError("Smazání akce selhalo: " + error.message); return; }
+    setEvents((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  // ── Výjimky pro konkrétní datum ──
+  async function addOverride(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const { error } = await supabase
+      .from("availability_overrides")
+      .upsert({ date: ovDate, time: ovTime, status: ovStatus }, { onConflict: "date,time" });
+    if (error) { setError("Výjimku se nepodařilo uložit: " + error.message); return; }
+    setOvDate("");
+    loadData();
+  }
+  async function deleteOverride(id: string) {
+    setError(null);
+    const { error } = await supabase.from("availability_overrides").delete().eq("id", id);
+    if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
+    setOverrides((prev) => prev.filter((x) => x.id !== id));
+  }
 
   useEffect(() => {
     if (admin) loadData();
@@ -194,6 +273,122 @@ export default function AdminPage() {
           </div>
         </section>
 
+        {/* ── Akce / workshopy ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">
+            Akce a workshopy <span className="text-gray-400 font-normal">({events.length})</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Zobrazí se v kalendáři oranžovým puntíkem.
+          </p>
+
+          {/* Seznam */}
+          {events.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {events.map((ev) => (
+                <div key={ev.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-brand-dark truncate">
+                      {ev.date} · {ev.title}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {ev.kind}{ev.time ? ` · ${ev.time}` : ""}{ev.location ? ` · ${ev.location}` : ""}
+                      {ev.price_kc != null ? ` · ${ev.price_kc === 0 ? "zdarma" : ev.price_kc + " Kč"}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => deleteEvent(ev.id)}
+                    className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700"
+                  >
+                    Smazat
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Přidat akci */}
+          <form onSubmit={addEvent} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AdminInput label="Datum *" type="date" value={evDate} onChange={setEvDate} required />
+            <AdminInput label="Název *" value={evTitle} onChange={setEvTitle} placeholder="Workshop: Zdravá záda" required />
+            <AdminInput label="Typ" value={evKind} onChange={setEvKind} placeholder="Workshop / Seminář / Akce" />
+            <AdminInput label="Čas" value={evTime} onChange={setEvTime} placeholder="10:00–13:00" />
+            <AdminInput label="Místo" value={evLocation} onChange={setEvLocation} placeholder="Dobřichovice" />
+            <AdminInput label="Cena (Kč, 0 = zdarma)" type="number" value={evPrice} onChange={setEvPrice} placeholder="890" />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+              <textarea
+                value={evDesc}
+                onChange={(e) => setEvDesc(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary text-sm">Přidat akci</button>
+            </div>
+          </form>
+        </section>
+
+        {/* ── Výjimky pro konkrétní datum ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">
+            Výjimky „pro tentokrát" <span className="text-gray-400 font-normal">({overrides.length})</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Mimořádně uvolni nebo zaber hodinu na <strong>konkrétní datum</strong> (má přednost před týdenním rozvrhem).
+          </p>
+
+          {overrides.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {overrides.map((o) => (
+                <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                  <p className="text-sm text-brand-dark">
+                    {o.date} · {o.time} ·{" "}
+                    <span className={o.status === "free" ? "text-emerald-600 font-semibold" : "text-gray-500 font-semibold"}>
+                      {o.status === "free" ? "volno" : "obsazeno"}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => deleteOverride(o.id)}
+                    className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700"
+                  >
+                    Smazat
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={addOverride} className="flex flex-wrap items-end gap-3">
+            <AdminInput label="Datum *" type="date" value={ovDate} onChange={setOvDate} required />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Hodina</label>
+              <select
+                value={ovTime}
+                onChange={(e) => setOvTime(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white"
+              >
+                {HOURS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Stav</label>
+              <select
+                value={ovStatus}
+                onChange={(e) => setOvStatus(e.target.value as "free" | "booked")}
+                className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white"
+              >
+                <option value="free">volno</option>
+                <option value="booked">obsazeno</option>
+              </select>
+            </div>
+            <button type="submit" className="btn-primary text-sm">Přidat výjimku</button>
+          </form>
+        </section>
+
         {/* ── Rezervace ── */}
         <section className="card p-6">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">
@@ -236,6 +431,27 @@ export default function AdminPage() {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function AdminInput({
+  label, value, onChange, type = "text", placeholder, required,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string; required?: boolean;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-brand-dark mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm"
+      />
     </div>
   );
 }
