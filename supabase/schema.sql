@@ -92,9 +92,10 @@ create policy "verejne cteni akci"
   on public.events for select using (true);
 
 -- Rezervaci může vytvořit kdokoliv (i nepřihlášený host):
+grant insert on public.bookings to anon, authenticated;
 drop policy if exists "vytvoreni rezervace" on public.bookings;
 create policy "vytvoreni rezervace"
-  on public.bookings for insert with check (true);
+  on public.bookings for insert to anon, authenticated with check (true);
 
 -- Svoje rezervace vidí přihlášený uživatel:
 drop policy if exists "ctu svoje rezervace" on public.bookings;
