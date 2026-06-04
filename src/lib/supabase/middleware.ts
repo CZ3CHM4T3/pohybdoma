@@ -31,7 +31,12 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Důležité: obnoví token, pokud vypršel.
-  await supabase.auth.getUser();
+  // Když je Supabase dočasně nedostupný, nesmí to shodit celý web.
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // ignorujeme – session se obnoví při dalším požadavku
+  }
 
   return supabaseResponse;
 }

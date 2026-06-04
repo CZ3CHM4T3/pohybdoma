@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isAdminEmail } from "@/lib/admin";
 
 const NAV_LINKS = [
   { href: "/", label: "Domů" },
@@ -22,6 +23,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -32,10 +34,14 @@ export function Header() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
-      setSignedIn(!!session?.user)
-    );
+    supabase.auth.getUser().then(({ data }) => {
+      setSignedIn(!!data.user);
+      setIsAdmin(isAdminEmail(data.user?.email));
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSignedIn(!!session?.user);
+      setIsAdmin(isAdminEmail(session?.user?.email));
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -86,6 +92,18 @@ export function Header() {
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                  pathname.startsWith("/admin")
+                    ? "text-white bg-brand-dark"
+                    : "text-brand-dark hover:text-white hover:bg-brand-dark"
+                }`}
+              >
+                Admin
+              </Link>
+            )}
           </nav>
 
           {/* CTA + hamburger */}
