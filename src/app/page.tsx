@@ -36,8 +36,8 @@ const STEPS = [
   },
   {
     num: "03",
-    title: "Sleduj progres",
-    desc: "Postupně napravuj tělo i své návyky, edukuj se, získávej poznatky a zkušenosti a sleduj svůj posun.",
+    title: "Pochop proces",
+    desc: "Každé tělo je jiné, se silnými i slabými stránkami a nekonečný progres neexistuje. Vybuduj si komplexní pohybovou kompetenci na kvalitních, ověřených základech, postupně si spravuj roky opomíjené tělo prospěšnými návyky. Edukuj se, získávej o sobě poznatky a zkušenosti a sleduj svůj posun v reálném čase. Vše je v tvých rukách, stačí začít a nepřestat.",
   },
 ];
 
@@ -204,7 +204,7 @@ export default function HomePage() {
                   <h3 className="text-lg font-semibold text-brand-dark mb-2">
                     {step.title}
                   </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed max-w-xs mx-auto">
+                  <p className="text-sm text-gray-600 leading-relaxed max-w-sm mx-auto">
                     {step.desc}
                   </p>
                 </div>
