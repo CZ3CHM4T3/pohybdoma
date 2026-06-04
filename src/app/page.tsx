@@ -32,7 +32,7 @@ const STEPS = [
   {
     num: "02",
     title: "Cvič doma",
-    desc: "Čas je to nejcennější. Být nekonečným začátečníkem, co sleduje generická youtube videa a doufá ve změnu – to je cyklus hrůzy a frustrace. Nabízím jinou cestu: za zlomek ceny se edukuj v domácím prostředí, identifikuj příčiny svých pohybových obtíží a nauč se je řešit efektivně a sám. Nauč se využívat svůj domov na maximum a ušetříš čas, peníze i nervy.",
+    desc: "Čas je to nejcennější. Být nekonečným začátečníkem, co sleduje generická youtube videa a doufá ve změnu – to je nekonečný cyklus začátků a frustrace. Nabízím jinou cestu: za zlomek ceny v domácím prostředí identifikuj příčiny svých pohybových obtíží a nauč se je řešit efektivně a sám. Trénink musí být udržitelný a snadno realizovatelný. Snadněji než doma to nejde. Využij svůj domov na maximum a ušetříš čas, peníze i nervy.",
   },
   {
     num: "03",
