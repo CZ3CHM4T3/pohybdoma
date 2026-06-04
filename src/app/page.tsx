@@ -27,7 +27,7 @@ const STEPS = [
   {
     num: "01",
     title: "Vyber si cestu",
-    desc: "Osobní lekce, stále se rozšiřující videoknihovna nebo VIP členství s mojí plnou podporou, radami i feedbackem – rozhodni se podle toho, co potřebuješ. Jsem tu pro tebe, ať jsou tvé cíle jakékoliv.",
+    desc: "Osobní lekce v pohodlí tvého domova, brouzdání na vlastní pěst stále se rozšiřující video-knihovnou nebo VIP členství s plnou podporou, radami i feedbackem – rozhodni se podle toho, co potřebuješ. Jsem tu pro tebe, ať jsou tvé cíle a možnosti jakékoliv.",
   },
   {
     num: "02",
