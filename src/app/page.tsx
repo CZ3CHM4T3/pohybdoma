@@ -46,16 +46,16 @@ export default function HomePage() {
     <>
       {/* ── Hero – fullscreen logo splash ── */}
       {/* Pozadí je čistě bílé (#fff) = stejné jako pozadí loga, takže rámeček loga splývá. */}
-      <section className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden bg-white px-4 py-16 text-center">
-        {/* Logo přes celou šířku */}
+      <section className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden bg-white px-4 pt-12 pb-28 text-center">
+        {/* Logo */}
         <Reveal variant="scale">
           <Image
             src="/LOGO.png"
             alt="POHYB DOMA – Tvoje možnosti. Tvoje cesta."
             width={1535}
             height={1024}
-            className="h-auto w-[90vw] max-w-3xl lg:max-w-5xl animate-float-slow"
-            sizes="(max-width: 1024px) 90vw, 1024px"
+            className="h-auto w-[82vw] max-w-md sm:max-w-lg lg:max-w-2xl animate-float-slow"
+            sizes="(max-width: 1024px) 82vw, 672px"
             priority
           />
         </Reveal>
@@ -72,22 +72,20 @@ export default function HomePage() {
           </div>
         </Reveal>
 
-        {/* Scroll hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-          <div className="flex flex-col items-center gap-1 text-brand-dark/40">
-            <span className="text-[11px] font-medium tracking-widest uppercase">
-              Scrolluj
-            </span>
-            <svg
-              className="w-5 h-5 animate-scroll-hint"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+        {/* Scroll hint – v toku pod tlačítky, aby nikdy nepřekrýval obsah */}
+        <div className="mt-14 flex flex-col items-center gap-1 text-brand-dark/40">
+          <span className="text-[11px] font-medium tracking-widest uppercase">
+            Scrolluj
+          </span>
+          <svg
+            className="w-5 h-5 animate-scroll-hint"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </section>
 
