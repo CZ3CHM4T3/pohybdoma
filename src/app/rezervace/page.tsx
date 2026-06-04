@@ -306,6 +306,38 @@ export default function RezervacePage() {
         </div>
       </section>
 
+      {/* Na dálku – video-rozbor (asynchronně, bez termínu) */}
+      <section className="bg-white pt-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#062A6B] to-[#1256c0] p-8 lg:p-10 text-white">
+            <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full bg-[#5aadff]/20 blur-3xl" />
+            <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+              <div className="flex-1">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-semibold mb-3">
+                  🎥 Na dálku · kdykoliv
+                </span>
+                <h2 className="text-2xl lg:text-3xl font-semibold mb-2">Video-rozbor pohybu</h2>
+                <p className="text-white/75 leading-relaxed max-w-xl">
+                  Nahraj mi video, jak se hýbeš nebo cvičíš konkrétní cvik, a já ti pošlu
+                  podrobný rozbor s konkrétními opravami a doporučeními. Bez domlouvání
+                  termínu, odkudkoliv – ideální když nestíháš živě.
+                </p>
+              </div>
+              <div className="shrink-0 text-center lg:text-right">
+                <div className="text-3xl font-semibold">od 300 Kč</div>
+                <p className="text-xs text-white/60 mb-4">podle délky a složitosti (sazba 1000 Kč/h)</p>
+                <a
+                  href="/kontakt"
+                  className="btn-primary bg-white text-brand-dark hover:opacity-90"
+                >
+                  Mám zájem o rozbor
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Krok 1 – služba */}
       <section className="bg-white py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -491,6 +523,12 @@ export default function RezervacePage() {
                         {ev.priceKc === 0 ? "Zdarma" : ev.priceKc != null ? `${ev.priceKc} Kč` : ""}
                       </span>
                     </div>
+                    <a
+                      href="/kontakt"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
+                    >
+                      Přihlásit se
+                    </a>
                   </div>
                 ))}
                 {slots.length > 0 ? (
