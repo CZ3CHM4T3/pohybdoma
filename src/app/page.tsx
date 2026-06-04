@@ -37,7 +37,7 @@ const STEPS = [
   {
     num: "03",
     title: "Pochop proces",
-    desc: "Každé tělo je jiné, se silnými i slabými stránkami a nekonečný progres neexistuje. Vybuduj si komplexní pohybovou kompetenci na kvalitních, ověřených základech, postupně si spravuj roky opomíjené tělo prospěšnými návyky. Edukuj se, získávej o sobě poznatky a zkušenosti a sleduj svůj posun v reálném čase. Vše je v tvých rukách, stačí začít a nepřestat.",
+    desc: "Každé tělo je jiné, se silnými i slabými stránkami a nekonečný progres neexistuje. Vybuduj si komplexní pohybové kompetence na kvalitních, ověřených základech, postupně si spravuj roky opomíjené tělo a zlepšuj návyky. Edukuj se, získávej o svém těle hlubší povědomí, zkušenosti a sleduj svůj posun v reálném čase. Vše je v tvých rukách, stačí začít a nepřestat.",
   },
 ];
 
