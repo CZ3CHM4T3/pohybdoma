@@ -95,11 +95,11 @@ export default function HomePage() {
       <MovementClips />
 
       {/* ── Stats band ── */}
-      <section className="bg-white border-b border-gray-100">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((stat, i) => (
-              <Reveal key={stat.label} variant="up" delay={i * 80}>
+              <Reveal key={stat.label} variant={i % 2 === 0 ? "left" : "right"} delay={i * 80}>
                 <div className="text-center">
                   <div className="text-3xl lg:text-4xl font-semibold text-gradient">
                     {stat.value}
@@ -146,7 +146,11 @@ export default function HomePage() {
                 cta: "Zobrazit plány",
               },
             ].map((item, i) => (
-              <Reveal key={item.title} variant="up" delay={i * 120}>
+              <Reveal
+                key={item.title}
+                variant={i === 0 ? "left" : i === 2 ? "right" : "up"}
+                delay={i * 120}
+              >
                 <div className="card card-lift group relative p-8 flex flex-col h-full">
                   {/* Accent top bar */}
                   <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-brand-blue to-[#5aadff] transition-transform duration-300 group-hover:scale-x-100" />
@@ -190,7 +194,11 @@ export default function HomePage() {
             {/* Connecting line (desktop) */}
             <div className="hidden md:block absolute top-7 left-[16%] right-[16%] h-px bg-gradient-to-r from-transparent via-brand-blue/30 to-transparent" />
             {STEPS.map((step, i) => (
-              <Reveal key={step.num} variant="up" delay={i * 130}>
+              <Reveal
+                key={step.num}
+                variant={i === 0 ? "left" : i === 2 ? "right" : "up"}
+                delay={i * 130}
+              >
                 <div className="relative text-center px-4">
                   <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white text-brand-blue font-semibold text-lg shadow-md ring-4 ring-brand-light">
                     {step.num}
@@ -228,7 +236,7 @@ export default function HomePage() {
           </Reveal>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {FREE_VIDEOS.map((video, i) => (
-              <Reveal key={video.id} variant="up" delay={i * 90}>
+              <Reveal key={video.id} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
                 <VideoCard video={video} userTier="FREE" />
               </Reveal>
             ))}
@@ -278,7 +286,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
             {["OFFICE CVIČENÍ", "BOLAVÁ ZÁDA", "KYČLE", "RAMENO"].map(
               (name, i) => (
-                <Reveal key={name} variant="up" delay={i * 90}>
+                <Reveal key={name} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
                   <div className="card card-lift group p-6 flex flex-col items-center text-center gap-3 cursor-pointer">
                     <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center text-xl transition-transform duration-300 group-hover:scale-110">
                       {name === "OFFICE CVIČENÍ"

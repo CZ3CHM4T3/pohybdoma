@@ -76,7 +76,7 @@ export function MovementClips() {
         {/* Reel karty */}
         <div className="mt-12 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {CLIPS.map((clip, i) => (
-            <Reveal key={clip.title} variant="up" delay={i * 110}>
+            <Reveal key={clip.title} variant={i % 2 === 0 ? "left" : "right"} delay={i * 110}>
               <div
                 className={`group relative aspect-[9/16] overflow-hidden rounded-[1.5rem] border border-white/10 shadow-xl shadow-black/30 transition-transform duration-500 hover:scale-[1.03] ${
                   i % 2 === 1 ? "lg:translate-y-6" : ""
