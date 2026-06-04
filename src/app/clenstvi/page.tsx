@@ -50,12 +50,12 @@ export default function ClenstviPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative rounded-2xl border-2 bg-gradient-to-b overflow-hidden ${
+                  className={`relative rounded-2xl border-2 bg-gradient-to-b overflow-hidden transition-all duration-300 ease-out hover:-translate-y-2.5 hover:shadow-[0_35px_60px_-15px_rgba(6,42,107,0.35)] ${
                     isHighlighted
                       ? "border-brand-dark shadow-2xl scale-105 z-10"
                       : plan.tier === "VIP_PLUS"
-                        ? "border-brand-blue shadow-md"
-                        : "border-gray-200 shadow-sm"
+                        ? "border-brand-blue shadow-xl"
+                        : "border-gray-200 shadow-lg"
                   } ${PLAN_COLORS[plan.tier]}`}
                 >
                   {badge && (
