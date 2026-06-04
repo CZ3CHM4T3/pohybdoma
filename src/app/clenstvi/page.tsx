@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 };
 
 const PLAN_COLORS = {
-  MEMBER: "from-gray-50 to-white border-gray-200",
-  VIP: "from-brand-dark to-[#0a3a8a] border-brand-dark text-white",
-  VIP_PLUS: "from-gray-50 to-white border-gray-200",
+  MEMBER: "from-gray-50 to-white",
+  VIP: "from-brand-dark to-[#0a3a8a] text-white",
+  VIP_PLUS: "from-brand-light to-white",
 };
 
 const PLAN_BTN = {
@@ -50,12 +50,8 @@ export default function ClenstviPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative rounded-2xl border-2 bg-gradient-to-b overflow-hidden transition-all duration-300 ease-out hover:-translate-y-2.5 hover:shadow-[0_35px_60px_-15px_rgba(6,42,107,0.35)] ${
-                    isHighlighted
-                      ? "border-brand-dark shadow-2xl scale-105 z-10"
-                      : plan.tier === "VIP_PLUS"
-                        ? "border-brand-blue shadow-xl"
-                        : "border-gray-200 shadow-lg"
+                  className={`card-3d relative rounded-2xl bg-gradient-to-b overflow-hidden ${
+                    isHighlighted ? "is-featured" : ""
                   } ${PLAN_COLORS[plan.tier]}`}
                 >
                   {badge && (
