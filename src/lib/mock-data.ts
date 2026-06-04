@@ -1,6 +1,7 @@
 import type {
   Video,
   Course,
+  CourseLesson,
   OpenSlot,
   MembershipPlan,
   Service,
@@ -404,7 +405,7 @@ export const MOCK_VIDEOS: Video[] = [
 
 // ─── Courses ─────────────────────────────────────────────────────────────────
 
-export const MOCK_COURSES: Course[] = [
+const BASE_COURSES: Course[] = [
   {
     id: "c1",
     slug: "znovuzrozeni",
@@ -649,6 +650,30 @@ export const MOCK_COURSES: Course[] = [
     publishedAt: "2024-05-30T10:00:00Z",
   },
 ];
+
+// Doplní kurzům lekce na deterministický počet 10–20 (zatím placeholder).
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+function padLessons(course: Course): Course {
+  const target = 10 + (hashStr(course.id) % 11); // 10–20
+  if (course.lessons.length >= target) return course;
+  const extra: CourseLesson[] = [];
+  for (let order = course.lessons.length + 1; order <= target; order++) {
+    extra.push({
+      id: `${course.id}-l${order}`,
+      order,
+      title: `Lekce ${order}`,
+      durationSeconds: 600 + ((order * 7) % 11) * 90, // 10–25 min variabilně
+      accessLevel: "MEMBER",
+    });
+  }
+  return { ...course, lessons: [...course.lessons, ...extra] };
+}
+
+export const MOCK_COURSES: Course[] = BASE_COURSES.map(padLessons);
 
 // ─── Open slots ───────────────────────────────────────────────────────────────
 
