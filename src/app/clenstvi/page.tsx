@@ -5,7 +5,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
   title: "Členství",
-  description: "Tři úrovně členství – MEMBER, VIP, VIP PLUS. Odemkněte VIP videoknihovu a přímý kontakt.",
+  description: "Tři úrovně členství – MEMBER, VIP, VIP+. Přístup k video-knihovně, živé streamy, slevy a chat přímo se mnou.",
 };
 
 const PLAN_COLORS = {
@@ -89,15 +89,45 @@ export default function ClenstviPage() {
             })}
           </div>
 
+          {/* Darovat členství */}
+          <div className="mt-16">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#062A6B] to-[#1256c0] p-8 lg:p-10 text-white">
+              <div className="pointer-events-none absolute -bottom-16 -left-10 w-72 h-72 rounded-full bg-[#5aadff]/20 blur-3xl" />
+              <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+                <div className="flex-1">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-semibold mb-3">
+                    🎁 Dárek
+                  </span>
+                  <h2 className="text-2xl lg:text-3xl font-semibold mb-2">Daruj členství</h2>
+                  <p className="text-white/75 leading-relaxed max-w-xl">
+                    Zaplať a obdarovaný dostane kód, který si uplatní. Vyber libovolnou
+                    úroveň a délku:
+                  </p>
+                  <ul className="mt-4 space-y-1.5 text-sm text-white/90">
+                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 1 měsíc – běžná cena</li>
+                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 6 měsíců – <strong>sleva 100 Kč</strong></li>
+                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 12 měsíců – <strong>sleva 200 Kč</strong></li>
+                  </ul>
+                </div>
+                <div className="shrink-0 text-center">
+                  <a href="/kontakt" className="btn-primary bg-white text-brand-dark hover:opacity-90">
+                    Darovat členství
+                  </a>
+                  <p className="mt-3 text-xs text-white/50">Platba bude brzy dostupná</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* FAQ */}
           <div className="mt-16">
             <SectionHeading label="Časté dotazy" title="Jak členství funguje?" centered />
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
               {[
                 { q: "Mohu zrušit kdykoliv?", a: "Ano. Zrušení je na 2 kliknutí, bez poplatků. Přístup trvá do konce zaplaceného období." },
-                { q: "Jak fungují platby?", a: "Platby probíhají měsíčně přes Stripe. Napojení platební brány bude brzy." },
-                { q: "Co dostanu v MEMBER plánu?", a: "Přístup k celé VIP videoknihovně – stovky videí třídění dle části těla a problému." },
-                { q: "Jaký je rozdíl VIP a VIP PLUS?", a: "VIP PLUS přidává přímou komunikaci se mnou, živé streamy a slevy na akce a osobní lekce." },
+                { q: "Jak fungují platby?", a: "Platby probíhají měsíčně přes platební bránu. Napojení bude brzy." },
+                { q: "Co dostanu v MEMBER plánu?", a: "Přístup k video-knihovně s tematickými filtry – videa třídění dle části těla, obtížnosti a problému." },
+                { q: "Jaký je rozdíl VIP a VIP+?", a: "VIP+ přidává chat kanál přímo se mnou a vyšší slevy (15 %) na workshopy, kurzy i online skupinové tréninky." },
               ].map((item) => (
                 <div key={item.q} className="card p-5">
                   <h3 className="font-semibold text-brand-dark text-sm mb-2">{item.q}</h3>

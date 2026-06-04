@@ -684,6 +684,8 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     highlighted: false,
     features: [
       "Přístup k video-knihovně",
+      "Tematické filtry pro snadné brouzdání (část těla, obtížnost, problém, pomůcky…)",
+      "5% sleva na online skupinové tréninky",
     ],
   },
   {
@@ -694,8 +696,9 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     highlighted: true,
     features: [
       "Vše z MEMBER",
-      "10% sleva na workshopy",
       "Živé streamy",
+      "10% sleva na workshopy",
+      "10% sleva na online skupinové tréninky",
     ],
   },
   {
@@ -708,6 +711,7 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
       "Vše z VIP",
       "Chat kanál se mnou",
       "15% sleva na workshopy i kurzy",
+      "15% sleva na online skupinové tréninky",
     ],
   },
 ];
