@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
+  const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,16 +90,18 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o] = await Promise.all([
+    const [w, b, e, o, s] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
       supabase.from("availability_overrides").select("*").order("date"),
+      supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
     if (e.data) setEvents(e.data as EventRow[]);
     if (o.data) setOverrides(o.data as OverrideRow[]);
+    if (s.data) setSubscribers(s.data as { id: string; email: string; created_at: string }[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -143,6 +146,18 @@ export default function AdminPage() {
     const { error } = await supabase.from("availability_overrides").delete().eq("id", id);
     if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
     setOverrides((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  // ── Odběratelé newsletteru ──
+  async function deleteSubscriber(id: string) {
+    setError(null);
+    const { error } = await supabase.from("subscribers").delete().eq("id", id);
+    if (error) { setError("Odhlášení odběratele selhalo: " + error.message); return; }
+    setSubscribers((prev) => prev.filter((x) => x.id !== id));
+  }
+  function copyEmails() {
+    const text = subscribers.map((s) => s.email).join(", ");
+    if (navigator.clipboard) navigator.clipboard.writeText(text);
   }
 
   useEffect(() => {
@@ -424,6 +439,51 @@ export default function AdminPage() {
                     <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
                       {b.status}
                     </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Odběratelé newsletteru ── */}
+        <section className="card p-6 mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold text-brand-dark">
+              Odběratelé newsletteru <span className="text-gray-400 font-normal">({subscribers.length})</span>
+            </h2>
+            {subscribers.length > 0 && (
+              <button
+                type="button"
+                onClick={copyEmails}
+                className="text-xs font-semibold text-brand-blue hover:underline"
+              >
+                Zkopírovat všechny e-maily
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-5">
+            E-maily lidí, kteří se přihlásili k odběru novinek.
+          </p>
+
+          {subscribers.length === 0 ? (
+            <p className="text-sm text-gray-400">Zatím žádní odběratelé.</p>
+          ) : (
+            <div className="space-y-2">
+              {subscribers.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                  <span className="text-sm text-brand-dark truncate">{s.email}</span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-xs text-gray-400">
+                      {new Date(s.created_at).toLocaleDateString("cs-CZ")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteSubscriber(s.id)}
+                      className="text-xs font-semibold text-red-500 hover:text-red-700"
+                    >
+                      Odhlásit
+                    </button>
                   </div>
                 </div>
               ))}
