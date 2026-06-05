@@ -12,25 +12,36 @@ export const metadata: Metadata = {
 
 const EXPECT = [
   {
-    icon: "🧭",
-    title: "Jasný směr, žádné zázraky",
-    desc: "Nečekej zaručené triky. Dostaneš srozumitelný plán a pochopíš, proč ho děláš.",
+    icon: "🌱",
+    title: "Dlouhodobý přístup",
+    desc: "Pracuju výhradně s dlouhodobými klienty. Změna, která vydrží, potřebuje čas a poctivé základy – ne pár týdnů dřiny.",
   },
   {
-    icon: "🧩",
-    title: "Na míru tvému tělu",
-    desc: "Žádná šablona pro všechny. Vycházím z toho, kde právě jsi a co potřebuješ.",
+    icon: "🧠",
+    title: "Holisticky, ne izolovaně",
+    desc: "Neřeším jen sval nebo jeden cvik. Jde o to, jak držíš tělo, jak dýcháš a jak se hýbeš v běžném dni.",
   },
   {
     icon: "🎓",
     title: "Vysvětlím ti proč",
-    desc: "Nejen co cvičit, ale i proč – ať se postupně staneš nezávislým a umíš si pomoct sám.",
+    desc: "Jsem vystudovaný tělocvikář. Nejde jen o to, co cvičit, ale proč – ať se postupně staneš nezávislým.",
   },
   {
-    icon: "🤝",
-    title: "Respekt a žádný drill",
-    desc: "Nebudu na tebe křičet ani tě hnát do dřiny. Jdeme tvým tempem, udržitelně.",
+    icon: "🏠",
+    title: "Tvůj domov = možnosti",
+    desc: "Většina lidí má doma víc, než si myslí. Ukážu ti, jak ho proměnit v plnohodnotné tréninkové místo.",
   },
+];
+
+// Na čem stavím (metody)
+const METHODS = [
+  "Fyziologie a posturální náprava",
+  "Kalistenika",
+  "Animal Flow",
+  "Kettlebell",
+  "Atletická a gymnastická průprava",
+  "Dech a práce s bránicí",
+  "Koordinační cvičení",
 ];
 
 export default function AboutPage() {
@@ -45,20 +56,20 @@ export default function AboutPage() {
                 O mně
               </p>
               <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark leading-tight mb-6">
-                Jsem Honza.
+                Nevěřím ve fitness.
                 <br />
-                Pohyb beru jako <span className="text-gradient">možnost</span>, ne
-                povinnost.
+                Věřím v <span className="text-gradient">pohyb</span>.
               </h1>
               <p className="text-lg text-gray-600 leading-relaxed mb-4">
-                Jmenuju se Jan Schröffel, ale klidně mi říkej Honzo. Učím lidi
-                hýbat se doma – chytře, bezpečně a tak, aby je to bavilo. Bydlím
-                v Dobřichovicích a po okolí jezdím na osobní lekce; ke zbytku se
-                dostanu přes video.
+                Jmenuju se Jan Schröffel, je mi 33, jsem vystudovaný tělocvikář,
+                táta a spoluzakladatel Fitness akademie MS GEM v Dobřichovicích.
+                Nevěřím ve fitness v té podobě, v jaké se dnes mainstreamově
+                prodává – honbu za rychlými výsledky a dokonalým vzhledem.
               </p>
               <p className="text-lg text-gray-600 leading-relaxed mb-8">
-                K pohybu mě nepřivedl výkon, ale zvědavost – co všechno tělo
-                dokáže, když mu dáš prostor a čas.
+                Pohyb je pro mě mnohem víc. <strong>POHYB DOMA</strong> je můj
+                způsob, jak svůj přístup přinést k tobě domů – bez fitka, bez
+                zbytečného vybavení, za zlomek ceny.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/rezervace" className="btn-primary">
@@ -92,27 +103,48 @@ export default function AboutPage() {
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="up">
-            <SectionHeading label="Proč to dělám" title="Pohyb pro každého, kdo chce začít" />
+            <SectionHeading label="Jak přemýšlím o pohybu" title="Komplexně a dlouhodobě" />
           </Reveal>
           <Reveal variant="up" delay={80}>
             <div className="mt-8 space-y-5 text-gray-600 leading-relaxed text-lg">
               <p>
-                Postupně jsem zjistil, že většina lidí nepotřebuje dřinu ani drahé
-                fitko. Potřebují pochopit svoje tělo, srovnat roky zanedbávané věci
-                a najít pohyb, který si užijí. A to jde i doma, s minimem vybavení.
+                Pohyb beru jako komplexní a dlouhodobou záležitost, ne jako pár
+                týdnů dřiny před létem. Proto pracuju výhradně s dlouhodobými
+                klienty – změna, která vydrží, potřebuje čas, pochopení a poctivé
+                základy.
+              </p>
+              <p>
+                Holisticky: neřeším izolovaně jeden sval nebo jeden cvik. Jde o to,
+                jak držíš tělo, jak dýcháš a jak se hýbeš v běžném dni. Každé tělo
+                je jiné – má svoje silné i slabé stránky a svoje tempo. Moje práce
+                není tlačit tě do ideálu z internetu, ale pomoct ti stavět na
+                kvalitních základech a vnímat, co ti dělá dobře.
               </p>
               <p>
                 <em>
-                  [Sem klidně doplň svůj příběh – kdy jsi začal, čím sis prošel,
-                  co tě nakoplo k tomu učit ostatní. Pár vět stačí, ať je to lidské.]
+                  [Sem klidně doplň pár vět svého příběhu – co tě k tomuhle
+                  přístupu přivedlo. Ať je to lidské a tvoje.]
                 </em>
               </p>
-              <p>
-                Nejde o dokonalý cvik. Jde o objevování možností. Každé tělo je jiné
-                – má svoje silné i slabé stránky a svoje tempo. Moje práce není tlačit
-                tě do ideálu z internetu, ale pomoct ti stavět na kvalitních základech
-                a vnímat, co ti dělá dobře.
+            </div>
+          </Reveal>
+
+          {/* Na čem stavím */}
+          <Reveal variant="up" delay={120}>
+            <div className="mt-10">
+              <p className="text-sm font-semibold text-brand-dark mb-3">
+                Stavím na tom, co reálně funguje:
               </p>
+              <div className="flex flex-wrap gap-2">
+                {METHODS.map((m) => (
+                  <span
+                    key={m}
+                    className="rounded-full bg-brand-light px-4 py-1.5 text-sm font-medium text-brand-blue"
+                  >
+                    {m}
+                  </span>
+                ))}
+              </div>
             </div>
           </Reveal>
         </div>
