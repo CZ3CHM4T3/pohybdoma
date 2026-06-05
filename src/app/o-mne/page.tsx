@@ -28,8 +28,8 @@ const EXPECT = [
   },
   {
     icon: "🏠",
-    title: "Tvůj domov = možnosti",
-    desc: "Většina lidí má doma víc, než si myslí. Ukážu ti, jak ho proměnit v plnohodnotné tréninkové místo.",
+    title: "Domov plný možností",
+    desc: "Většina lidí má doma mnohem víc, než si myslí. Ukážu ti, jak svůj prostor proměnit v plnohodnotné a smysluplné tréninkové místo.",
   },
 ];
 
@@ -56,20 +56,23 @@ export default function AboutPage() {
                 O mně
               </p>
               <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark leading-tight mb-6">
-                Nevěřím ve fitness.
-                <br />
-                Věřím v <span className="text-gradient">pohyb</span>.
+                Pohyb je pro mě komplexní a{" "}
+                <span className="text-gradient">dlouhodobá cesta</span>.
               </h1>
               <p className="text-lg text-gray-600 leading-relaxed mb-4">
-                Jmenuju se Jan Schröffel, je mi 33, jsem vystudovaný tělocvikář,
-                táta a spoluzakladatel Fitness akademie MS GEM v Dobřichovicích.
-                Nevěřím ve fitness v té podobě, v jaké se dnes mainstreamově
-                prodává – honbu za rychlými výsledky a dokonalým vzhledem.
+                Jmenuji se Jan Schröffel, je mi 33 let, jsem vystudovaný
+                tělocvikář, táta a spoluzakladatel Fitness akademie MS GEM
+                v Dobřichovicích. Nevěřím ve fitness v té podobě, v jaké je dnes
+                mainstreamově prezentováno – tedy jako honbu za rychlými výsledky,
+                čísly na váze a dokonalým vzhledem; a jedním z mých cílů je
+                proměnit to, co si moji klienti pod tímhle slovem vlastně
+                představí.
               </p>
               <p className="text-lg text-gray-600 leading-relaxed mb-8">
-                Pohyb je pro mě mnohem víc. <strong>POHYB DOMA</strong> je můj
-                způsob, jak svůj přístup přinést k tobě domů – bez fitka, bez
-                zbytečného vybavení, za zlomek ceny.
+                Projekt POHYB DOMA je mým způsobem, jak tenhle přístup přenést
+                přímo k tobě domů – bez nutnosti drahého fitka či vybavení a za
+                zlomek ceny – a zároveň ti ukázat, že tvůj vlastní domov v sobě
+                skrývá netušené možnosti pro kvalitní a smysluplný trénink.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/rezervace" className="btn-primary">
@@ -108,22 +111,25 @@ export default function AboutPage() {
           <Reveal variant="up" delay={80}>
             <div className="mt-8 space-y-5 text-gray-600 leading-relaxed text-lg">
               <p>
-                Pohyb beru jako komplexní a dlouhodobou záležitost, ne jako pár
-                týdnů dřiny před létem. Proto pracuju výhradně s dlouhodobými
-                klienty – změna, která vydrží, potřebuje čas, pochopení a poctivé
-                základy.
+                Pohybovou praxi vnímám jako komplexní a dlouhodobou záležitost,
+                a právě proto mám klienty výhradně dlouhodobé – skutečná a trvalá
+                změna totiž potřebuje čas, porozumění vlastnímu tělu a poctivě
+                vybudované základy, ne pár týdnů dřiny před létem, na které pak
+                stejně nic nenavazuje.
               </p>
               <p>
-                Holisticky: neřeším izolovaně jeden sval nebo jeden cvik. Jde o to,
-                jak držíš tělo, jak dýcháš a jak se hýbeš v běžném dni. Každé tělo
-                je jiné – má svoje silné i slabé stránky a svoje tempo. Moje práce
-                není tlačit tě do ideálu z internetu, ale pomoct ti stavět na
-                kvalitních základech a vnímat, co ti dělá dobře.
+                Ke každému tělu přistupuji holisticky: neřeším izolovaně jeden sval
+                nebo jednotlivý cvik, ale souvislosti – jakým způsobem držíš tělo,
+                jak dýcháš, jak se hýbeš v běžném dni a kde se vlastně berou tvoje
+                obtíže. Každý jsme jiní, se svými silnými i slabými stránkami a
+                vlastním tempem, takže mým úkolem není tlačit tě do nějakého ideálu
+                z internetu, ale pomoct ti porozumět sám sobě a stavět na kvalitních,
+                ověřených základech, které ti dlouhodobě poslouží.
               </p>
               <p>
                 <em>
-                  [Sem klidně doplň pár vět svého příběhu – co tě k tomuhle
-                  přístupu přivedlo. Ať je to lidské a tvoje.]
+                  [Sem klidně doplň pár vět svého příběhu vlastními slovy – co tě
+                  k tomuhle přístupu přivedlo a proč ho děláš.]
                 </em>
               </p>
             </div>
@@ -155,16 +161,19 @@ export default function AboutPage() {
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <Reveal variant="up">
             <p className="text-xs font-semibold tracking-widest uppercase text-[#5aadff] mb-3">
-              Jak to dělám jinak
+              Jak vedu trénink
             </p>
             <h2 className="text-2xl lg:text-3xl font-semibold leading-snug mb-5">
-              Nejsem drill trenér
+              Holisticky a udržitelně, ne stylem drilu
             </h2>
             <p className="text-white/75 text-lg leading-relaxed">
-              Nebudu na tebe křičet, počítat ti opakování ani tě hnát do dřiny, po
-              které tě druhý den všechno bolí a potřetí už nepřijdeš. Věřím na
-              udržitelnost: malé, chytré kroky, kterým rozumíš a které zvládneš
-              zopakovat sám. Pohyb má být tvůj parťák na celý život, ne trest.
+              Nečekej ode mě křik, mechanické počítání opakování ani hnaní do
+              dřiny, po které tě druhý den všechno bolí a potřetí už nepřijdeš.
+              Holisticky smýšlející trenér pro mě znamená, že stavím na
+              udržitelnosti – na malých, srozumitelných a smysluplných krocích,
+              kterým rozumíš a které jsi schopný postupně zvládat i sám. Cílem je,
+              aby se pro tebe pohyb stal spolehlivým parťákem na celý život, ne jen
+              dočasnou epizodou, kterou po pár týdnech vzdáš.
             </p>
           </Reveal>
         </div>
