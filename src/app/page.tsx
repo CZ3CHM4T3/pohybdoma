@@ -131,7 +131,7 @@ export default function HomePage() {
               },
               {
                 icon: "🎬",
-                title: "Video-knihovna pohybu",
+                title: "Video-knihovna",
                 desc: "Videa tříděná dle části těla, obtížnosti a problému. Cvič kdy a kde chceš.",
                 href: "/videoknihovna",
                 cta: "Procházet ukázky zdarma",
@@ -150,8 +150,6 @@ export default function HomePage() {
                 delay={i * 120}
               >
                 <div className="card card-3d group relative p-8 flex flex-col h-full">
-                  {/* Accent top bar */}
-                  <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-0 bg-gradient-to-r from-brand-blue to-[#5aadff] transition-transform duration-300 group-hover:scale-x-100" />
                   <div className="text-4xl mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
                     {item.icon}
                   </div>
