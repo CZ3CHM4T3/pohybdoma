@@ -183,8 +183,8 @@ export default function HomePage() {
           <Reveal variant="up">
             <SectionHeading
               label="Jak to funguje"
-              title="Začni ve třech krocích"
-              subtitle="Žádné složitosti. Stačí se rozhodnout a začít se hýbat."
+              title="Od rozhodnutí k posunu"
+              subtitle="Žádné složitosti – jen jasný směr od prvního rozhodnutí až po reálný pokrok."
               centered
             />
           </Reveal>
