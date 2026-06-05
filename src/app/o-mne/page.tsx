@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
@@ -72,15 +73,15 @@ export default function AboutPage() {
             {/* Fotka */}
             <Reveal variant="right">
               <div className="flex justify-center lg:justify-end">
-                {/* 👉 Až dodáš fotku: nahraj ji jako /public/honza.jpg a dej vědět,
-                    vyměním tenhle placeholder za <Image src="/honza.jpg" …>. */}
-                <div className="w-80 h-96 lg:w-[26rem] lg:h-[32rem] rounded-3xl bg-gradient-to-br from-brand-dark/10 to-brand-blue/10 border-2 border-dashed border-brand-blue/30 flex items-center justify-center shadow-xl">
-                  <div className="text-center text-gray-400">
-                    <div className="text-5xl mb-3">📷</div>
-                    <p className="text-sm font-medium">Tvoje fotka</p>
-                    <p className="text-xs opacity-60">brzy doplníme</p>
-                  </div>
-                </div>
+                <Image
+                  src="/honza.jpg"
+                  alt="Honza Schröffel – lektor pohybu"
+                  width={1080}
+                  height={1080}
+                  className="w-80 h-80 lg:w-[28rem] lg:h-[28rem] rounded-3xl object-cover shadow-2xl"
+                  sizes="(max-width: 1024px) 320px, 448px"
+                  priority
+                />
               </div>
             </Reveal>
           </div>
