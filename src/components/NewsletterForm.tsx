@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 type Status = "idle" | "loading" | "success" | "duplicate" | "error";
 
 export function NewsletterForm() {
-  const supabase = createClient();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
 
@@ -16,19 +14,24 @@ export function NewsletterForm() {
     if (!value) return;
     setStatus("loading");
 
-    const { error } = await supabase.from("subscribers").insert({ email: value });
-
-    if (error) {
-      // 23505 = už existuje (unikátní e-mail)
-      if (error.code === "23505") {
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setStatus("success");
+        setEmail("");
+      } else if (data.status === "duplicate") {
         setStatus("duplicate");
       } else {
         setStatus("error");
       }
-      return;
+    } catch {
+      setStatus("error");
     }
-    setStatus("success");
-    setEmail("");
   }
 
   if (status === "success") {
