@@ -3,9 +3,8 @@ import { Reveal } from "@/components/ui/Reveal";
 import { NewsletterForm } from "@/components/NewsletterForm";
 
 export const metadata: Metadata = {
-  title: "Blog – Myšlenky v pohybu",
-  description:
-    "Úvahy o pohybu, těle a cestě k němu. Připravujeme – první články brzy.",
+  title: "Pohybová Myslánka",
+  description: "Úvahy o pohybu, těle a životě.",
 };
 
 /** Plánované články (zatím bez obsahu). */
@@ -53,11 +52,11 @@ export default function BlogPage() {
               Blog
             </p>
             <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">
-              Myšlenky v pohybu
+              Pohybová Myslánka
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl">
-              Úvahy o pohybu, těle a cestě k němu. Bez frází a zaručených návodů –
-              spíš poctivé otázky a zkušenosti. První články právě připravuji.
+              Úvahy o pohybu, těle a životě. Bez frází a zaručených návodů – spíš
+              poctivé otázky a zkušenosti. První články právě připravuji.
             </p>
           </Reveal>
         </div>
