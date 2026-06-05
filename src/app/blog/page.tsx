@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Reveal } from "@/components/ui/Reveal";
 import { NewsletterForm } from "@/components/NewsletterForm";
+import { LikeButton } from "@/components/LikeButton";
 
 export const metadata: Metadata = {
   title: "Pohybová Myslánka",
@@ -10,30 +11,35 @@ export const metadata: Metadata = {
 /** Plánované články (zatím bez obsahu). */
 const PLANNED_POSTS = [
   {
+    slug: "pohyb-neni-jen-cviceni",
     title: "Pohyb není jen cvičení",
     teaser:
       "Proč pohyb není výkon ani dřina, ale způsob, jak znovu obývat vlastní tělo.",
     tag: "Filozofie pohybu",
   },
   {
+    slug: "proc-nemusis-byt-dobry-abys-zacal",
     title: "Proč nemusíš být dobrý, abys začal",
     teaser:
       "O tom, že dokonalost není podmínka. Stačí udělat první krok – nedokonale.",
     tag: "Začátky",
   },
   {
+    slug: "co-te-uci-telo-kdyz-mu-das-cas",
     title: "Co tě učí tělo, když mu dáš čas",
     teaser:
       "Tělo mluví. Když ho přestaneš nutit a začneš naslouchat, naučí tě víc než jakýkoliv plán.",
     tag: "Vnímání",
   },
   {
+    slug: "jak-zacit-doma-bez-vybaveni",
     title: "Jak začít doma bez vybavení",
     teaser:
       "Praktický návod, jak se rozhýbat doma s tím, co máš – tedy v podstatě s ničím.",
     tag: "Praxe",
   },
   {
+    slug: "proc-je-ztuhlost-casto-ztrata-moznosti",
     title: "Proč je ztuhlost často ztráta možností",
     teaser:
       "Tuhé tělo není osud. Je to mapa míst, kde jsme přestali zkoušet.",
@@ -55,8 +61,7 @@ export default function BlogPage() {
               Pohybová Myslánka
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl">
-              Úvahy o pohybu, těle a životě. Bez frází a zaručených návodů – spíš
-              poctivé otázky a zkušenosti. První články právě připravuji.
+              Úvahy o pohybu, těle a životě.
             </p>
           </Reveal>
         </div>
@@ -94,9 +99,12 @@ export default function BlogPage() {
                     <p className="text-sm text-gray-600 leading-relaxed flex-1">
                       {post.teaser}
                     </p>
-                    <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-gray-400">
-                      Připravujeme
-                    </span>
+                    <div className="mt-5 flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-400">
+                        Připravujeme
+                      </span>
+                      <LikeButton slug={post.slug} />
+                    </div>
                   </div>
                 </article>
               </Reveal>
