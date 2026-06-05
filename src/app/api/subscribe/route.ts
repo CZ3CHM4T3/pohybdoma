@@ -38,19 +38,16 @@ export async function POST(request: Request) {
     }
   }
 
-  // 2) Ecomail (volitelné – aktivuje se po vložení klíčů)
-  const ecomailKey = process.env.ECOMAIL_API_KEY;
-  const listId = process.env.ECOMAIL_LIST_ID;
-  if (ecomailKey && listId) {
+  // 2) Ecomail – přes veřejný přihlašovací formulář (žádný API klíč není potřeba).
+  //    Ecomail pošle potvrzovací e-mail (double opt-in) a po potvrzení je člověk
+  //    v seznamu, odkud rozesíláš kampaně.
+  const ecomailUrl = process.env.ECOMAIL_SUBSCRIBE_URL;
+  if (ecomailUrl) {
     try {
-      await fetch(`https://api2.ecomailapp.cz/lists/${listId}/subscribe`, {
+      await fetch(ecomailUrl, {
         method: "POST",
-        headers: { key: ecomailKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscriber_data: { email },
-          update_existing: true,
-          resubscribe: false,
-        }),
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ email, source: "form_hosted" }).toString(),
       });
     } catch {
       // Ecomail výpadek nesmí shodit přihlášení – e-mail máme v Supabase.
