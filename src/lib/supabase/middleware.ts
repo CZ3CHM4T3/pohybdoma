@@ -30,10 +30,16 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Důležité: obnoví token, pokud vypršel.
-  // Když je Supabase dočasně nedostupný, nesmí to shodit celý web.
+  // Obnoví token, pokud vypršel. Když je Supabase nedostupný (nebo pomalý),
+  // nesmí to blokovat web – proto časový strop 1,5 s (pak prostě pokračujeme).
   try {
-    await supabase.auth.getUser();
+    const userPromise = supabase.auth.getUser();
+    // potlačí případné pozdější odmítnutí (auth-js zkouší opakovaně)
+    userPromise.catch(() => {});
+    await Promise.race([
+      userPromise,
+      new Promise((resolve) => setTimeout(resolve, 1500)),
+    ]);
   } catch {
     // ignorujeme – session se obnoví při dalším požadavku
   }
