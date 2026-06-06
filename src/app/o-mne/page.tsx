@@ -22,8 +22,8 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
     desc: (
       <>
         Osobně pracuji především s dlouhodobými klienty.{" "}
-        <strong>(Změna, která vydrží, potřebuje čas, trpělivost a poctivě
-        vybudované základy – ne pár týdnů dřiny vytržených z kontextu.)</strong>{" "}
+        <strong>Změna, která vydrží, potřebuje čas, trpělivost a poctivě
+        vybudované základy – ne pár týdnů dřiny vytržených z kontextu.</strong>{" "}
         Pokud je potřeba, rád pomohu i s akutnějšími pohybovými obtížemi, ale
         skutečný cíl vidím v dobrém pohybu, který je zároveň jejich jedinou
         fungující prevencí.
@@ -39,8 +39,8 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
         dýcháš, jíš, spíš, jak trávíš svůj běžný den, jaká je tvoje historie
         zranění i pohybových stereotypů a co všechno může stát za tvými obtížemi
         nebo nezdary.{" "}
-        <strong>(Tělo má být silné, pružné a schopné celý život, přiměřeně
-        věku.)</strong>{" "}
+        <strong>Tělo má být silné, pružné a schopné celý život, přiměřeně
+        věku.</strong>{" "}
         Pokud pociťuješ ztrátu pohyblivosti, nebo dokonce slyšíš stáří klepat na
         dveře, začni žít jinak a otevři mu s klidem a vědomím, že děláš, co můžeš.
       </>
@@ -52,8 +52,8 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
     desc: (
       <>
         Jsem pedagog a to se přirozeně promítá i do vedení lekcí.{" "}
-        <strong>(Samotné předcvičování je pouze špičkou ledovce trenérské
-        práce.)</strong>{" "}
+        <strong>Samotné předcvičování je pouze špičkou ledovce trenérské
+        práce.</strong>{" "}
         Klientovi je třeba především vysvětlit, proč se dané pohybové činnosti
         věnujeme, co se v těle děje atd., aby se postupně dokázal rozhodovat sám
         a nebyl pouze závislý na neustálém vedení. Pohybová praxe představuje
@@ -71,7 +71,7 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
         i bez pomůcek vytvořit smysluplný pohybový systém v prostředí, kde
         skutečně žiješ. Dozvíš se i to, jaké pomůcky a cviky jsou pro tebe osobně
         plýtváním času i prostředků, a jaké naopak skvělou investicí.{" "}
-        <strong>(Prostor slouží tobě, ne ty jemu.)</strong>
+        <strong>Prostor slouží tobě, ne ty jemu.</strong>
       </>
     ),
   },
