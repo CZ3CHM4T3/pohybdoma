@@ -25,6 +25,8 @@ const TONES: Record<string, { card: string; ring: string; iconBg: string; badge:
   emerald: { card: "bg-emerald-50 border-emerald-200", ring: "ring-emerald-400", iconBg: "bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" },
   indigo: { card: "bg-indigo-50 border-indigo-200", ring: "ring-indigo-400", iconBg: "bg-indigo-100", badge: "bg-indigo-100 text-indigo-700" },
   amber: { card: "bg-amber-50 border-amber-200", ring: "ring-amber-400", iconBg: "bg-amber-100", badge: "bg-amber-100 text-amber-700" },
+  rose: { card: "bg-rose-50 border-rose-200", ring: "ring-rose-400", iconBg: "bg-rose-100", badge: "bg-rose-100 text-rose-700" },
+  teal: { card: "bg-teal-50 border-teal-200", ring: "ring-teal-400", iconBg: "bg-teal-100", badge: "bg-teal-100 text-teal-700" },
 };
 const DEFAULT_TONE = { card: "bg-gray-50 border-gray-200", ring: "ring-gray-400", iconBg: "bg-gray-100", badge: "bg-gray-100 text-gray-700" };
 
@@ -315,55 +317,19 @@ export default function RezervacePage() {
         </div>
       </section>
 
-      {/* Na dálku – video-rozbor (asynchronně, bez termínu) */}
-      <section className="bg-white pt-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#062A6B] to-[#1256c0] p-8 lg:p-10 text-white">
-            <div className="pointer-events-none absolute -top-16 -right-10 w-72 h-72 rounded-full bg-[#5aadff]/20 blur-3xl" />
-            <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
-              <div className="flex-1">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-semibold mb-3">
-                  🎥 Na dálku · kdykoliv
-                </span>
-                <h2 className="text-2xl lg:text-3xl font-semibold mb-2">Video-rozbor pohybu</h2>
-                <p className="text-white/75 leading-relaxed max-w-xl">
-                  Nahraj mi video, jak se hýbeš nebo cvičíš konkrétní cvik, a já ti pošlu
-                  podrobný rozbor s konkrétními opravami a doporučeními. Bez domlouvání
-                  termínu, odkudkoliv – ideální když nestíháš živě.
-                </p>
-              </div>
-              <div className="shrink-0 text-center lg:text-right">
-                <div className="text-3xl font-semibold">od 300 Kč</div>
-                <p className="text-xs text-white/60 mb-4">podle délky a složitosti (sazba 1000 Kč/h)</p>
-                <a
-                  href="/kontakt"
-                  className="btn-primary bg-white text-brand-dark hover:opacity-90"
-                >
-                  Mám zájem o rozbor
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Krok 1 – služba */}
       <section className="bg-white py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading label="Krok 1" title="Vyber službu" />
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {SERVICES.map((s) => {
               const active = serviceId === s.id;
               const tone = TONES[s.tone ?? ""] ?? DEFAULT_TONE;
               return (
-                <button
+                <div
                   key={s.id}
-                  type="button"
-                  onClick={() => handleSelectService(s.id)}
                   className={`relative flex flex-col rounded-2xl border-2 p-6 text-left transition-all ${tone.card} ${
-                    active
-                      ? `ring-2 ring-offset-2 ${tone.ring} shadow-lg`
-                      : "hover:-translate-y-1 hover:shadow-lg"
+                    active ? `ring-2 ring-offset-2 ${tone.ring} shadow-lg` : "shadow-sm"
                   }`}
                 >
                   {s.highlighted && (
@@ -381,11 +347,32 @@ export default function RezervacePage() {
                   </div>
                   <h3 className="font-semibold text-brand-dark leading-snug mb-1">{s.name}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1">{s.description}</p>
-                  <div className="flex items-end justify-between pt-3 border-t border-black/5">
-                    <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
+                  <div className="flex items-end justify-between border-t border-black/5 pt-3 mb-4">
+                    <span className="text-xl font-semibold text-brand-dark">
+                      {s.priceLabel ?? `${s.priceKc} Kč`}
+                    </span>
                     <span className="text-xs text-gray-400">{s.durationLabel ?? `${s.durationMin} min`}</span>
                   </div>
-                </button>
+                  {s.inquiryOnly ? (
+                    <a href="/kontakt" className="btn-primary w-full text-sm">
+                      Mám zájem
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectService(s.id);
+                        setTimeout(
+                          () => document.getElementById("kalendar")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                          120
+                        );
+                      }}
+                      className={active ? "btn-outline w-full text-sm" : "btn-primary w-full text-sm"}
+                    >
+                      {active ? "✓ Vybráno – vyber termín" : "Rezervovat"}
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -394,7 +381,7 @@ export default function RezervacePage() {
 
       {/* Krok 2 – kalendář */}
       {service && (
-        <section className="bg-brand-light py-12 lg:py-16">
+        <section id="kalendar" className="bg-brand-light py-12 lg:py-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <SectionHeading label="Krok 2" title="Vyber termín" />
 

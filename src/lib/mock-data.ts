@@ -86,6 +86,18 @@ export const SERVICES: Service[] = [
       "Konzultace přes video hovor odkudkoliv. Ideální na otázky, kontrolu techniky nebo úvodní seznámení.",
   },
   {
+    id: "svc-masaz",
+    name: "Sportovní masáž",
+    durationMin: 60,
+    priceKc: 1500,
+    priceLabel: "1500 Kč/h",
+    mode: "inPerson",
+    icon: "💆",
+    tone: "teal",
+    description:
+      "Regenerační a sportovní masáž pro uvolnění napětí a lepší zotavení. V okolí Dobřichovic.",
+  },
+  {
     id: "svc-plan-doma",
     name: "Osobní pohybový plán na doma",
     durationMin: 0,
@@ -96,6 +108,20 @@ export const SERVICES: Service[] = [
     tone: "amber",
     description:
       "Pohybový plán na míru na každý den v týdnu, sestavený přesně pro tebe. Možné pouze po online konzultaci.",
+  },
+  {
+    id: "svc-video-rozbor",
+    name: "Video-rozbor na dálku",
+    durationMin: 0,
+    durationLabel: "na dálku",
+    priceKc: 300,
+    priceLabel: "od 300 Kč",
+    mode: "online",
+    inquiryOnly: true,
+    icon: "🎥",
+    tone: "rose",
+    description:
+      "Nahraj mi video, jak se hýbeš nebo cvičíš konkrétní cvik, a já ti pošlu podrobný rozbor s opravami a doporučeními. Bez domlouvání termínu.",
   },
 ];
 

@@ -102,8 +102,12 @@ export interface Service {
   description: string;
   /** Emoji symbol služby. */
   icon?: string;
-  /** Barevný tón karty: blue | emerald | indigo | amber. */
+  /** Barevný tón karty: blue | emerald | indigo | amber | rose | teal. */
   tone?: string;
+  /** Vlastní popisek ceny místo "X Kč" (např. "od 300 Kč", "1500 Kč/h"). */
+  priceLabel?: string;
+  /** Bez termínu/kalendáře – jen poptávka přes kontakt (např. video-rozbor). */
+  inquiryOnly?: boolean;
   /** Zvýraznit jako doporučenou / nejoblíbenější. */
   highlighted?: boolean;
 }
