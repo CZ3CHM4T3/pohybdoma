@@ -174,10 +174,10 @@ export default function AboutPage() {
             <p>
               Věřím, že zdravější, silnější a svobodnější pohyb nemusí být výsadou
               sportovců. Může být dostupný téměř každému a často je cesta k němu
-              jednodušší, než se na první pohled zdá. Pokud jste se rozhodli vzít
-              své zdraví a spokojenost pevněji do svých rukou, hledat souvislosti
-              a aktivně na sobě pracovat, budu rád, když na té cestě budu moci být
-              i Tvým průvodcem. :)
+              jednodušší, než se na první pohled zdá. Pokud jsi se i Ty rozhodl/a
+              vzít své zdraví a spokojenost pevněji do svých rukou, hledat
+              souvislosti a aktivně na sobě pracovat, budu rád, když na té cestě
+              budu moci být Tvým průvodcem. :)
             </p>
           </div>
 
