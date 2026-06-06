@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Sacramento } from "next/font/google";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
+
+// Elegantní podpisové písmo
+const signatureFont = Sacramento({ subsets: ["latin"], weight: "400", display: "swap" });
 
 export const metadata: Metadata = {
   title: "O mně",
@@ -50,12 +54,12 @@ const METHODS = [
 
 // Měkké, neostré okraje fotky + obtékání textem
 const photoStyle: React.CSSProperties = {
-  shapeOutside: "ellipse(48% 48%)",
-  shapeMargin: "1.25rem",
+  shapeOutside: "ellipse(50% 50%)",
+  shapeMargin: "1rem",
   WebkitMaskImage:
-    "radial-gradient(ellipse 70% 70% at 50% 45%, #000 50%, transparent 86%)",
+    "radial-gradient(ellipse 72% 80% at 50% 47%, #000 44%, transparent 80%)",
   maskImage:
-    "radial-gradient(ellipse 70% 70% at 50% 45%, #000 50%, transparent 86%)",
+    "radial-gradient(ellipse 72% 80% at 50% 47%, #000 44%, transparent 80%)",
 };
 
 export default function AboutPage() {
@@ -152,14 +156,12 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Podpis */}
+          {/* Podpis – elegantní psací písmo */}
           <div className="clear-both mt-8">
-            {/* 👉 Až naskenuješ podpis: ulož ho jako /public/podpis.png (ideálně
-                průhledné pozadí) a dej vědět – vyměním tento text za obrázek. */}
-            <p className="text-2xl text-brand-dark" style={{ fontStyle: "italic" }}>
+            <p className={`${signatureFont.className} text-brand-dark leading-none text-5xl lg:text-6xl`}>
               Honza
             </p>
-            <p className="text-sm text-gray-500">Jan Schröffel · POHYB DOMA</p>
+            <p className="mt-1 text-sm text-gray-500">Jan Schröffel · POHYB DOMA</p>
           </div>
 
           {/* S čím pracuji */}
