@@ -19,6 +19,15 @@ const MONTHS_CS = [
 const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
 
+// Jemná sladěná paleta pro karty služeb
+const TONES: Record<string, { card: string; ring: string; iconBg: string; badge: string }> = {
+  blue: { card: "bg-blue-50 border-blue-200", ring: "ring-blue-400", iconBg: "bg-blue-100", badge: "bg-blue-100 text-blue-700" },
+  emerald: { card: "bg-emerald-50 border-emerald-200", ring: "ring-emerald-400", iconBg: "bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" },
+  indigo: { card: "bg-indigo-50 border-indigo-200", ring: "ring-indigo-400", iconBg: "bg-indigo-100", badge: "bg-indigo-100 text-indigo-700" },
+  amber: { card: "bg-amber-50 border-amber-200", ring: "ring-amber-400", iconBg: "bg-amber-100", badge: "bg-amber-100 text-amber-700" },
+};
+const DEFAULT_TONE = { card: "bg-gray-50 border-gray-200", ring: "ring-gray-400", iconBg: "bg-gray-100", badge: "bg-gray-100 text-gray-700" };
+
 // Řádky z databáze
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
 type OverrideRow = { date: string; time: string; status: SlotStatus };
@@ -342,45 +351,39 @@ export default function RezervacePage() {
       <section className="bg-white py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading label="Krok 1" title="Vyber službu" />
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {SERVICES.map((s) => {
               const active = serviceId === s.id;
+              const tone = TONES[s.tone ?? ""] ?? DEFAULT_TONE;
               return (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => handleSelectService(s.id)}
-                  className={`card p-6 text-left transition-all relative ${
-                    active ? "ring-2 ring-brand-blue shadow-lg" : "hover:shadow-md"
+                  className={`relative flex flex-col rounded-2xl border-2 p-6 text-left transition-all ${tone.card} ${
+                    active
+                      ? `ring-2 ring-offset-2 ${tone.ring} shadow-lg`
+                      : "hover:-translate-y-1 hover:shadow-lg"
                   }`}
                 >
                   {s.highlighted && (
-                    <span className="absolute top-4 right-4 rounded-full bg-brand-blue px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                    <span className="absolute top-4 right-4 rounded-full bg-brand-dark px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                       Oblíbené
                     </span>
                   )}
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold mb-3 ${
-                      s.mode === "online"
-                        ? "bg-emerald-50 text-emerald-600"
-                        : "bg-brand-light text-brand-blue"
-                    }`}
-                  >
-                    {s.mode === "online" ? "💻 Online · odkudkoliv" : "🏠 Osobně · jen okolí"}
-                  </span>
-                  <h3 className="text-lg font-semibold text-brand-dark mb-1">{s.name}</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed mb-4">{s.description}</p>
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    {hasDayPricing(s) ? (
-                      <span className="text-brand-dark">
-                        <span className="text-xl font-semibold">{s.priceWeekdayKc}</span>
-                        <span className="text-sm font-semibold"> / {s.priceWeekendKc} Kč</span>
-                        <span className="block text-[11px] font-normal text-gray-400">všední den / víkend</span>
-                      </span>
-                    ) : (
-                      <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
-                    )}
-                    <span className="text-xs text-gray-400 self-start">{s.durationLabel ?? `${s.durationMin} min`}</span>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-2xl ${tone.iconBg}`}>
+                      {s.icon ?? "•"}
+                    </span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tone.badge}`}>
+                      {s.mode === "online" ? "Online" : "Osobně · okolí"}
+                    </span>
+                  </div>
+                  <h3 className="font-semibold text-brand-dark leading-snug mb-1">{s.name}</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1">{s.description}</p>
+                  <div className="flex items-end justify-between pt-3 border-t border-black/5">
+                    <span className="text-xl font-semibold text-brand-dark">{s.priceKc} Kč</span>
+                    <span className="text-xs text-gray-400">{s.durationLabel ?? `${s.durationMin} min`}</span>
                   </div>
                 </button>
               );

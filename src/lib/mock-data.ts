@@ -57,9 +57,22 @@ export const SERVICES: Service[] = [
     durationMin: 60,
     priceKc: 1000,
     mode: "inPerson",
+    icon: "🧍",
+    tone: "blue",
     description:
       "Osobní lekce u tebe doma nebo na dohodnutém místě, přesně na míru tvému tělu. Ve dvojici 1500 Kč (napiš mi do poznámky).",
     highlighted: true,
+  },
+  {
+    id: "svc-cvico",
+    name: "Online lekce – CVÍČO ZA KILČO",
+    durationMin: 60,
+    priceKc: 100,
+    mode: "online",
+    icon: "📺",
+    tone: "emerald",
+    description:
+      "Připoj se a zacvič si za stovku rovnou v obýváku – živě a s mým komentářem. Levný a snadný způsob, jak se hýbat pravidelně.",
   },
   {
     id: "svc-online-30",
@@ -67,18 +80,22 @@ export const SERVICES: Service[] = [
     durationMin: 30,
     priceKc: 500,
     mode: "online",
+    icon: "💬",
+    tone: "indigo",
     description:
       "Konzultace přes video hovor odkudkoliv. Ideální na otázky, kontrolu techniky nebo úvodní seznámení.",
   },
   {
     id: "svc-plan-doma",
-    name: "Osobní plán na doma",
+    name: "Osobní pohybový plán na doma",
     durationMin: 0,
     durationLabel: "na celý týden",
     priceKc: 3000,
     mode: "online",
+    icon: "📋",
+    tone: "amber",
     description:
-      "Pohybový plán na míru na každý den v týdnu. Sestavím ti ho a online si ho spolu projdeme – pak cvičíš samostatně doma.",
+      "Pohybový plán na míru na každý den v týdnu, sestavený přesně pro tebe. Možné pouze po online konzultaci.",
   },
 ];
 

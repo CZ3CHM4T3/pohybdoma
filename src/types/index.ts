@@ -100,6 +100,10 @@ export interface Service {
   /** "online" = odkudkoliv, "inPerson" = jen ve spádové oblasti. */
   mode: ServiceMode;
   description: string;
+  /** Emoji symbol služby. */
+  icon?: string;
+  /** Barevný tón karty: blue | emerald | indigo | amber. */
+  tone?: string;
   /** Zvýraznit jako doporučenou / nejoblíbenější. */
   highlighted?: boolean;
 }
