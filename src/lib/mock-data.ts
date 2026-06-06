@@ -93,7 +93,7 @@ export const SERVICES: Service[] = [
     priceLabel: "1500 Kč/h",
     mode: "inPerson",
     icon: "💆",
-    tone: "teal",
+    tone: "violet",
     description:
       "Regenerační a sportovní masáž pro uvolnění napětí a lepší zotavení. V okolí Dobřichovic.",
   },

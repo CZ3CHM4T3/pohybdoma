@@ -19,16 +19,16 @@ const MONTHS_CS = [
 const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
 
-// Jemná sladěná paleta pro karty služeb
-const TONES: Record<string, { card: string; ring: string; iconBg: string; badge: string }> = {
-  blue: { card: "bg-blue-50 border-blue-200", ring: "ring-blue-400", iconBg: "bg-blue-100", badge: "bg-blue-100 text-blue-700" },
-  emerald: { card: "bg-emerald-50 border-emerald-200", ring: "ring-emerald-400", iconBg: "bg-emerald-100", badge: "bg-emerald-100 text-emerald-700" },
-  indigo: { card: "bg-indigo-50 border-indigo-200", ring: "ring-indigo-400", iconBg: "bg-indigo-100", badge: "bg-indigo-100 text-indigo-700" },
-  amber: { card: "bg-amber-50 border-amber-200", ring: "ring-amber-400", iconBg: "bg-amber-100", badge: "bg-amber-100 text-amber-700" },
-  rose: { card: "bg-rose-50 border-rose-200", ring: "ring-rose-400", iconBg: "bg-rose-100", badge: "bg-rose-100 text-rose-700" },
-  teal: { card: "bg-teal-50 border-teal-200", ring: "ring-teal-400", iconBg: "bg-teal-100", badge: "bg-teal-100 text-teal-700" },
+// Jemná sladěná paleta pro karty služeb (plný pastel, bez rámečku)
+const TONES: Record<string, { card: string; iconBg: string; badge: string; outline: string }> = {
+  blue: { card: "bg-blue-50", iconBg: "bg-blue-100", badge: "bg-blue-100 text-blue-700", outline: "outline-blue-400" },
+  emerald: { card: "bg-emerald-50", iconBg: "bg-emerald-100", badge: "bg-emerald-100 text-emerald-700", outline: "outline-emerald-400" },
+  indigo: { card: "bg-indigo-50", iconBg: "bg-indigo-100", badge: "bg-indigo-100 text-indigo-700", outline: "outline-indigo-400" },
+  amber: { card: "bg-amber-50", iconBg: "bg-amber-100", badge: "bg-amber-100 text-amber-700", outline: "outline-amber-400" },
+  rose: { card: "bg-rose-50", iconBg: "bg-rose-100", badge: "bg-rose-100 text-rose-700", outline: "outline-rose-400" },
+  violet: { card: "bg-violet-50", iconBg: "bg-violet-100", badge: "bg-violet-100 text-violet-700", outline: "outline-violet-400" },
 };
-const DEFAULT_TONE = { card: "bg-gray-50 border-gray-200", ring: "ring-gray-400", iconBg: "bg-gray-100", badge: "bg-gray-100 text-gray-700" };
+const DEFAULT_TONE = { card: "bg-gray-50", iconBg: "bg-gray-100", badge: "bg-gray-100 text-gray-700", outline: "outline-gray-400" };
 
 // Řádky z databáze
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
@@ -328,8 +328,8 @@ export default function RezervacePage() {
               return (
                 <div
                   key={s.id}
-                  className={`relative flex flex-col rounded-2xl border-2 p-6 text-left transition-all ${tone.card} ${
-                    active ? `ring-2 ring-offset-2 ${tone.ring} shadow-lg` : "shadow-sm"
+                  className={`card-3d relative flex flex-col rounded-2xl p-6 text-left ${tone.card} ${
+                    active ? `outline outline-2 outline-offset-2 ${tone.outline}` : ""
                   }`}
                 >
                   {s.highlighted && (
