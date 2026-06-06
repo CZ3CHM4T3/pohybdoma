@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Sacramento } from "next/font/google";
+import { Caveat } from "next/font/google";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 
-// Elegantní podpisové písmo
-const signatureFont = Sacramento({ subsets: ["latin"], weight: "400", display: "swap" });
+// Podpisové písmo – přímější, mužnější rukopis
+const signatureFont = Caveat({ subsets: ["latin"], weight: "700", display: "swap" });
 
 export const metadata: Metadata = {
   title: "O mně",
@@ -195,8 +195,8 @@ export default function AboutPage() {
             </p>
           </div>
 
-          {/* Podpis – elegantní psací písmo */}
-          <div className="clear-both mt-8">
+          {/* Podpis – mužnější rukopis, zarovnáno doprava */}
+          <div className="clear-both mt-8 text-right">
             <p className={`${signatureFont.className} text-brand-dark leading-none text-5xl lg:text-6xl`}>
               Honza
             </p>
