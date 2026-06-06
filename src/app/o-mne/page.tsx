@@ -7,19 +7,20 @@ import { Reveal } from "@/components/ui/Reveal";
 export const metadata: Metadata = {
   title: "O mně",
   description:
-    "Jsem Honza a učím lidi hýbat se doma – chytře, bezpečně a tak, aby je to bavilo. Pohyb beru jako možnost, ne povinnost.",
+    "Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu. Pohyb a lidské tělo mě fascinují odjakživa. Pracuji s tělem, ne proti němu.",
 };
 
+// Co ode mě můžeš čekat
 const EXPECT = [
   {
     icon: "🌱",
     title: "Dlouhodobý přístup",
-    desc: "Pracuju výhradně s dlouhodobými klienty. Změna, která vydrží, potřebuje čas a poctivé základy – ne pár týdnů dřiny.",
+    desc: "Osobně pracuji výhradně s dlouhodobými klienty. Změna, která vydrží, potřebuje čas a poctivé základy – ne pár týdnů dřiny. Je-li potřeba, rád pomůžu i s pohybovými obtížemi akutnějšího rázu.",
   },
   {
     icon: "🧠",
-    title: "Holisticky, ne izolovaně",
-    desc: "Neřeším jen sval nebo jeden cvik. Jde o to, jak držíš tělo, jak dýcháš a jak se hýbeš v běžném dni.",
+    title: "Holisticky a funkčně",
+    desc: "Vycházím z funkčního pohledu na tělo. Klienta vnímám jako komplexní a propojený celek, ve kterém spolu úzce souvisí pohybový aparát, nervový systém, dechové stereotypy, fascie i každodenní návyky a životní situace.",
   },
   {
     icon: "🎓",
@@ -33,15 +34,18 @@ const EXPECT = [
   },
 ];
 
-// Na čem stavím (metody)
+// S čím pracuji
 const METHODS = [
-  "Fyziologie a posturální náprava",
-  "Kalistenika",
+  "Atletická a gymnastická průprava",
   "Animal Flow",
   "Kettlebell",
-  "Atletická a gymnastická průprava",
-  "Dech a práce s bránicí",
+  "Kalistenika",
+  "Flow rope",
+  "Práce s kotouči",
   "Koordinační cvičení",
+  "Pohybové hry",
+  "Práce s fasciemi",
+  "Regenerace",
 ];
 
 export default function AboutPage() {
@@ -56,25 +60,14 @@ export default function AboutPage() {
                 O mně
               </p>
               <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark leading-tight mb-6">
-                Pohyb je pro mě komplexní a{" "}
-                <span className="text-gradient">dlouhodobá cesta</span>.
+                Pracuji s tělem, <span className="text-gradient">ne proti němu.</span>
               </h1>
-              <p className="text-lg text-gray-600 leading-relaxed mb-4">
-                Jmenuji se Jan Schröffel, je mi 33 let, jsem vystudovaný
-                tělocvikář, táta a spoluzakladatel Fitness akademie MS GEM
-                v Dobřichovicích. Nevěřím ve fitness v té podobě, v jaké je dnes
-                mainstreamově prezentováno – tedy jako honbu za rychlými výsledky,
-                čísly na váze a dokonalým vzhledem; a jedním z mých cílů je
-                proměnit to, co si moji klienti pod tímhle slovem vlastně
-                představí.
+              <p className="text-lg text-gray-600 leading-relaxed">
+                Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou
+                výchovu. Pohyb a lidské tělo mě fascinují odjakživa a postupně se
+                staly nejen mojí profesí, ale i celoživotním studiem.
               </p>
-              <p className="text-lg text-gray-600 leading-relaxed mb-8">
-                Projekt POHYB DOMA je mým způsobem, jak tenhle přístup přenést
-                přímo k tobě domů – bez nutnosti drahého fitka či vybavení a za
-                zlomek ceny – a zároveň ti ukázat, že tvůj vlastní domov v sobě
-                skrývá netušené možnosti pro kvalitní a smysluplný trénink.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <Link href="/rezervace" className="btn-primary">
                   Rezervovat lekci
                 </Link>
@@ -84,7 +77,6 @@ export default function AboutPage() {
               </div>
             </Reveal>
 
-            {/* Fotka */}
             <Reveal variant="right">
               <div className="flex justify-center lg:justify-end">
                 <Image
@@ -102,45 +94,93 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Proč to dělám */}
+      {/* Moje cesta (příběh) */}
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="up">
-            <SectionHeading label="Jak přemýšlím o pohybu" title="Komplexně a dlouhodobě" />
+            <SectionHeading label="Moje cesta" title="Jak to vidím a proč to dělám" />
           </Reveal>
           <Reveal variant="up" delay={80}>
             <div className="mt-8 space-y-5 text-gray-600 leading-relaxed text-lg">
               <p>
-                Pohybovou praxi vnímám jako komplexní a dlouhodobou záležitost,
-                a právě proto mám klienty výhradně dlouhodobé – skutečná a trvalá
-                změna totiž potřebuje čas, porozumění vlastnímu tělu a poctivě
-                vybudované základy, ne pár týdnů dřiny před létem, na které pak
-                stejně nic nenavazuje.
+                Moje cesta ale nevedla jen přes učebnice a kurzy. Sám jsem si dřív
+                prošel zraněními a dlouhodobými obtížemi, na které mi běžná odborná
+                řešení nepřinesla uspokojivou odpověď. To mě přivedlo k hlubšímu
+                hledání souvislostí a k přesvědčení, že lidské tělo je potřeba
+                vnímat komplexně. Musel jsem vzít věci do vlastních rukou a právě
+                tato zkušenost dnes významně ovlivňuje způsob, jakým pracuji
+                s klienty. Dnes mohu s klidem říct, že se každý rok cítím lépe
+                a pracuji s tělem, ne proti němu.
               </p>
               <p>
-                Ke každému tělu přistupuji holisticky: neřeším izolovaně jeden sval
-                nebo jednotlivý cvik, ale souvislosti – jakým způsobem držíš tělo,
-                jak dýcháš, jak se hýbeš v běžném dni a kde se vlastně berou tvoje
-                obtíže. Každý jsme jiní, se svými silnými i slabými stránkami a
-                vlastním tempem, takže mým úkolem není tlačit tě do nějakého ideálu
-                z internetu, ale pomoct ti porozumět sám sobě a stavět na kvalitních,
-                ověřených základech, které ti dlouhodobě poslouží.
+                Jsem licencovaný fitness trenér, sportovní masér, cvičitel plavání
+                2. třídy, instruktor lyžování, bývalý plavčík a není mnoho sportů,
+                které jsem nezkusil. Díky pedagogickému vzdělání i praktickým
+                zkušenostem propojuji poznatky z biomechaniky, funkčního tréninku,
+                práce s fasciemi, regenerace a každodenního pohybu. Neřeším jen
+                symptomy, ale především jejich příčinu. Klienta vnímám jako
+                propojený celek rozmanitých dílčích faktorů.
               </p>
               <p>
-                <em>
-                  [Sem klidně doplň pár vět svého příběhu vlastními slovy – co tě
-                  k tomuhle přístupu přivedlo a proč ho děláš.]
-                </em>
+                Jsem také táta a dobře vím, jak náročné je skloubit péči o rodinu
+                s péčí o vlastní zdraví. Proto vždy hledám pro klienta řešení, která
+                jsou dlouhodobě udržitelná a fungují i v běžném životě plném práce,
+                dětí a každodenních povinností. Ze stejného popudu vznikla i tato
+                moje online iniciativa s hlavní myšlenkou – vybavit lidi dovednostmi
+                a znalostmi pro snadné a efektivní domácí cvičení a řešení
+                základních i komplexních pohybových obtíží.
+              </p>
+              <p>
+                Jsem spoluzakladatelem tenisové a fitness akademie MS GEM
+                v Dobřichovicích, která působí v areálu TJ Sokol Dobřichovice.
+                V posledních letech jsme s našimi svěřenci dosáhli na umístění mezi
+                nejlepšími týmy v České republice, ale výsledky pro mě nikdy nebyly
+                v rámci dětského pohybu tím nejdůležitějším cílem. Hlavní hodnotu
+                spatřuji v budování charakteru, kolektivu a kvalitních pohybových
+                základů.
+              </p>
+              <p>
+                Je proto běžné, že se děti na našich trénincích setkávají
+                s atleticko-gymnastickými základy, animal flow, kettlebellem,
+                kalistenikou, flow rope, prací s kotouči, koordinačními cvičeními
+                i pohybovými hrami a mnoha dalšími prvky. Vše je součástí
+                promyšleného systému, který jsem během let praxe postupně vytvářel
+                a dále ho aktivně rozvíjím.
+              </p>
+              <p>
+                Na své práci mám nejraději okamžiky, kdy lidé zjišťují, že jejich
+                tělo umí a zvládne mnohem víc, než si mysleli. Když mizí zbytečná
+                tenze, diskomfort a frustrace a pohyb se znovu stává přirozenou
+                součástí života, posouvá se optika nazírání na svět hned
+                přívětivějším směrem.
+              </p>
+              <p>
+                Věřím, že zdravější, silnější a svobodnější pohyb nemusí být výsadou
+                sportovců. Může být dostupný téměř každému a často je cesta k němu
+                jednodušší, než se na první pohled zdá. Pokud jste se rozhodli vzít
+                své zdraví a spokojenost pevněji do svých rukou, hledat souvislosti
+                a aktivně na sobě pracovat, budu rád, když na té cestě budu moci být
+                i vaším průvodcem. :)
               </p>
             </div>
           </Reveal>
 
-          {/* Na čem stavím */}
+          {/* Podpis */}
           <Reveal variant="up" delay={120}>
-            <div className="mt-10">
-              <p className="text-sm font-semibold text-brand-dark mb-3">
-                Stavím na tom, co reálně funguje:
+            <div className="mt-8">
+              {/* 👉 Až naskenuješ podpis: ulož ho jako /public/podpis.png (ideálně
+                  průhledné pozadí) a dej vědět – vyměním tento text za obrázek. */}
+              <p className="text-2xl text-brand-dark" style={{ fontStyle: "italic" }}>
+                Honza
               </p>
+              <p className="text-sm text-gray-500">Jan Schröffel · POHYB DOMA</p>
+            </div>
+          </Reveal>
+
+          {/* S čím pracuji */}
+          <Reveal variant="up" delay={140}>
+            <div className="mt-10">
+              <p className="text-sm font-semibold text-brand-dark mb-3">S čím pracuji:</p>
               <div className="flex flex-wrap gap-2">
                 {METHODS.map((m) => (
                   <span
@@ -156,39 +196,16 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Proč nejsem drill trenér */}
-      <section className="bg-brand-dark text-white py-16 lg:py-20">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-          <Reveal variant="up">
-            <p className="text-xs font-semibold tracking-widest uppercase text-[#5aadff] mb-3">
-              Jak vedu trénink
-            </p>
-            <h2 className="text-2xl lg:text-3xl font-semibold leading-snug mb-5">
-              Holisticky a udržitelně, ne stylem drilu
-            </h2>
-            <p className="text-white/75 text-lg leading-relaxed">
-              Nečekej ode mě křik, mechanické počítání opakování ani hnaní do
-              dřiny, po které tě druhý den všechno bolí a potřetí už nepřijdeš.
-              Holisticky smýšlející trenér pro mě znamená, že stavím na
-              udržitelnosti – na malých, srozumitelných a smysluplných krocích,
-              kterým rozumíš a které jsi schopný postupně zvládat i sám. Cílem je,
-              aby se pro tebe pohyb stal spolehlivým parťákem na celý život, ne jen
-              dočasnou epizodou, kterou po pár týdnech vzdáš.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* Co ode mě čekáš */}
-      <section className="bg-white py-16 lg:py-24">
+      {/* Co ode mě můžeš čekat */}
+      <section className="bg-brand-light py-16 lg:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="up">
-            <SectionHeading label="Co ode mě čekáš" title="Můj přístup v kostce" centered />
+            <SectionHeading label="Co ode mě můžeš čekat" title="Můj přístup v kostce" centered />
           </Reveal>
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {EXPECT.map((v, i) => (
               <Reveal key={v.title} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
-                <div className="card card-3d p-6 text-center h-full">
+                <div className="card card-3d p-6 h-full">
                   <div className="text-3xl mb-3">{v.icon}</div>
                   <h3 className="font-semibold text-brand-dark mb-2">{v.title}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed">{v.desc}</p>
@@ -200,14 +217,14 @@ export default function AboutPage() {
       </section>
 
       {/* Závěrečné CTA */}
-      <section className="bg-brand-light py-16">
+      <section className="bg-white py-16">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 text-center">
           <Reveal variant="up">
             <h2 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-3">
               Tvoje možnosti. Tvoje cesta.
             </h2>
             <p className="text-gray-600 mb-7">
-              Já ti jen pomůžu ji najít. Pojďme začít tam, kde právě jsi.
+              Pojďme začít tam, kde právě jsi. Rád budu tvým průvodcem.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/rezervace" className="btn-primary">
