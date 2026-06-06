@@ -14,27 +14,66 @@ export const metadata: Metadata = {
     "Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu. Pohyb a lidské tělo mě fascinují odjakživa. Pracuji s tělem, ne proti němu.",
 };
 
-// Co ode mě můžeš čekat
-const EXPECT = [
+// Co ode mě můžeš čekat (text v závorkách tučně)
+const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
   {
     icon: "🌱",
-    title: "Dlouhodobý přístup",
-    desc: "Osobně pracuji výhradně s dlouhodobými klienty. Změna, která vydrží, potřebuje čas a poctivé základy – ne pár týdnů dřiny. Je-li potřeba, rád pomůžu i s pohybovými obtížemi akutnějšího rázu.",
+    title: "DLOUHODOBÝ PROJEKT",
+    desc: (
+      <>
+        Osobně pracuji především s dlouhodobými klienty.{" "}
+        <strong>(Změna, která vydrží, potřebuje čas, trpělivost a poctivě
+        vybudované základy – ne pár týdnů dřiny vytržených z kontextu.)</strong>{" "}
+        Pokud je potřeba, rád pomohu i s akutnějšími pohybovými obtížemi, ale
+        skutečný cíl vidím v dobrém pohybu, který je zároveň jejich jedinou
+        fungující prevencí.
+      </>
+    ),
   },
   {
     icon: "🧠",
-    title: "Holisticky a funkčně",
-    desc: "Vycházím z funkčního pohledu na tělo. Klienta vnímám jako komplexní a propojený celek, ve kterém spolu úzce souvisí pohybový aparát, nervový systém, dechové stereotypy, fascie i každodenní návyky a životní situace.",
+    title: "HOLISTICKY A FUNKČNĚ",
+    desc: (
+      <>
+        Nelze se zaměřit jen na místo, které bolí. Bude mě zajímat, jak se hýbeš,
+        dýcháš, jíš, spíš, jak trávíš svůj běžný den, jaká je tvoje historie
+        zranění i pohybových stereotypů a co všechno může stát za tvými obtížemi
+        nebo nezdary.{" "}
+        <strong>(Tělo má být silné, pružné a schopné celý život, přiměřeně
+        věku.)</strong>{" "}
+        Pokud pociťuješ ztrátu pohyblivosti, nebo dokonce slyšíš stáří klepat na
+        dveře, začni žít jinak a otevři mu s klidem a vědomím, že děláš, co můžeš.
+      </>
+    ),
   },
   {
     icon: "🎓",
-    title: "Vysvětlím ti proč",
-    desc: "Jsem vystudovaný tělocvikář. Nejde jen o to, co cvičit, ale proč – ať se postupně staneš nezávislým.",
+    title: "EDUKACE",
+    desc: (
+      <>
+        Jsem pedagog a to se přirozeně promítá i do vedení lekcí.{" "}
+        <strong>(Samotné předcvičování je pouze špičkou ledovce trenérské
+        práce.)</strong>{" "}
+        Klientovi je třeba především vysvětlit, proč se dané pohybové činnosti
+        věnujeme, co se v těle děje atd., aby se postupně dokázal rozhodovat sám
+        a nebyl pouze závislý na neustálém vedení. Pohybová praxe představuje
+        doživotní studium.
+      </>
+    ),
   },
   {
     icon: "🏠",
-    title: "Domov plný možností",
-    desc: "Většina lidí má doma mnohem víc, než si myslí. Ukážu ti, jak svůj prostor proměnit v plnohodnotné a smysluplné tréninkové místo.",
+    title: "DOMOV PLNÝ MOŽNOSTÍ",
+    desc: (
+      <>
+        Ke kvalitnímu pohybu nepotřebuješ drahou posilovnu. Většina lidí má doma
+        dostatek prostoru i pomůcek, jen je neumí využít. Ukážu ti, jak si klidně
+        i bez pomůcek vytvořit smysluplný pohybový systém v prostředí, kde
+        skutečně žiješ. Dozvíš se i to, jaké pomůcky a cviky jsou pro tebe osobně
+        plýtváním času i prostředků, a jaké naopak skvělou investicí.{" "}
+        <strong>(Prostor slouží tobě, ne ty jemu.)</strong>
+      </>
+    ),
   },
 ];
 
@@ -152,7 +191,7 @@ export default function AboutPage() {
               jednodušší, než se na první pohled zdá. Pokud jste se rozhodli vzít
               své zdraví a spokojenost pevněji do svých rukou, hledat souvislosti
               a aktivně na sobě pracovat, budu rád, když na té cestě budu moci být
-              i vaším průvodcem. :)
+              i Tvým průvodcem. :)
             </p>
           </div>
 
@@ -187,7 +226,7 @@ export default function AboutPage() {
           <Reveal variant="up">
             <SectionHeading label="Co ode mě můžeš čekat" title="Můj přístup v kostce" centered />
           </Reveal>
-          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
             {EXPECT.map((v, i) => (
               <Reveal key={v.title} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
                 <div className="card card-3d p-6 h-full">
