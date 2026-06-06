@@ -9,6 +9,15 @@ import {
   hasDayPricing,
 } from "@/lib/mock-data";
 import type { Service, ScheduleSlot, SlotStatus, CalendarEvent } from "@/types";
+import {
+  Dumbbell,
+  MonitorPlay,
+  MessageCircle,
+  HandHelping,
+  ClipboardList,
+  Video,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
@@ -20,15 +29,25 @@ const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
 
 // Jemná sladěná paleta pro karty služeb (plný pastel, bez rámečku)
-const TONES: Record<string, { card: string; iconBg: string; badge: string; outline: string }> = {
-  blue: { card: "bg-blue-50", iconBg: "bg-blue-100", badge: "bg-blue-100 text-blue-700", outline: "outline-blue-400" },
-  emerald: { card: "bg-emerald-50", iconBg: "bg-emerald-100", badge: "bg-emerald-100 text-emerald-700", outline: "outline-emerald-400" },
-  indigo: { card: "bg-indigo-50", iconBg: "bg-indigo-100", badge: "bg-indigo-100 text-indigo-700", outline: "outline-indigo-400" },
-  amber: { card: "bg-amber-50", iconBg: "bg-amber-100", badge: "bg-amber-100 text-amber-700", outline: "outline-amber-400" },
-  rose: { card: "bg-rose-50", iconBg: "bg-rose-100", badge: "bg-rose-100 text-rose-700", outline: "outline-rose-400" },
-  violet: { card: "bg-violet-50", iconBg: "bg-violet-100", badge: "bg-violet-100 text-violet-700", outline: "outline-violet-400" },
+const TONES: Record<string, { card: string; iconBg: string; iconText: string; badge: string; outline: string }> = {
+  blue: { card: "bg-blue-50", iconBg: "bg-blue-100", iconText: "text-blue-600", badge: "bg-blue-100 text-blue-700", outline: "outline-blue-400" },
+  emerald: { card: "bg-emerald-50", iconBg: "bg-emerald-100", iconText: "text-emerald-600", badge: "bg-emerald-100 text-emerald-700", outline: "outline-emerald-400" },
+  indigo: { card: "bg-indigo-50", iconBg: "bg-indigo-100", iconText: "text-indigo-600", badge: "bg-indigo-100 text-indigo-700", outline: "outline-indigo-400" },
+  amber: { card: "bg-amber-50", iconBg: "bg-amber-100", iconText: "text-amber-600", badge: "bg-amber-100 text-amber-700", outline: "outline-amber-400" },
+  rose: { card: "bg-rose-50", iconBg: "bg-rose-100", iconText: "text-rose-600", badge: "bg-rose-100 text-rose-700", outline: "outline-rose-400" },
+  violet: { card: "bg-violet-50", iconBg: "bg-violet-100", iconText: "text-violet-600", badge: "bg-violet-100 text-violet-700", outline: "outline-violet-400" },
 };
-const DEFAULT_TONE = { card: "bg-gray-50", iconBg: "bg-gray-100", badge: "bg-gray-100 text-gray-700", outline: "outline-gray-400" };
+const DEFAULT_TONE = { card: "bg-gray-50", iconBg: "bg-gray-100", iconText: "text-gray-600", badge: "bg-gray-100 text-gray-700", outline: "outline-gray-400" };
+
+// Profesionální ikony pro jednotlivé služby (lucide)
+const SERVICE_ICONS: Record<string, LucideIcon> = {
+  "svc-lekce-60": Dumbbell,
+  "svc-cvico": MonitorPlay,
+  "svc-online-30": MessageCircle,
+  "svc-masaz": HandHelping,
+  "svc-plan-doma": ClipboardList,
+  "svc-video-rozbor": Video,
+};
 
 // Řádky z databáze
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
@@ -325,6 +344,7 @@ export default function RezervacePage() {
             {SERVICES.map((s) => {
               const active = serviceId === s.id;
               const tone = TONES[s.tone ?? ""] ?? DEFAULT_TONE;
+              const Icon = SERVICE_ICONS[s.id] ?? Dumbbell;
               return (
                 <div
                   key={s.id}
@@ -338,8 +358,8 @@ export default function RezervacePage() {
                     </span>
                   )}
                   <div className="flex items-center gap-3 mb-3">
-                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl text-2xl ${tone.iconBg}`}>
-                      {s.icon ?? "•"}
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone.iconBg}`}>
+                      <Icon className={`h-6 w-6 ${tone.iconText}`} strokeWidth={2} />
                     </span>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tone.badge}`}>
                       {s.mode === "online" ? "Online" : "Osobně · okolí"}
