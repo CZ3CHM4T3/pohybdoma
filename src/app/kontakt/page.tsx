@@ -12,8 +12,8 @@ export default function KontaktPage() {
         <div className="card p-8 space-y-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">E-mail</p>
-            <a href="mailto:info@pohybdoma.cz" className="text-brand-blue font-semibold hover:underline">
-              info@pohybdoma.cz
+            <a href="mailto:pohybdoma@seznam.cz" className="text-brand-blue font-semibold hover:underline">
+              pohybdoma@seznam.cz
             </a>
           </div>
           <div>
