@@ -77,20 +77,6 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
   },
 ];
 
-// S čím pracuji
-const METHODS = [
-  "Atletická a gymnastická průprava",
-  "Animal Flow",
-  "Kettlebell",
-  "Kalistenika",
-  "Flow rope",
-  "Práce s kotouči",
-  "Koordinační cvičení",
-  "Pohybové hry",
-  "Práce s fasciemi",
-  "Regenerace",
-];
-
 // Měkké, neostré okraje fotky + obtékání textem
 const photoStyle: React.CSSProperties = {
   shapeOutside: "ellipse(50% 50%)",
@@ -203,20 +189,6 @@ export default function AboutPage() {
             <p className="mt-1 text-sm text-gray-500">Jan Schröffel · POHYB DOMA</p>
           </div>
 
-          {/* S čím pracuji */}
-          <div className="mt-10">
-            <p className="text-sm font-semibold text-brand-dark mb-3">S čím pracuji:</p>
-            <div className="flex flex-wrap gap-2">
-              {METHODS.map((m) => (
-                <span
-                  key={m}
-                  className="rounded-full bg-brand-light px-4 py-1.5 text-sm font-medium text-brand-blue"
-                >
-                  {m}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
