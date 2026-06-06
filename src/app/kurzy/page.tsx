@@ -1,27 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MOCK_COURSES } from "@/lib/mock-data";
+import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
   title: "Videokurzy",
   description: "Strukturované pohybové programy od office cvičení přes bolavá záda až po dech a rodičovské cvičení.",
-};
-
-const COURSE_ICONS: Record<string, string> = {
-  "znovuzrozeni": "🌱",
-  "kalistenika-doma": "🤸",
-  "kettlebell": "🏋️",
-  "animal-flow": "🐾",
-  "flowrope": "🪢",
-  "schody": "🪜",
-  "office": "💼",
-  "rodic-a-dite": "👨‍👧",
-  "reset-dychani": "🌬️",
-  "noha": "🦵",
-  "kycel": "🔄",
-  "rameno": "💪",
-  "panev": "🧘",
 };
 
 export default function KuryPage() {
@@ -45,11 +30,13 @@ export default function KuryPage() {
       <section className="bg-white py-12 lg:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {MOCK_COURSES.map((course) => (
+            {MOCK_COURSES.map((course) => {
+              const Icon = COURSE_ICONS[course.slug] ?? DEFAULT_COURSE_ICON;
+              return (
               <div key={course.id} className="card card-3d flex flex-col">
                 {/* Thumbnail */}
                 <div className="aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
-                  <span className="text-5xl">{COURSE_ICONS[course.slug] ?? "📚"}</span>
+                  <Icon className="h-14 w-14 text-white/90" strokeWidth={1.5} />
                 </div>
 
                 {/* Content */}
@@ -88,7 +75,8 @@ export default function KuryPage() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

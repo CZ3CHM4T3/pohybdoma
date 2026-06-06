@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Caveat } from "next/font/google";
+import { Sprout, Brain, GraduationCap, House, type LucideIcon } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -15,9 +16,9 @@ export const metadata: Metadata = {
 };
 
 // Co ode mě můžeš čekat (text v závorkách tučně)
-const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
+const EXPECT: { Icon: LucideIcon; title: string; desc: React.ReactNode }[] = [
   {
-    icon: "🌱",
+    Icon: Sprout,
     title: "DLOUHODOBÝ PROJEKT",
     desc: (
       <>
@@ -31,7 +32,7 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
     ),
   },
   {
-    icon: "🧠",
+    Icon: Brain,
     title: "HOLISTICKY A FUNKČNĚ",
     desc: (
       <>
@@ -47,7 +48,7 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
     ),
   },
   {
-    icon: "🎓",
+    Icon: GraduationCap,
     title: "EDUKACE",
     desc: (
       <>
@@ -62,7 +63,7 @@ const EXPECT: { icon: string; title: string; desc: React.ReactNode }[] = [
     ),
   },
   {
-    icon: "🏠",
+    Icon: House,
     title: "DOMOV PLNÝ MOŽNOSTÍ",
     desc: (
       <>
@@ -202,7 +203,9 @@ export default function AboutPage() {
             {EXPECT.map((v, i) => (
               <Reveal key={v.title} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
                 <div className="card card-3d p-6 h-full">
-                  <div className="text-3xl mb-3">{v.icon}</div>
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
+                    <v.Icon className="h-6 w-6" strokeWidth={2} />
+                  </div>
                   <h3 className="font-semibold text-brand-dark mb-2">{v.title}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed">{v.desc}</p>
                 </div>

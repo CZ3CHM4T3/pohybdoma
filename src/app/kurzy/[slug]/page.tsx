@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MOCK_COURSES } from "@/lib/mock-data";
+import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 
@@ -41,7 +42,10 @@ export default async function CourseDetailPage({ params }: Props) {
             {/* Hero card */}
             <div className="card mb-6">
               <div className="aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
-                <span className="text-6xl">📚</span>
+                {(() => {
+                  const Icon = COURSE_ICONS[course.slug] ?? DEFAULT_COURSE_ICON;
+                  return <Icon className="h-20 w-20 text-white/90" strokeWidth={1.5} />;
+                })()}
               </div>
               <div className="p-6">
                 <h1 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-2">{course.title}</h1>

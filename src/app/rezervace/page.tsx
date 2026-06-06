@@ -366,7 +366,10 @@ export default function RezervacePage() {
                     </span>
                   </div>
                   <h3 className="font-semibold text-brand-dark leading-snug mb-1">{s.name}</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1">{s.description}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed mb-4 flex-1">
+                    {s.description}
+                    {s.descBold && <> <strong className="text-brand-dark">{s.descBold}</strong></>}
+                  </p>
                   <div className="flex items-end justify-between border-t border-black/5 pt-3 mb-4">
                     <span className="text-xl font-semibold text-brand-dark">
                       {s.priceLabel ?? `${s.priceKc} Kč`}

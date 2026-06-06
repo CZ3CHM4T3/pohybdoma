@@ -72,7 +72,7 @@ export const SERVICES: Service[] = [
     icon: "📺",
     tone: "emerald",
     description:
-      "Připoj se a zacvič si za stovku rovnou v obýváku – živě a s mým komentářem. Levný a snadný způsob, jak se hýbat pravidelně.",
+      "Připoj se a zacvič si za stovku rovnou v obýváku – živě a s mým komentářem. Levný a snadný způsob, jak se hýbat pravidelně a lépe.",
   },
   {
     id: "svc-online-30",
@@ -83,7 +83,7 @@ export const SERVICES: Service[] = [
     icon: "💬",
     tone: "indigo",
     description:
-      "Konzultace přes video hovor odkudkoliv. Ideální na otázky, kontrolu techniky nebo úvodní seznámení.",
+      "Konzultace přes video hovor odkudkoliv. Ideální prostor na tvoje otázky ohledně pohybové praxe, životního stylu, výběru a provedení cviků. Poradím, na co se kdy zaměřit.",
   },
   {
     id: "svc-masaz",
@@ -95,7 +95,7 @@ export const SERVICES: Service[] = [
     icon: "💆",
     tone: "violet",
     description:
-      "Regenerační a sportovní masáž pro uvolnění napětí a lepší zotavení. V okolí Dobřichovic.",
+      "Regenerační a sportovní masáž pro uvolnění napětí, obnovu rozsahu pohybu a lepší regeneraci. V okolí Dobřichovic.",
   },
   {
     id: "svc-plan-doma",
@@ -107,7 +107,8 @@ export const SERVICES: Service[] = [
     icon: "📋",
     tone: "amber",
     description:
-      "Pohybový plán na míru na každý den v týdnu, sestavený přesně pro tebe. Možné pouze po online konzultaci.",
+      "Pohybový plán na míru na každý den v týdnu, sestavený přesně pro tebe.",
+    descBold: "Možné pouze po online konzultaci.",
   },
   {
     id: "svc-video-rozbor",
@@ -121,7 +122,7 @@ export const SERVICES: Service[] = [
     icon: "🎥",
     tone: "rose",
     description:
-      "Nahraj mi video, jak se hýbeš nebo cvičíš konkrétní cvik, a já ti pošlu podrobný rozbor s opravami a doporučeními. Bez domlouvání termínu.",
+      "Nahraj mi video, jak se hýbeš, cvičíš konkrétní cvik, nebo jaký pohybový problém řešíš a já ti pošlu podrobný rozbor s návodem na opravu a doporučeními. Bez domlouvání termínu.",
   },
 ];
 

@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
+import { Dumbbell, Film, Star } from "lucide-react";
 import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
+import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { VideoCard } from "@/components/VideoCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
 
@@ -123,21 +125,21 @@ export default function HomePage() {
           <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                icon: "👤",
+                Icon: Dumbbell,
                 title: "Osobní lekce",
                 desc: "1:1 lekce u tebe doma (okolí Dobřichovic) nebo online odkudkoliv. Přesně na míru tvému tělu. Rezervuj si termín.",
                 href: "/rezervace",
                 cta: "Rezervovat lekci",
               },
               {
-                icon: "🎬",
+                Icon: Film,
                 title: "Video-knihovna",
                 desc: "Videa tříděná dle části těla, obtížnosti a problému. Cvič kdy a kde chceš.",
                 href: "/videoknihovna",
                 cta: "Procházet ukázky zdarma",
               },
               {
-                icon: "⭐",
+                Icon: Star,
                 title: "Členství",
                 desc: "Odemkněte VIP obsah, živé streamy a přímou komunikaci se mnou. Tři úrovně, zrušení kdykoliv.",
                 href: "/clenstvi",
@@ -150,8 +152,8 @@ export default function HomePage() {
                 delay={i * 120}
               >
                 <div className="card card-3d group relative p-8 flex flex-col h-full">
-                  <div className="text-4xl mb-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
-                    {item.icon}
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light text-brand-blue transition-transform duration-300 group-hover:scale-110">
+                    <item.Icon className="h-6 w-6" strokeWidth={2} />
                   </div>
                   <h3 className="text-xl font-semibold text-brand-dark mb-3">
                     {item.title}
@@ -280,24 +282,22 @@ export default function HomePage() {
             </div>
           </Reveal>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-            {["OFFICE CVIČENÍ", "BOLAVÁ ZÁDA", "KYČLE", "RAMENO"].map(
-              (name, i) => (
-                <Reveal key={name} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
-                  <div className="card card-3d group p-6 flex flex-col items-center text-center gap-3 cursor-pointer">
-                    <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center text-xl transition-transform duration-300 group-hover:scale-110">
-                      {name === "OFFICE CVIČENÍ"
-                        ? "💼"
-                        : name === "BOLAVÁ ZÁDA"
-                          ? "🦴"
-                          : name === "KYČLE"
-                            ? "🔄"
-                            : "💪"}
+            {MOCK_COURSES.slice(0, 4).map((course, i) => {
+              const Icon = COURSE_ICONS[course.slug] ?? DEFAULT_COURSE_ICON;
+              return (
+                <Reveal key={course.id} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
+                  <Link
+                    href={`/kurzy/${course.slug}`}
+                    className="card card-3d group p-6 flex flex-col items-center text-center gap-3"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center text-brand-blue transition-transform duration-300 group-hover:scale-110">
+                      <Icon className="h-6 w-6" strokeWidth={2} />
                     </div>
-                    <p className="text-sm font-semibold text-brand-dark">{name}</p>
-                  </div>
+                    <p className="text-sm font-semibold text-brand-dark">{course.title}</p>
+                  </Link>
                 </Reveal>
-              )
-            )}
+              );
+            })}
           </div>
         </div>
       </section>
