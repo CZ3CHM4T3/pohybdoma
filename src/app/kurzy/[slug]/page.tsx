@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { MOCK_COURSES } from "@/lib/mock-data";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { formatDuration } from "@/lib/access";
-import { AccessBadge } from "@/components/ui/Badge";
+import { CourseLessons } from "@/components/CourseLessons";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -27,7 +27,6 @@ export default async function CourseDetailPage({ params }: Props) {
   if (!course) notFound();
 
   const totalDuration = course.lessons.reduce((sum, l) => sum + l.durationSeconds, 0);
-  const freeLessons = course.lessons.filter((l) => l.accessLevel === "FREE").length;
 
   return (
     <div className="min-h-screen bg-brand-light">
@@ -61,32 +60,8 @@ export default async function CourseDetailPage({ params }: Props) {
               </div>
             </div>
 
-            {/* Lessons list */}
-            <div className="card p-6">
-              <h2 className="text-lg font-semibold text-brand-dark mb-4">
-                Obsah kurzu ({course.lessons.length} lekcí · {formatDuration(totalDuration)})
-              </h2>
-              <ul className="space-y-2">
-                {course.lessons.map((lesson) => (
-                  <li
-                    key={lesson.id}
-                    className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="shrink-0 w-7 h-7 rounded-full bg-brand-light text-brand-blue text-xs font-bold flex items-center justify-center">
-                      {lesson.order}
-                    </span>
-                    <span className="flex-1 text-sm text-brand-dark font-medium">{lesson.title}</span>
-                    <span className="text-xs text-gray-400 shrink-0">{formatDuration(lesson.durationSeconds)}</span>
-                    <AccessBadge level={lesson.accessLevel} />
-                  </li>
-                ))}
-              </ul>
-              {freeLessons > 0 && (
-                <p className="mt-4 text-xs text-gray-400">
-                  {freeLessons} {freeLessons === 1 ? "lekce je" : "lekce jsou"} zdarma – vyzkoušejte před koupí.
-                </p>
-              )}
-            </div>
+            {/* Lessons list + postup + poznámky */}
+            <CourseLessons courseSlug={course.slug} lessons={course.lessons} />
           </div>
 
           {/* Sidebar */}
