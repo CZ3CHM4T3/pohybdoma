@@ -2,23 +2,40 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Pin, Trash2, Send, Crown, Lock } from "lucide-react";
+import { Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 
 const EMOJIS = ["👍", "❤️", "🔥", "💪", "🙌"];
 
-type Author = { full_name: string | null; tier: string | null; email: string | null } | null;
-type Post = { id: string; author_id: string; body: string; pinned: boolean; created_at: string; author: Author };
-type Comment = { id: string; post_id: string; author_id: string; body: string; created_at: string; author: Author };
+type Channel = "chat" | "qa";
+type Post = {
+  id: string;
+  author_id: string;
+  author_name: string | null;
+  author_role: string | null;
+  body: string;
+  pinned: boolean;
+  channel: string;
+  created_at: string;
+};
+type Comment = {
+  id: string;
+  post_id: string;
+  author_id: string;
+  author_name: string | null;
+  author_role: string | null;
+  body: string;
+  created_at: string;
+};
 type ReactionAgg = { counts: Record<string, number>; mine: Set<string> };
 
-function authorName(a: Author): string {
-  return a?.full_name?.trim() || a?.email?.split("@")[0] || "Člen";
+function nameOf(n: string | null): string {
+  return n?.trim() || "Člen";
 }
-function initials(a: Author): string {
-  return (authorName(a)[0] ?? "Č").toUpperCase();
+function initialOf(n: string | null): string {
+  return (nameOf(n)[0] ?? "Č").toUpperCase();
 }
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -39,6 +56,7 @@ export default function KlubPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const [channel, setChannel] = useState<Channel>("chat");
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [reactions, setReactions] = useState<Record<string, ReactionAgg>>({});
@@ -55,12 +73,12 @@ export default function KlubPage() {
     const [p, c, r] = await Promise.all([
       supabase
         .from("community_posts")
-        .select("id, author_id, body, pinned, created_at, author:profiles!community_posts_author_id_fkey(full_name, tier, email)")
+        .select("id, author_id, author_name, author_role, body, pinned, channel, created_at")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("community_comments")
-        .select("id, post_id, author_id, body, created_at, author:profiles!community_comments_author_id_fkey(full_name, tier, email)")
+        .select("id, post_id, author_id, author_name, author_role, body, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("community_reactions").select("post_id, user_id, emoji"),
     ]);
@@ -85,7 +103,7 @@ export default function KlubPage() {
   }, [supabase]);
 
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channelSub: ReturnType<typeof supabase.channel> | null = null;
     (async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
@@ -107,14 +125,14 @@ export default function KlubPage() {
       setPhase("ready");
       await loadAll();
 
-      channel = supabase
+      channelSub = supabase
         .channel("klub")
         .on("postgres_changes", { event: "*", schema: "public", table: "community_posts" }, () => loadAll())
         .on("postgres_changes", { event: "*", schema: "public", table: "community_comments" }, () => loadAll())
         .on("postgres_changes", { event: "*", schema: "public", table: "community_reactions" }, () => loadAll())
         .subscribe();
     })();
-    return () => { if (channel) supabase.removeChannel(channel); };
+    return () => { if (channelSub) supabase.removeChannel(channelSub); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -124,10 +142,10 @@ export default function KlubPage() {
     setError(null);
     const { error: err } = await supabase
       .from("community_posts")
-      .insert({ author_id: userId, body: draft.trim() });
+      .insert({ author_id: userId, body: draft.trim(), channel });
     setPosting(false);
     if (err) {
-      setError("Příspěvek se nepodařilo uložit (" + err.message + "). Spustil jsi v Supabase community.sql?");
+      setError("Nepodařilo se uložit (" + err.message + "). Spustil jsi v Supabase community.sql i community_v2.sql?");
       return;
     }
     setDraft("");
@@ -144,13 +162,16 @@ export default function KlubPage() {
   async function addComment(postId: string) {
     const text = (commentDraft[postId] ?? "").trim();
     if (!text || !userId) return;
-    const { error } = await supabase
+    setError(null);
+    const { error: err } = await supabase
       .from("community_comments")
       .insert({ post_id: postId, author_id: userId, body: text });
-    if (!error) {
-      setCommentDraft((d) => ({ ...d, [postId]: "" }));
-      loadAll();
+    if (err) {
+      setError("Komentář se nepodařilo uložit (" + err.message + ").");
+      return;
     }
+    setCommentDraft((d) => ({ ...d, [postId]: "" }));
+    loadAll();
   }
   async function deleteComment(id: string) {
     await supabase.from("community_comments").delete().eq("id", id);
@@ -203,6 +224,9 @@ export default function KlubPage() {
   }
 
   // ── Klub ────────────────────────────────────────────────────────────────
+  const visiblePosts = posts.filter((p) => (p.channel ?? "chat") === channel);
+  const isQa = channel === "qa";
+
   return (
     <div className="min-h-screen bg-brand-light py-10">
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
@@ -217,6 +241,28 @@ export default function KlubPage() {
           </div>
         </div>
 
+        {/* Záložky Chat / Q&A */}
+        <div className="mb-5 flex gap-1 rounded-xl bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setChannel("chat")}
+            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              channel === "chat" ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
+            }`}
+          >
+            <MessageCircle className="h-4 w-4" strokeWidth={2} /> Chat
+          </button>
+          <button
+            type="button"
+            onClick={() => setChannel("qa")}
+            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition-colors ${
+              channel === "qa" ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
+            }`}
+          >
+            <HelpCircle className="h-4 w-4" strokeWidth={2} /> Q&amp;A
+          </button>
+        </div>
+
         {error && (
           <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}
@@ -229,7 +275,13 @@ export default function KlubPage() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            placeholder={isAdmin ? "Napiš oznámení nebo příspěvek…" : "Co máš na srdci? Poděl se s klubem…"}
+            placeholder={
+              isQa
+                ? "Na co se chceš zeptat? Lektor ti odpoví…"
+                : isAdmin
+                  ? "Napiš oznámení nebo příspěvek…"
+                  : "Co máš na srdci? Poděl se s klubem…"
+            }
             className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
           />
           <div className="mt-2 flex justify-end">
@@ -240,22 +292,23 @@ export default function KlubPage() {
               className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
             >
               <Send className="h-4 w-4" strokeWidth={2} />
-              {posting ? "Odesílám…" : "Sdílet"}
+              {posting ? "Odesílám…" : isQa ? "Položit otázku" : "Sdílet"}
             </button>
           </div>
         </div>
 
         {/* Feed */}
-        {posts.length === 0 ? (
+        {visiblePosts.length === 0 ? (
           <p className="text-center text-sm text-gray-400 py-10">
-            Zatím tu nic není. Buď první, kdo napíše! ✍️
+            {isQa ? "Zatím žádné otázky. Zeptej se jako první! 🙋" : "Zatím tu nic není. Buď první, kdo napíše! ✍️"}
           </p>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => {
+            {visiblePosts.map((post) => {
               const rx = reactions[post.id];
               const postComments = comments[post.id] ?? [];
-              const honza = isAdminEmail(post.author?.email);
+              const honza = post.author_role === "lektor";
+              const canComment = (post.channel ?? "chat") === "chat" || isAdmin;
               return (
                 <article key={post.id} className={`card p-5 ${post.pinned ? "ring-2 ring-amber-300" : ""}`}>
                   {post.pinned && (
@@ -267,11 +320,11 @@ export default function KlubPage() {
                   {/* Hlavička příspěvku */}
                   <div className="flex items-center gap-3">
                     <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${honza ? "bg-brand-dark" : "bg-amber-500"}`}>
-                      {initials(post.author)}
+                      {initialOf(post.author_name)}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-brand-dark flex items-center gap-1.5">
-                        {authorName(post.author)}
+                        {nameOf(post.author_name)}
                         {honza ? (
                           <span className="rounded-full bg-brand-dark px-1.5 py-0.5 text-[10px] font-bold text-white">LEKTOR</span>
                         ) : (
@@ -280,7 +333,6 @@ export default function KlubPage() {
                       </p>
                       <p className="text-xs text-gray-400">{timeAgo(post.created_at)}</p>
                     </div>
-                    {/* Akce: připnutí (admin) + mazání (admin nebo vlastní) */}
                     {(isAdmin || post.author_id === userId) && (
                       <div className="ml-auto flex items-center gap-1">
                         {isAdmin && (
@@ -331,37 +383,37 @@ export default function KlubPage() {
                     })}
                   </div>
 
-                  {/* Komentáře */}
+                  {/* Komentáře / odpovědi */}
                   {postComments.length > 0 && (
                     <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
                       {postComments.map((c) => {
-                        const cHonza = isAdminEmail(c.author?.email);
+                        const cHonza = c.author_role === "lektor";
                         const mine = c.author_id === userId;
                         return (
                           <div key={c.id} className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
                             <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
                               mine ? "bg-brand-blue" : cHonza ? "bg-brand-dark" : "bg-amber-500"
                             }`}>
-                              {mine ? "T" : initials(c.author)}
+                              {mine ? "T" : initialOf(c.author_name)}
                             </span>
                             <div className={`min-w-0 max-w-[80%] rounded-xl px-3 py-2 ${
-                              mine ? "bg-brand-blue text-white" : "bg-brand-light"
+                              mine ? "bg-brand-blue text-white" : cHonza ? "bg-brand-dark text-white" : "bg-brand-light"
                             }`}>
                               <p className={`text-xs font-semibold flex items-center gap-1.5 ${
-                                mine ? "text-white/90 flex-row-reverse" : "text-brand-dark"
-                              }`}>
-                                {mine ? "Ty" : authorName(c.author)}
-                                {cHonza && !mine && <span className="rounded-full bg-brand-dark px-1.5 text-[9px] font-bold text-white">LEKTOR</span>}
-                                <span className={`font-normal ${mine ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
+                                mine || cHonza ? "text-white/90" : "text-brand-dark"
+                              } ${mine ? "flex-row-reverse" : ""}`}>
+                                {mine ? "Ty" : nameOf(c.author_name)}
+                                {cHonza && !mine && <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>}
+                                <span className={`font-normal ${mine || cHonza ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
                               </p>
-                              <p className={`text-sm whitespace-pre-wrap ${mine ? "text-white" : "text-brand-dark"}`}>{c.body}</p>
+                              <p className={`text-sm whitespace-pre-wrap ${mine || cHonza ? "text-white" : "text-brand-dark"}`}>{c.body}</p>
                             </div>
                             {(isAdmin || mine) && (
                               <button
                                 type="button"
                                 onClick={() => deleteComment(c.id)}
                                 className="mt-1 p-1 text-gray-300 hover:text-red-600"
-                                title="Smazat komentář"
+                                title="Smazat"
                               >
                                 <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                               </button>
@@ -372,26 +424,30 @@ export default function KlubPage() {
                     </div>
                   )}
 
-                  {/* Přidat komentář */}
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={commentDraft[post.id] ?? ""}
-                      onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
-                      onKeyDown={(e) => { if (e.key === "Enter") addComment(post.id); }}
-                      placeholder="Napiš komentář…"
-                      className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => addComment(post.id)}
-                      disabled={!(commentDraft[post.id] ?? "").trim()}
-                      className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
-                      aria-label="Odeslat komentář"
-                    >
-                      <Send className="h-4 w-4" strokeWidth={2} />
-                    </button>
-                  </div>
+                  {/* Přidat komentář / odpověď */}
+                  {canComment ? (
+                    <div className="mt-3 flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={commentDraft[post.id] ?? ""}
+                        onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") addComment(post.id); }}
+                        placeholder={isQa ? "Napiš odpověď…" : "Napiš komentář…"}
+                        className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addComment(post.id)}
+                        disabled={!(commentDraft[post.id] ?? "").trim()}
+                        className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
+                        aria-label="Odeslat"
+                      >
+                        <Send className="h-4 w-4" strokeWidth={2} />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-xs italic text-gray-400">Na otázky odpovídá lektor.</p>
+                  )}
                 </article>
               );
             })}
