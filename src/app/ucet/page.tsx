@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
+import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
+import { MOCK_VIDEOS } from "@/lib/mock-data";
 import type { UserTier } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -17,6 +19,7 @@ export default function UcetPage() {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [tier, setTier] = useState<UserTier>("FREE");
+  const [favSlugs, setFavSlugs] = useState<string[]>([]);
 
   const [tab, setTab] = useState<Tab>("prihlaseni");
   const [email, setEmail] = useState("");
@@ -47,6 +50,20 @@ export default function UcetPage() {
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => setTier(normalizeTier(data?.tier as string | undefined)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Načti oblíbená videa.
+  useEffect(() => {
+    if (!user) { setFavSlugs([]); return; }
+    supabase
+      .from("video_favorites")
+      .select("video_slug")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) =>
+        setFavSlugs((data ?? []).map((r: { video_slug: string }) => r.video_slug))
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -171,6 +188,37 @@ export default function UcetPage() {
               <Link href="/kurzy" className="btn-outline w-full text-sm">
                 Moje kurzy
               </Link>
+            </div>
+
+            {/* Oblíbená videa */}
+            <div className="mt-8 text-left">
+              <div className="mb-3 flex items-center gap-2">
+                <Heart className="h-4 w-4 fill-rose-500 text-rose-500" strokeWidth={2} />
+                <h2 className="text-sm font-semibold text-brand-dark">
+                  Oblíbená videa{favSlugs.length > 0 ? ` (${favSlugs.length})` : ""}
+                </h2>
+              </div>
+              {favSlugs.length === 0 ? (
+                <p className="text-xs text-gray-400">
+                  Zatím nic uloženého. V knihovně klikni na srdíčko ❤ u videa a uloží se ti sem.
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {favSlugs
+                    .map((slug) => MOCK_VIDEOS.find((v) => v.slug === slug))
+                    .filter((v): v is (typeof MOCK_VIDEOS)[number] => !!v)
+                    .map((v) => (
+                      <Link
+                        key={v.slug}
+                        href={`/videoknihovna/${v.slug}`}
+                        className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm text-brand-dark hover:border-brand-blue hover:bg-brand-light/50 transition-colors"
+                      >
+                        <Heart className="h-3.5 w-3.5 shrink-0 fill-rose-500 text-rose-500" />
+                        <span className="truncate">{v.title}</span>
+                      </Link>
+                    ))}
+                </div>
+              )}
             </div>
 
             <button

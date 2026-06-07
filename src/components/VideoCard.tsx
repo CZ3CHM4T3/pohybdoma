@@ -4,6 +4,7 @@ import type { Video, UserTier } from "@/types";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
+import { FavoriteHeart } from "@/components/FavoriteHeart";
 import { TIER_STYLES } from "@/lib/tiers";
 
 interface VideoCardProps {
@@ -15,6 +16,8 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
   const accessible = canAccess(userTier, video.accessLevel);
 
   return (
+    <div className="relative">
+    <FavoriteHeart slug={video.slug} className="absolute top-2 right-2 z-10" />
     <Link href={`/videoknihovna/${video.slug}`} className="card card-3d group block">
       {/* Thumbnail */}
       <div className="relative aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] overflow-hidden">
@@ -75,5 +78,6 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
         </div>
       </div>
     </Link>
+    </div>
   );
 }

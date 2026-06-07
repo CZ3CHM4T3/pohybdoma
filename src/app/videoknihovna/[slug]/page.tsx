@@ -5,6 +5,7 @@ import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
+import { FavoriteHeart } from "@/components/FavoriteHeart";
 import { TIER_STYLES } from "@/lib/tiers";
 import { getUserTier } from "@/lib/supabase/user";
 
@@ -83,6 +84,7 @@ export default async function VideoDetailPage({ params }: Props) {
               <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full font-semibold">
                 {formatDuration(video.durationSeconds)}
               </span>
+              <FavoriteHeart slug={video.slug} className="ml-auto border border-gray-200" />
             </div>
             <h1 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-4">{video.title}</h1>
             <p className="text-gray-600 leading-relaxed">{video.description}</p>
