@@ -4,8 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
+import { normalizeTier } from "@/lib/tiers";
+import type { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
   { href: "/", label: "Domů" },
@@ -24,6 +27,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isClub, setIsClub] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -34,14 +38,22 @@ export function Header() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setSignedIn(!!data.user);
-      setIsAdmin(isAdminEmail(data.user?.email));
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setSignedIn(!!session?.user);
-      setIsAdmin(isAdminEmail(session?.user?.email));
-    });
+    const apply = async (user: User | null) => {
+      setSignedIn(!!user);
+      const admin = isAdminEmail(user?.email);
+      setIsAdmin(admin);
+      if (!user) { setIsClub(false); return; }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tier")
+        .eq("id", user.id)
+        .maybeSingle();
+      setIsClub(admin || normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS");
+    };
+    supabase.auth.getUser().then(({ data }) => apply(data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+      apply(session?.user ?? null)
+    );
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -92,6 +104,18 @@ export function Header() {
                 </Link>
               );
             })}
+            {isClub && (
+              <Link
+                href="/klub"
+                className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors inline-flex items-center gap-1.5 ${
+                  pathname.startsWith("/klub")
+                    ? "text-white bg-amber-500"
+                    : "text-amber-700 hover:text-white hover:bg-amber-500"
+                }`}
+              >
+                <Crown className="h-4 w-4" strokeWidth={2} /> Klub
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -161,6 +185,24 @@ export function Header() {
                 </Link>
               );
             })}
+            {isClub && (
+              <Link
+                href="/klub"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-1.5 px-4 py-3 rounded-lg text-sm font-semibold tracking-wide text-amber-700 hover:bg-amber-50"
+              >
+                <Crown className="h-4 w-4" strokeWidth={2} /> Klub
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-3 rounded-lg text-sm font-semibold tracking-wide text-brand-dark hover:bg-brand-light"
+              >
+                Admin
+              </Link>
+            )}
             <div className="mt-3 px-4">
               <Link href="/clenstvi" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">
                 Začít hned
