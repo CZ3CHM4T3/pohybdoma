@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Gift } from "lucide-react";
 import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { TIER_STYLES } from "@/lib/tiers";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -89,18 +89,22 @@ export default function ClenstviPage() {
               <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
                 <div className="flex-1">
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-semibold mb-3">
-                    🎁 Dárek
+                    <Gift className="h-3.5 w-3.5" strokeWidth={2.5} /> Dárek
                   </span>
                   <h2 className="text-2xl lg:text-3xl font-semibold mb-2">Daruj členství</h2>
                   <p className="text-white/75 leading-relaxed max-w-xl">
                     Zaplať a obdarovaný dostane kód, který si uplatní. Vyber libovolnou
-                    úroveň a délku:
+                    úroveň i délku – za běžnou cenu, bez háčků.
                   </p>
-                  <ul className="mt-4 space-y-1.5 text-sm text-white/90">
-                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 1 měsíc – běžná cena</li>
-                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 6 měsíců – <strong>sleva 100 Kč</strong></li>
-                    <li className="flex items-center gap-2"><span className="text-[#5aadff]">✓</span> 12 měsíců – <strong>sleva 200 Kč</strong></li>
-                  </ul>
+                  <div className="mt-5 flex items-start gap-3 rounded-2xl bg-white/10 border border-white/15 p-4 max-w-xl">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5aadff]/20 text-[#5aadff]">
+                      <Gift className="h-4 w-4" strokeWidth={2.5} />
+                    </span>
+                    <p className="text-sm text-white/90 leading-relaxed">
+                      A jako poděkování: <strong>ten, kdo členství daruje, získá měsíc
+                      MEMBER zdarma.</strong>
+                    </p>
+                  </div>
                 </div>
                 <div className="shrink-0 text-center">
                   <a href="/kontakt" className="btn-primary bg-white text-brand-dark hover:opacity-90">
