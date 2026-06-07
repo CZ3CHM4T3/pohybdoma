@@ -241,16 +241,13 @@ export default function KlubPage() {
     setError(null);
     const img = await uploadImage(key);
     if (img === "error") return;
-    const { data: inserted, error: err } = await supabase
+    const { error: err } = await supabase
       .from("community_comments")
-      .insert({ post_id: postId, author_id: userId, body: text, parent_id: parentId, image_url: img })
-      .select("id")
-      .single();
+      .insert({ post_id: postId, author_id: userId, body: text, parent_id: parentId, image_url: img });
     if (err) {
       setError("Odpověď se nepodařilo uložit (" + err.message + ").");
       return;
     }
-    if (inserted?.id) notify(inserted.id);
     setReplyDraft((d) => ({ ...d, [parentId]: "" }));
     setPendingImage((p) => ({ ...p, [key]: null }));
     setReplyOpen(null);
@@ -264,15 +261,6 @@ export default function KlubPage() {
     await supabase.from("community_posts").update({ pinned: !pinned }).eq("id", id);
     loadAll();
   }
-  // Pošle e-mail upozornění (fire-and-forget, nikdy neblokuje diskuzi).
-  function notify(commentId: string) {
-    fetch("/api/notify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId }),
-    }).catch(() => {});
-  }
-
   async function addComment(postId: string) {
     const text = (commentDraft[postId] ?? "").trim();
     const key = `cmt:${postId}`;
@@ -280,16 +268,13 @@ export default function KlubPage() {
     setError(null);
     const img = await uploadImage(key);
     if (img === "error") return;
-    const { data: inserted, error: err } = await supabase
+    const { error: err } = await supabase
       .from("community_comments")
-      .insert({ post_id: postId, author_id: userId, body: text, image_url: img })
-      .select("id")
-      .single();
+      .insert({ post_id: postId, author_id: userId, body: text, image_url: img });
     if (err) {
       setError("Komentář se nepodařilo uložit (" + err.message + ").");
       return;
     }
-    if (inserted?.id) notify(inserted.id);
     setCommentDraft((d) => ({ ...d, [postId]: "" }));
     setPendingImage((p) => ({ ...p, [key]: null }));
     loadAll();
