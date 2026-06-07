@@ -55,12 +55,12 @@ export default function KlubPage() {
     const [p, c, r] = await Promise.all([
       supabase
         .from("community_posts")
-        .select("id, author_id, body, pinned, created_at, author:profiles(full_name, tier, email)")
+        .select("id, author_id, body, pinned, created_at, author:profiles!community_posts_author_id_fkey(full_name, tier, email)")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("community_comments")
-        .select("id, post_id, author_id, body, created_at, author:profiles(full_name, tier, email)")
+        .select("id, post_id, author_id, body, created_at, author:profiles!community_comments_author_id_fkey(full_name, tier, email)")
         .order("created_at", { ascending: true }),
       supabase.from("community_reactions").select("post_id, user_id, emoji"),
     ]);
