@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import type { BodyPart, Difficulty, AccessLevel, UserTier } from "@/types";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { VideoCard } from "@/components/VideoCard";
-import { TIER_STYLES } from "@/lib/tiers";
-
-// Mock: treat user as FREE (no auth yet)
-const CURRENT_USER_TIER: UserTier = "FREE";
+import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
+import { createClient } from "@/lib/supabase/client";
 
 const BODY_PARTS: BodyPart[] = ["záda", "noha", "kyčle", "rameno", "krk", "dech", "celé tělo", "core"];
 const DIFFICULTIES: Difficulty[] = ["začátečník", "mírně pokročilý", "pokročilý"];
@@ -41,6 +39,21 @@ export default function VideoknihovnaPage() {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [access, setAccess] = useState<AccessLevel | "all">("all");
   const [search, setSearch] = useState("");
+  const [userTier, setUserTier] = useState<UserTier>("FREE");
+
+  // Načti úroveň členství přihlášeného uživatele (kvůli odemykání videí).
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tier")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      setUserTier(normalizeTier(profile?.tier as string | undefined));
+    });
+  }, []);
 
   const filtered = useMemo(() => {
     return MOCK_VIDEOS.filter((v) => {
@@ -128,7 +141,7 @@ export default function VideoknihovnaPage() {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((video) => (
-                <VideoCard key={video.id} video={video} userTier={CURRENT_USER_TIER} />
+                <VideoCard key={video.id} video={video} userTier={userTier} />
               ))}
             </div>
           ) : (

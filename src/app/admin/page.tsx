@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
+import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
+import type { UserTier } from "@/types";
 
 const HOURS = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
@@ -35,6 +37,12 @@ type OverrideRow = {
   time: string;
   status: "free" | "booked";
 };
+type Member = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  tier: string;
+};
 type Booking = {
   id: string;
   service_name: string;
@@ -62,6 +70,7 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,18 +99,20 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o, s] = await Promise.all([
+    const [w, b, e, o, s, m] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
       supabase.from("availability_overrides").select("*").order("date"),
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id,email,full_name,tier").order("email"),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
     if (e.data) setEvents(e.data as EventRow[]);
     if (o.data) setOverrides(o.data as OverrideRow[]);
     if (s.data) setSubscribers(s.data as { id: string; email: string; created_at: string }[]);
+    if (m.data) setMembers(m.data as Member[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -146,6 +157,24 @@ export default function AdminPage() {
     const { error } = await supabase.from("availability_overrides").delete().eq("id", id);
     if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
     setOverrides((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  // ── Členové (úroveň přístupu) ──
+  async function setMemberTier(id: string, newTier: UserTier) {
+    setError(null);
+    const prev = members;
+    // optimisticky
+    setMembers((m) => m.map((x) => (x.id === id ? { ...x, tier: tierToDb(newTier) } : x)));
+    const { error } = await supabase.rpc("set_user_tier", {
+      target_id: id,
+      new_tier: tierToDb(newTier),
+    });
+    if (error) {
+      setMembers(prev);
+      setError(
+        "Změna úrovně selhala. Spustil jsi v Supabase membership.sql? (" + error.message + ")"
+      );
+    }
   }
 
   // ── Odběratelé newsletteru ──
@@ -402,6 +431,58 @@ export default function AdminPage() {
             </div>
             <button type="submit" className="btn-primary text-sm">Přidat výjimku</button>
           </form>
+        </section>
+
+        {/* ── Členové ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">
+            Členové <span className="text-gray-400 font-normal">({members.length})</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Přiřaď úroveň členství. Změna se projeví ihned a uživateli odemkne obsah.
+          </p>
+
+          {members.length === 0 ? (
+            <p className="text-sm text-gray-400">Zatím žádní registrovaní uživatelé.</p>
+          ) : (
+            <div className="space-y-2">
+              {members.map((m) => {
+                const t = normalizeTier(m.tier);
+                return (
+                  <div
+                    key={m.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-brand-dark truncate">
+                        {m.full_name || m.email || "—"}
+                      </p>
+                      {m.full_name && m.email && (
+                        <p className="text-xs text-gray-500 truncate">{m.email}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${TIER_STYLES[t].badge}`}
+                      >
+                        {TIER_STYLES[t].label}
+                      </span>
+                      <select
+                        value={t}
+                        onChange={(e) => setMemberTier(m.id, e.target.value as UserTier)}
+                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      >
+                        <option value="FREE">FREE</option>
+                        <option value="MEMBER">MEMBER</option>
+                        <option value="VIP">VIP</option>
+                        <option value="VIP_PLUS">VIP+</option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* ── Rezervace ── */}

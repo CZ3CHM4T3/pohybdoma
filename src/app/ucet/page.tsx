@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
+import type { UserTier } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
 
@@ -14,6 +16,7 @@ export default function UcetPage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
+  const [tier, setTier] = useState<UserTier>("FREE");
 
   const [tab, setTab] = useState<Tab>("prihlaseni");
   const [email, setEmail] = useState("");
@@ -34,6 +37,18 @@ export default function UcetPage() {
     return () => sub.subscription.unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Načti úroveň členství přihlášeného uživatele.
+  useEffect(() => {
+    if (!user) { setTier("FREE"); return; }
+    supabase
+      .from("profiles")
+      .select("tier")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setTier(normalizeTier(data?.tier as string | undefined)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -107,7 +122,24 @@ export default function UcetPage() {
             <h1 className="text-2xl font-semibold text-brand-dark">
               Vítej zpátky{displayName ? `, ${displayName}` : ""}!
             </h1>
-            <p className="text-sm text-gray-500 mt-1 mb-6">{user.email}</p>
+            <p className="text-sm text-gray-500 mt-1 mb-4">{user.email}</p>
+
+            {/* Úroveň členství */}
+            <div className="mb-6 flex flex-col items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                Tvoje úroveň
+              </span>
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold tracking-wide ${TIER_STYLES[tier].badge}`}
+              >
+                {TIER_STYLES[tier].label}
+              </span>
+              {tier === "FREE" && (
+                <Link href="/clenstvi" className="text-xs font-semibold text-brand-blue hover:underline">
+                  Odemknout víc s členstvím →
+                </Link>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 gap-3 text-left">
               <Link href="/rezervace" className="btn-outline w-full text-sm">

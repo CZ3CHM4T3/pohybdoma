@@ -1,4 +1,4 @@
-import type { AccessLevel } from "@/types";
+import type { AccessLevel, UserTier } from "@/types";
 
 /**
  * Jednotné barevné značení úrovní napříč celým webem:
@@ -48,3 +48,27 @@ export const TIER_STYLES: Record<
     dot: "bg-amber-500",
   },
 };
+
+/**
+ * V databázi (Supabase profiles.tier) jsou úrovně malými písmeny:
+ *   free | member | vip | vip_plus
+ * V aplikaci pracujeme s velkými (UserTier / AccessLevel). Tyto helpery
+ * převádějí mezi oběma formami.
+ */
+const DB_TO_APP: Record<string, UserTier> = {
+  free: "FREE",
+  member: "MEMBER",
+  vip: "VIP",
+  vip_plus: "VIP_PLUS",
+};
+
+/** "member" → "MEMBER"; cokoliv neznámého → "FREE". */
+export function normalizeTier(dbTier: string | null | undefined): UserTier {
+  if (!dbTier) return "FREE";
+  return DB_TO_APP[dbTier.toLowerCase()] ?? "FREE";
+}
+
+/** "MEMBER" → "member" (pro zápis do DB). */
+export function tierToDb(tier: UserTier): string {
+  return tier.toLowerCase();
+}

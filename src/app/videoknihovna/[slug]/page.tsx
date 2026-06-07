@@ -5,18 +5,15 @@ import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { TIER_STYLES } from "@/lib/tiers";
-import type { UserTier } from "@/types";
-
-// Mock user tier
-const CURRENT_USER_TIER: UserTier = "FREE";
+import { getUserTier } from "@/lib/supabase/user";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  return MOCK_VIDEOS.map((v) => ({ slug: v.slug }));
-}
+// Stránka zobrazuje obsah podle úrovně přihlášeného uživatele → musí se
+// renderovat dynamicky (per-uživatel), ne staticky.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -30,7 +27,8 @@ export default async function VideoDetailPage({ params }: Props) {
   const video = MOCK_VIDEOS.find((v) => v.slug === slug);
   if (!video) notFound();
 
-  const accessible = canAccess(CURRENT_USER_TIER, video.accessLevel);
+  const userTier = await getUserTier();
+  const accessible = canAccess(userTier, video.accessLevel);
 
   return (
     <div className="min-h-screen bg-brand-light">
