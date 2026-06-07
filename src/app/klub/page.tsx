@@ -3,20 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle,
-  ThumbsUp, Heart, Flame, Dumbbell, Sparkles, type LucideIcon,
+  Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
+  ThumbsUp, ThumbsDown, Flame, Laugh, Eye, Frown, HeartHandshake, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 
 // Reakce jako profesionální lucide ikony (klíč se ukládá do DB jako text).
-const REACTIONS: { key: string; Icon: LucideIcon }[] = [
-  { key: "like", Icon: ThumbsUp },
-  { key: "love", Icon: Heart },
-  { key: "fire", Icon: Flame },
-  { key: "strong", Icon: Dumbbell },
-  { key: "celebrate", Icon: Sparkles },
+const REACTIONS: { key: string; Icon: LucideIcon; title: string }[] = [
+  { key: "like", Icon: ThumbsUp, title: "Líbí" },
+  { key: "dislike", Icon: ThumbsDown, title: "Nelíbí" },
+  { key: "fire", Icon: Flame, title: "Hustý" },
+  { key: "haha", Icon: Laugh, title: "Haha" },
+  { key: "wow", Icon: Eye, title: "WOW" },
+  { key: "sad", Icon: Frown, title: "Smutek" },
+  { key: "thanks", Icon: HeartHandshake, title: "Děkuju" },
 ];
 
 type Channel = "chat" | "qa";
@@ -33,6 +35,7 @@ type Post = {
 type Comment = {
   id: string;
   post_id: string;
+  parent_id: string | null;
   author_id: string;
   author_name: string | null;
   author_role: string | null;
@@ -74,6 +77,8 @@ export default function KlubPage() {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  const [replyOpen, setReplyOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const uidRef = useRef<string | null>(null);
@@ -88,7 +93,7 @@ export default function KlubPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("community_comments")
-        .select("id, post_id, author_id, author_name, author_role, body, created_at")
+        .select("id, post_id, parent_id, author_id, author_name, author_role, body, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("community_reactions").select("post_id, user_id, emoji"),
     ]);
@@ -155,10 +160,29 @@ export default function KlubPage() {
       .insert({ author_id: userId, body: draft.trim(), channel });
     setPosting(false);
     if (err) {
-      setError("Nepodařilo se uložit (" + err.message + "). Spustil jsi v Supabase community.sql i community_v2.sql?");
+      if (err.message.includes("TOPIC_LIMIT")) {
+        setError("Tento týden jsi využil limit 2 topicy. Další můžeš založit příští týden. 🙂");
+      } else {
+        setError("Nepodařilo se uložit (" + err.message + ").");
+      }
       return;
     }
     setDraft("");
+    loadAll();
+  }
+  async function addReply(postId: string, parentId: string) {
+    const text = (replyDraft[parentId] ?? "").trim();
+    if (!text || !userId) return;
+    setError(null);
+    const { error: err } = await supabase
+      .from("community_comments")
+      .insert({ post_id: postId, author_id: userId, body: text, parent_id: parentId });
+    if (err) {
+      setError("Odpověď se nepodařilo uložit (" + err.message + ").");
+      return;
+    }
+    setReplyDraft((d) => ({ ...d, [parentId]: "" }));
+    setReplyOpen(null);
     loadAll();
   }
   async function deletePost(id: string) {
@@ -201,6 +225,43 @@ export default function KlubPage() {
     loadAll();
   }
 
+  // Vykreslení jedné „bubliny" komentáře (použito pro komentáře i odpovědi).
+  const renderBubble = (c: Comment) => {
+    const cHonza = c.author_role === "lektor";
+    const mine = c.author_id === userId;
+    return (
+      <div className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
+        <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
+          mine ? "bg-brand-blue" : cHonza ? "bg-brand-dark" : "bg-amber-500"
+        }`}>
+          {mine ? "T" : initialOf(c.author_name)}
+        </span>
+        <div className={`min-w-0 max-w-[80%] rounded-xl px-3 py-2 ${
+          mine ? "bg-brand-blue text-white" : cHonza ? "bg-brand-dark text-white" : "bg-brand-light"
+        }`}>
+          <p className={`text-xs font-semibold flex items-center gap-1.5 ${
+            mine || cHonza ? "text-white/90" : "text-brand-dark"
+          } ${mine ? "flex-row-reverse" : ""}`}>
+            {mine ? "Ty" : nameOf(c.author_name)}
+            {cHonza && !mine && <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>}
+            <span className={`font-normal ${mine || cHonza ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
+          </p>
+          <p className={`text-sm whitespace-pre-wrap ${mine || cHonza ? "text-white" : "text-brand-dark"}`}>{c.body}</p>
+        </div>
+        {(isAdmin || mine) && (
+          <button
+            type="button"
+            onClick={() => deleteComment(c.id)}
+            className="mt-1 p-1 text-gray-300 hover:text-red-600"
+            title="Smazat"
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // ── Stavy přístupu ──────────────────────────────────────────────────────
   if (phase === "loading") {
     return <Centered><p className="text-gray-400">Načítám klub…</p></Centered>;
@@ -236,6 +297,16 @@ export default function KlubPage() {
   // ── Klub ────────────────────────────────────────────────────────────────
   const visiblePosts = posts.filter((p) => (p.channel ?? "chat") === channel);
   const isQa = channel === "qa";
+
+  // Spam kontrola: člen smí v chatu založit max 2 topicy za 7 dní (admin neomezen).
+  const myChatThisWeek = posts.filter(
+    (p) =>
+      p.author_id === userId &&
+      (p.channel ?? "chat") === "chat" &&
+      Date.now() - new Date(p.created_at).getTime() < 7 * 24 * 60 * 60 * 1000
+  ).length;
+  const topicsLeft = Math.max(0, 2 - myChatThisWeek);
+  const chatLimitReached = !isAdmin && channel === "chat" && topicsLeft <= 0;
 
   return (
     <div className="min-h-screen bg-brand-light py-10">
@@ -280,32 +351,44 @@ export default function KlubPage() {
         )}
 
         {/* Composer */}
-        <div className="card p-4 mb-6">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={3}
-            placeholder={
-              isQa
-                ? "Na co se chceš zeptat? Lektor ti odpoví…"
-                : isAdmin
-                  ? "Napiš oznámení nebo příspěvek…"
-                  : "Co máš na srdci? Poděl se s klubem…"
-            }
-            className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-          />
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={addPost}
-              disabled={posting || !draft.trim()}
-              className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
-            >
-              <Send className="h-4 w-4" strokeWidth={2} />
-              {posting ? "Odesílám…" : isQa ? "Položit otázku" : "Sdílet"}
-            </button>
+        {chatLimitReached ? (
+          <div className="card p-4 mb-6 text-center text-sm text-gray-500">
+            Tento týden jsi založil <strong>2 topicy</strong> (limit kvůli přehlednosti).
+            Další můžeš založit příští týden — do diskuze pod stávající topicy můžeš psát dál. 🙂
           </div>
-        </div>
+        ) : (
+          <div className="card p-4 mb-6">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              placeholder={
+                isQa
+                  ? "Na co se chceš zeptat? Lektor ti odpoví…"
+                  : isAdmin
+                    ? "Napiš oznámení nebo nový topic…"
+                    : "Založ nový topic k diskuzi…"
+              }
+              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              {channel === "chat" && !isAdmin ? (
+                <span className="text-xs text-gray-400">
+                  Zbývají ti {topicsLeft} {topicsLeft === 1 ? "topic" : "topicy"} tento týden (limit 2).
+                </span>
+              ) : <span />}
+              <button
+                type="button"
+                onClick={addPost}
+                disabled={posting || !draft.trim()}
+                className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" strokeWidth={2} />
+                {posting ? "Odesílám…" : isQa ? "Položit otázku" : "Založit topic"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Feed */}
         {visiblePosts.length === 0 ? (
@@ -377,13 +460,14 @@ export default function KlubPage() {
 
                   {/* Reakce */}
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {REACTIONS.map(({ key, Icon }) => {
+                    {REACTIONS.map(({ key, Icon, title }) => {
                       const count = rx?.counts[key] ?? 0;
                       const mine = rx?.mine?.has(key) ?? false;
                       return (
                         <button
                           key={key}
                           type="button"
+                          title={title}
                           onClick={() => toggleReaction(post.id, key)}
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                             mine
@@ -391,53 +475,78 @@ export default function KlubPage() {
                               : "border-gray-200 text-gray-400 hover:border-brand-blue hover:text-brand-blue"
                           }`}
                         >
-                          <Icon className={`h-3.5 w-3.5 ${mine ? "fill-current" : ""}`} strokeWidth={2} />
+                          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
                           {count > 0 && <span>{count}</span>}
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Komentáře / odpovědi */}
-                  {postComments.length > 0 && (
-                    <div className="mt-4 space-y-3 border-t border-gray-100 pt-4">
-                      {postComments.map((c) => {
-                        const cHonza = c.author_role === "lektor";
-                        const mine = c.author_id === userId;
-                        return (
-                          <div key={c.id} className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
-                            <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
-                              mine ? "bg-brand-blue" : cHonza ? "bg-brand-dark" : "bg-amber-500"
-                            }`}>
-                              {mine ? "T" : initialOf(c.author_name)}
-                            </span>
-                            <div className={`min-w-0 max-w-[80%] rounded-xl px-3 py-2 ${
-                              mine ? "bg-brand-blue text-white" : cHonza ? "bg-brand-dark text-white" : "bg-brand-light"
-                            }`}>
-                              <p className={`text-xs font-semibold flex items-center gap-1.5 ${
-                                mine || cHonza ? "text-white/90" : "text-brand-dark"
-                              } ${mine ? "flex-row-reverse" : ""}`}>
-                                {mine ? "Ty" : nameOf(c.author_name)}
-                                {cHonza && !mine && <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>}
-                                <span className={`font-normal ${mine || cHonza ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
-                              </p>
-                              <p className={`text-sm whitespace-pre-wrap ${mine || cHonza ? "text-white" : "text-brand-dark"}`}>{c.body}</p>
+                  {/* Komentáře / odpovědi (vlákna) */}
+                  {(() => {
+                    const all = postComments;
+                    const tops = all.filter((c) => !c.parent_id);
+                    if (tops.length === 0) return null;
+                    return (
+                      <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+                        {tops.map((c) => {
+                          const replies = all.filter((r) => r.parent_id === c.id);
+                          return (
+                            <div key={c.id}>
+                              {renderBubble(c)}
+
+                              {replies.length > 0 && (
+                                <div className="mt-2 ml-9 space-y-2 border-l-2 border-gray-100 pl-3">
+                                  {replies.map((r) => <div key={r.id}>{renderBubble(r)}</div>)}
+                                </div>
+                              )}
+
+                              {/* Odpovědět (vnoří se pod komentář) */}
+                              {canComment && (
+                                replyOpen === c.id ? (
+                                  <div className="mt-2 ml-9 flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={replyDraft[c.id] ?? ""}
+                                      onChange={(e) => setReplyDraft((d) => ({ ...d, [c.id]: e.target.value }))}
+                                      onKeyDown={(e) => { if (e.key === "Enter") addReply(post.id, c.id); }}
+                                      placeholder="Odpověz na komentář…"
+                                      className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => addReply(post.id, c.id)}
+                                      disabled={!(replyDraft[c.id] ?? "").trim()}
+                                      className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
+                                      aria-label="Odeslat odpověď"
+                                    >
+                                      <Send className="h-4 w-4" strokeWidth={2} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setReplyOpen(null)}
+                                      className="shrink-0 text-xs text-gray-400 hover:text-brand-dark"
+                                    >
+                                      Zrušit
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setReplyOpen(c.id)}
+                                    className="mt-1 ml-9 inline-flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-brand-blue"
+                                  >
+                                    <CornerDownRight className="h-3 w-3" strokeWidth={2} /> Odpovědět
+                                  </button>
+                                )
+                              )}
                             </div>
-                            {(isAdmin || mine) && (
-                              <button
-                                type="button"
-                                onClick={() => deleteComment(c.id)}
-                                className="mt-1 p-1 text-gray-300 hover:text-red-600"
-                                title="Smazat"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
 
                   {/* Přidat komentář / odpověď */}
                   {canComment ? (
