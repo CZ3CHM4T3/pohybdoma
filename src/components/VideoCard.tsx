@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Video, UserTier } from "@/types";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
+import { TIER_STYLES } from "@/lib/tiers";
 
 interface VideoCardProps {
   video: Video;
@@ -28,7 +29,7 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
                 <path d="M12 1C9.24 1 7 3.24 7 6v2H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v2H9V6c0-1.66 1.34-3 3-3zm0 9c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
               </svg>
             </div>
-            <span className="text-white text-xs font-semibold">Odemknout {video.accessLevel}</span>
+            <span className="text-white text-xs font-semibold">Odemknout {TIER_STYLES[video.accessLevel].label}</span>
           </div>
         )}
 

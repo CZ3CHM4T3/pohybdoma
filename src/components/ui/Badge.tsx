@@ -1,4 +1,5 @@
 import type { AccessLevel } from "@/types";
+import { TIER_STYLES } from "@/lib/tiers";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -24,8 +25,12 @@ export function Badge({ children, variant = "blue", className = "" }: BadgeProps
 }
 
 export function AccessBadge({ level }: { level: AccessLevel }) {
-  if (level === "FREE") return <Badge variant="green">ZDARMA</Badge>;
-  if (level === "MEMBER") return <Badge variant="blue">MEMBER</Badge>;
-  if (level === "VIP") return <Badge variant="dark">VIP</Badge>;
-  return <Badge variant="dark">VIP PLUS</Badge>;
+  const t = TIER_STYLES[level];
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide ${t.badge}`}
+    >
+      {t.label}
+    </span>
+  );
 }

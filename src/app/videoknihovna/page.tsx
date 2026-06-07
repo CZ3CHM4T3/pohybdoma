@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { BodyPart, Difficulty, AccessLevel, UserTier } from "@/types";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { VideoCard } from "@/components/VideoCard";
+import { TIER_STYLES } from "@/lib/tiers";
 
 // Mock: treat user as FREE (no auth yet)
 const CURRENT_USER_TIER: UserTier = "FREE";
@@ -13,10 +14,10 @@ const BODY_PARTS: BodyPart[] = ["záda", "noha", "kyčle", "rameno", "krk", "dec
 const DIFFICULTIES: Difficulty[] = ["začátečník", "mírně pokročilý", "pokročilý"];
 const ACCESS_LEVELS: { label: string; value: AccessLevel | "all" }[] = [
   { label: "Vše", value: "all" },
-  { label: "Zdarma", value: "FREE" },
-  { label: "MEMBER+", value: "MEMBER" },
-  { label: "VIP+", value: "VIP" },
-  { label: "VIP PLUS", value: "VIP_PLUS" },
+  { label: TIER_STYLES.FREE.label, value: "FREE" },
+  { label: TIER_STYLES.MEMBER.label, value: "MEMBER" },
+  { label: TIER_STYLES.VIP.label, value: "VIP" },
+  { label: TIER_STYLES.VIP_PLUS.label, value: "VIP_PLUS" },
 ];
 
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { AccessLevel } from "@/types";
+import { TIER_STYLES } from "@/lib/tiers";
 import { Reveal } from "@/components/ui/Reveal";
 
 /**
@@ -9,13 +11,11 @@ import { Reveal } from "@/components/ui/Reveal";
  *    <video autoPlay muted loop playsInline> místo placeholderu.
  *    Doporučení: krátké MP4 (H.264), 9:16, ~8–20 s, bez zvuku.
  */
-type Access = "FREE" | "VIP" | "VIP+";
-
 type Clip = {
   title: string;
   duration: string;
   /** Úroveň přístupu – ukáže se jako štítek. */
-  access: Access;
+  access: AccessLevel;
   /** Cesta k videu v /public, např. "/videos/rana-mobilita.mp4". Zatím prázdné. */
   src?: string;
   /** Náhledový obrázek (poster). */
@@ -24,12 +24,6 @@ type Clip = {
   hint: string;
   /** Vizuální gradient placeholderu (Tailwind from/to). */
   gradient: string;
-};
-
-const ACCESS_STYLE: Record<Access, string> = {
-  FREE: "bg-emerald-500",
-  VIP: "bg-brand-blue",
-  "VIP+": "bg-amber-500",
 };
 
 const CLIPS: Clip[] = [
@@ -57,7 +51,7 @@ const CLIPS: Clip[] = [
   {
     title: "Dech a uvolnění",
     duration: "0:16",
-    access: "VIP+",
+    access: "VIP_PLUS",
     hint: "🌬️",
     gradient: "from-[#062A6B] to-[#0a3a8a]",
   },
@@ -137,8 +131,8 @@ export function MovementClips() {
                 </span>
 
                 {/* Štítek úrovně */}
-                <span className={`absolute top-3 left-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase text-white ${ACCESS_STYLE[clip.access]}`}>
-                  {clip.access}
+                <span className={`absolute top-3 left-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${TIER_STYLES[clip.access].solid}`}>
+                  {TIER_STYLES[clip.access].label}
                 </span>
 
                 {/* Název */}

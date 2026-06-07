@@ -1,23 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Check } from "lucide-react";
 import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
+import { TIER_STYLES } from "@/lib/tiers";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = {
   title: "Členství",
   description: "Tři úrovně členství – MEMBER, VIP, VIP+. Přístup k video-knihovně, živé streamy, slevy a chat přímo se mnou.",
-};
-
-const PLAN_COLORS = {
-  MEMBER: "from-gray-50 to-white",
-  VIP: "from-brand-dark to-[#0a3a8a] text-white",
-  VIP_PLUS: "from-brand-light to-white",
-};
-
-const PLAN_BTN = {
-  MEMBER: "btn-outline",
-  VIP: "bg-white text-brand-dark font-semibold px-6 py-3 rounded-lg hover:opacity-90 transition-opacity inline-flex items-center justify-center",
-  VIP_PLUS: "btn-outline",
 };
 
 export default function ClenstviPage() {
@@ -41,6 +31,7 @@ export default function ClenstviPage() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             {MOCK_MEMBERSHIP_PLANS.map((plan) => {
+              const t = TIER_STYLES[plan.tier];
               const isHighlighted = plan.highlighted;
               const badge = isHighlighted
                 ? "Nejoblíbenější"
@@ -50,46 +41,41 @@ export default function ClenstviPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`card-3d relative rounded-2xl bg-gradient-to-b overflow-hidden ${
+                  className={`card-3d relative rounded-2xl overflow-hidden ${
                     isHighlighted ? "is-featured" : ""
-                  } ${PLAN_COLORS[plan.tier]}`}
+                  } ${t.card}`}
                 >
                   {badge && (
-                    <div
-                      className={`text-white text-xs font-bold tracking-wide uppercase text-center py-2 ${
-                        isHighlighted ? "bg-brand-blue" : "bg-brand-dark"
-                      }`}
-                    >
+                    <div className={`text-xs font-bold tracking-wide uppercase text-center py-2 ${t.solid}`}>
                       {badge}
                     </div>
                   )}
 
-                  <div className={`p-7 ${isHighlighted ? "text-white" : ""}`}>
-                    <h2 className="text-xl font-semibold tracking-wide mb-1">{plan.name}</h2>
+                  <div className="p-7">
+                    <h2 className={`text-xl font-semibold tracking-wide mb-1 ${t.accentText}`}>
+                      {plan.name}
+                    </h2>
                     <div className="flex items-baseline gap-1 mb-6">
-                      <span className="text-4xl font-semibold">{plan.priceKcMonth}</span>
-                      <span className={`text-sm ${isHighlighted ? "text-white/70" : "text-gray-400"}`}>
-                        Kč / měsíc
-                      </span>
+                      <span className="text-4xl font-semibold text-brand-dark">{plan.priceKcMonth}</span>
+                      <span className="text-sm text-gray-400">Kč / měsíc</span>
                     </div>
 
                     <ul className="space-y-3 mb-8">
                       {plan.features.map((f) => (
                         <li key={f} className="flex items-start gap-2.5 text-sm">
-                          <span className={`mt-0.5 shrink-0 text-base ${isHighlighted ? "text-white" : "text-brand-blue"}`}>
-                            ✓
-                          </span>
-                          <span className={isHighlighted ? "text-white/90" : "text-gray-600"}>{f}</span>
+                          <Check className={`mt-0.5 h-4 w-4 shrink-0 ${t.accentText}`} strokeWidth={2.5} />
+                          <span className="text-gray-600">{f}</span>
                         </li>
                       ))}
                     </ul>
 
-                    <button type="button" className={`w-full ${PLAN_BTN[plan.tier]}`}>
+                    <button
+                      type="button"
+                      className={`w-full rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 ${t.solid}`}
+                    >
                       Vybrat {plan.name}
                     </button>
-                    <p className={`mt-3 text-xs text-center ${isHighlighted ? "text-white/50" : "text-gray-400"}`}>
-                      Platba brzy dostupná
-                    </p>
+                    <p className="mt-3 text-xs text-center text-gray-400">Platba brzy dostupná</p>
                   </div>
                 </div>
               );

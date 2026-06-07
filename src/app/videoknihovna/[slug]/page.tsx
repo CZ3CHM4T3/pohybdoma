@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
+import { TIER_STYLES } from "@/lib/tiers";
 import type { UserTier } from "@/types";
 
 // Mock user tier
@@ -58,7 +59,7 @@ export default async function VideoDetailPage({ params }: Props) {
                     <path d="M12 1C9.24 1 7 3.24 7 6v2H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v2H9V6c0-1.66 1.34-3 3-3zm0 9c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
                   </svg>
                 </div>
-                <h3 className="text-white text-xl font-semibold">Toto video je {video.accessLevel}</h3>
+                <h3 className="text-white text-xl font-semibold">Toto video je {TIER_STYLES[video.accessLevel].label}</h3>
                 <p className="text-white/70 text-sm max-w-sm">Odemkněte přístup ke všem VIP videím s členstvím.</p>
                 <Link href="/clenstvi" className="btn-primary mt-2">
                   Odemknout VIP přístup
@@ -115,7 +116,7 @@ export default async function VideoDetailPage({ params }: Props) {
 
             {!accessible && (
               <Link href="/clenstvi" className="btn-primary mt-6 w-full text-sm">
-                Odemknout {video.accessLevel}
+                Odemknout {TIER_STYLES[video.accessLevel].label}
               </Link>
             )}
           </aside>
