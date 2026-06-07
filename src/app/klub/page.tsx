@@ -2,12 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle } from "lucide-react";
+import {
+  Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle,
+  ThumbsUp, Heart, Flame, Dumbbell, Sparkles, type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 
-const EMOJIS = ["👍", "❤️", "🔥", "💪", "🙌"];
+// Reakce jako profesionální lucide ikony (klíč se ukládá do DB jako text).
+const REACTIONS: { key: string; Icon: LucideIcon }[] = [
+  { key: "like", Icon: ThumbsUp },
+  { key: "love", Icon: Heart },
+  { key: "fire", Icon: Flame },
+  { key: "strong", Icon: Dumbbell },
+  { key: "celebrate", Icon: Sparkles },
+];
 
 type Channel = "chat" | "qa";
 type Post = {
@@ -299,9 +309,14 @@ export default function KlubPage() {
 
         {/* Feed */}
         {visiblePosts.length === 0 ? (
-          <p className="text-center text-sm text-gray-400 py-10">
-            {isQa ? "Zatím žádné otázky. Zeptej se jako první! 🙋" : "Zatím tu nic není. Buď první, kdo napíše! ✍️"}
-          </p>
+          <div className="text-center py-10 text-gray-400">
+            {isQa
+              ? <HelpCircle className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />
+              : <MessageCircle className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />}
+            <p className="text-sm">
+              {isQa ? "Zatím žádné otázky. Zeptej se jako první!" : "Zatím tu nic není. Buď první, kdo napíše!"}
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {visiblePosts.map((post) => {
@@ -362,21 +377,21 @@ export default function KlubPage() {
 
                   {/* Reakce */}
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {EMOJIS.map((emoji) => {
-                      const count = rx?.counts[emoji] ?? 0;
-                      const mine = rx?.mine?.has(emoji) ?? false;
+                    {REACTIONS.map(({ key, Icon }) => {
+                      const count = rx?.counts[key] ?? 0;
+                      const mine = rx?.mine?.has(key) ?? false;
                       return (
                         <button
-                          key={emoji}
+                          key={key}
                           type="button"
-                          onClick={() => toggleReaction(post.id, emoji)}
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                          onClick={() => toggleReaction(post.id, key)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
                             mine
                               ? "border-brand-blue bg-brand-light text-brand-blue font-semibold"
-                              : "border-gray-200 text-gray-500 hover:border-brand-blue"
+                              : "border-gray-200 text-gray-400 hover:border-brand-blue hover:text-brand-blue"
                           }`}
                         >
-                          <span>{emoji}</span>
+                          <Icon className={`h-3.5 w-3.5 ${mine ? "fill-current" : ""}`} strokeWidth={2} />
                           {count > 0 && <span>{count}</span>}
                         </button>
                       );
