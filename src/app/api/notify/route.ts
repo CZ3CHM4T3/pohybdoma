@@ -17,7 +17,7 @@ export async function GET() {
     /SUPABASE|RESEND|SERVICE|ROLE/i.test(k)
   );
   return NextResponse.json({
-    marker: "deploy-check-A3",
+    marker: "deploy-check-A4",
     envKeys: relevantKeys,
     configured: {
       supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
