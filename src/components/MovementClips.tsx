@@ -133,7 +133,7 @@ export function MovementClips() {
                 {/* Štítek úrovně / zámeček */}
                 {clip.access === "FREE" ? (
                   <span className="absolute top-3 left-3 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
-                    Zdarma
+                    FREE
                   </span>
                 ) : (
                   <span className="absolute top-3 left-3">
