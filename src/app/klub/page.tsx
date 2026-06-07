@@ -46,6 +46,7 @@ export default function KlubPage() {
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const uidRef = useRef<string | null>(null);
 
@@ -120,11 +121,17 @@ export default function KlubPage() {
   async function addPost() {
     if (!draft.trim() || !userId) return;
     setPosting(true);
-    const { error } = await supabase
+    setError(null);
+    const { error: err } = await supabase
       .from("community_posts")
       .insert({ author_id: userId, body: draft.trim() });
     setPosting(false);
-    if (!error) { setDraft(""); loadAll(); }
+    if (err) {
+      setError("Příspěvek se nepodařilo uložit (" + err.message + "). Spustil jsi v Supabase community.sql?");
+      return;
+    }
+    setDraft("");
+    loadAll();
   }
   async function deletePost(id: string) {
     await supabase.from("community_posts").delete().eq("id", id);
@@ -209,6 +216,12 @@ export default function KlubPage() {
             <p className="text-sm text-gray-500">Naše uzavřená komunita. Piš, sdílej, ptej se.</p>
           </div>
         </div>
+
+        {error && (
+          <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
 
         {/* Composer */}
         <div className="card p-4 mb-6">
