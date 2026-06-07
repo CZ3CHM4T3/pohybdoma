@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
-  ThumbsUp, ThumbsDown, Flame, Laugh, Sparkles, Frown, HeartHandshake, type LucideIcon,
+  ThumbsUp, ThumbsDown, Flame, Laugh, Frown, HeartHandshake, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -16,7 +16,6 @@ const REACTIONS: { key: string; Icon: LucideIcon; title: string }[] = [
   { key: "dislike", Icon: ThumbsDown, title: "Nelíbí" },
   { key: "fire", Icon: Flame, title: "Hustý" },
   { key: "haha", Icon: Laugh, title: "Haha" },
-  { key: "wow", Icon: Sparkles, title: "WOW" },
   { key: "sad", Icon: Frown, title: "Smutek" },
   { key: "thanks", Icon: HeartHandshake, title: "Děkuju" },
 ];
