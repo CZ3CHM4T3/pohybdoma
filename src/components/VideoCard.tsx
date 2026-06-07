@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Lock, LockOpen } from "lucide-react";
 import type { Video, UserTier } from "@/types";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
@@ -25,10 +26,17 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
         {/* Lock overlay for inaccessible VIP content */}
         {!accessible && (
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 1C9.24 1 7 3.24 7 6v2H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2h-2V6c0-2.76-2.24-5-5-5zm0 2c1.66 0 3 1.34 3 3v2H9V6c0-1.66 1.34-3 3-3zm0 9c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
-              </svg>
+            <div className="relative w-10 h-10 rounded-full bg-white/20 flex items-center justify-center transition-transform duration-300 ease-out group-hover:scale-125">
+              {/* zavřený zámek – při najetí na dlaždici se nadzvedne, pootočí a zmizí */}
+              <Lock
+                className="absolute w-5 h-5 text-white transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:rotate-12 group-hover:opacity-0"
+                strokeWidth={2.2}
+              />
+              {/* otevřený zámek – při najetí se objeví */}
+              <LockOpen
+                className="absolute w-5 h-5 text-white scale-75 opacity-0 transition-all duration-300 ease-out group-hover:scale-100 group-hover:opacity-100"
+                strokeWidth={2.2}
+              />
             </div>
             <span className="text-white text-xs font-semibold">Odemknout {TIER_STYLES[video.accessLevel].label}</span>
           </div>
