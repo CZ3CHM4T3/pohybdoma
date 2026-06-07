@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
-  ThumbsUp, ThumbsDown, Flame, Laugh, Frown, HeartHandshake, type LucideIcon,
+  ImagePlus, X, ThumbsUp, ThumbsDown, Flame, Laugh, Frown, HeartHandshake, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -29,6 +29,7 @@ type Post = {
   body: string;
   pinned: boolean;
   channel: string;
+  image_url: string | null;
   created_at: string;
 };
 type Comment = {
@@ -39,6 +40,7 @@ type Comment = {
   author_name: string | null;
   author_role: string | null;
   body: string;
+  image_url: string | null;
   created_at: string;
 };
 type ReactionAgg = { counts: Record<string, number>; mine: Set<string> };
@@ -78,6 +80,7 @@ export default function KlubPage() {
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [replyOpen, setReplyOpen] = useState<string | null>(null);
+  const [pendingImage, setPendingImage] = useState<Record<string, File | null>>({});
   const [error, setError] = useState<string | null>(null);
 
   const uidRef = useRef<string | null>(null);
@@ -87,12 +90,12 @@ export default function KlubPage() {
     const [p, c, r] = await Promise.all([
       supabase
         .from("community_posts")
-        .select("id, author_id, author_name, author_role, body, pinned, channel, created_at")
+        .select("id, author_id, author_name, author_role, body, pinned, channel, image_url, created_at")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
         .from("community_comments")
-        .select("id, post_id, parent_id, author_id, author_name, author_role, body, created_at")
+        .select("id, post_id, parent_id, author_id, author_name, author_role, body, image_url, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("community_reactions").select("post_id, user_id, emoji"),
     ]);
@@ -150,13 +153,29 @@ export default function KlubPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Nahraje obrázek do úložiště a vrátí veřejnou URL (nebo null při chybě).
+  async function uploadImage(key: string): Promise<string | null | "error"> {
+    const file = pendingImage[key];
+    if (!file || !userId) return null;
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("community").upload(path, file);
+    if (upErr) {
+      setError("Obrázek se nepodařilo nahrát (" + upErr.message + "). Spustil jsi community_v4.sql?");
+      return "error";
+    }
+    return supabase.storage.from("community").getPublicUrl(path).data.publicUrl;
+  }
+
   async function addPost() {
-    if (!draft.trim() || !userId) return;
+    if ((!draft.trim() && !pendingImage["topic"]) || !userId) return;
     setPosting(true);
     setError(null);
+    const img = await uploadImage("topic");
+    if (img === "error") { setPosting(false); return; }
     const { error: err } = await supabase
       .from("community_posts")
-      .insert({ author_id: userId, body: draft.trim(), channel });
+      .insert({ author_id: userId, body: draft.trim(), channel, image_url: img });
     setPosting(false);
     if (err) {
       if (err.message.includes("TOPIC_LIMIT")) {
@@ -167,20 +186,25 @@ export default function KlubPage() {
       return;
     }
     setDraft("");
+    setPendingImage((p) => ({ ...p, topic: null }));
     loadAll();
   }
   async function addReply(postId: string, parentId: string) {
     const text = (replyDraft[parentId] ?? "").trim();
-    if (!text || !userId) return;
+    const key = `rep:${parentId}`;
+    if ((!text && !pendingImage[key]) || !userId) return;
     setError(null);
+    const img = await uploadImage(key);
+    if (img === "error") return;
     const { error: err } = await supabase
       .from("community_comments")
-      .insert({ post_id: postId, author_id: userId, body: text, parent_id: parentId });
+      .insert({ post_id: postId, author_id: userId, body: text, parent_id: parentId, image_url: img });
     if (err) {
       setError("Odpověď se nepodařilo uložit (" + err.message + ").");
       return;
     }
     setReplyDraft((d) => ({ ...d, [parentId]: "" }));
+    setPendingImage((p) => ({ ...p, [key]: null }));
     setReplyOpen(null);
     loadAll();
   }
@@ -194,16 +218,20 @@ export default function KlubPage() {
   }
   async function addComment(postId: string) {
     const text = (commentDraft[postId] ?? "").trim();
-    if (!text || !userId) return;
+    const key = `cmt:${postId}`;
+    if ((!text && !pendingImage[key]) || !userId) return;
     setError(null);
+    const img = await uploadImage(key);
+    if (img === "error") return;
     const { error: err } = await supabase
       .from("community_comments")
-      .insert({ post_id: postId, author_id: userId, body: text });
+      .insert({ post_id: postId, author_id: userId, body: text, image_url: img });
     if (err) {
       setError("Komentář se nepodařilo uložit (" + err.message + ").");
       return;
     }
     setCommentDraft((d) => ({ ...d, [postId]: "" }));
+    setPendingImage((p) => ({ ...p, [key]: null }));
     loadAll();
   }
   async function deleteComment(id: string) {
@@ -224,28 +252,71 @@ export default function KlubPage() {
     loadAll();
   }
 
-  // Vykreslení jedné „bubliny" komentáře (použito pro komentáře i odpovědi).
+  // Tlačítko přílohy obrázku / náhled vybraného obrázku (klíč = kontext composeru).
+  const attach = (key: string) => {
+    const file = pendingImage[key];
+    if (file) {
+      return (
+        <div className="inline-flex items-center gap-2 rounded-lg bg-brand-light px-2 py-1 text-xs text-brand-dark">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={URL.createObjectURL(file)} alt="" className="h-8 w-8 rounded object-cover" />
+          <span className="max-w-[120px] truncate">{file.name}</span>
+          <button
+            type="button"
+            onClick={() => setPendingImage((p) => ({ ...p, [key]: null }))}
+            className="text-gray-400 hover:text-red-600"
+            aria-label="Odebrat obrázek"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </div>
+      );
+    }
+    return (
+      <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-gray-400 hover:text-brand-blue">
+        <ImagePlus className="h-4 w-4" strokeWidth={2} /> Obrázek
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) setPendingImage((p) => ({ ...p, [key]: f }));
+            e.target.value = "";
+          }}
+        />
+      </label>
+    );
+  };
+
+  // Vykreslení jedné „bubliny" komentáře (vše zarovnané vlevo).
   const renderBubble = (c: Comment) => {
     const cHonza = c.author_role === "lektor";
     const mine = c.author_id === userId;
     return (
-      <div className={`flex items-start gap-2.5 ${mine ? "flex-row-reverse" : ""}`}>
+      <div className="flex items-start gap-2.5">
         <span className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${
-          mine ? "bg-brand-blue" : cHonza ? "bg-brand-dark" : "bg-amber-500"
+          cHonza ? "bg-brand-dark" : mine ? "bg-brand-blue" : "bg-amber-500"
         }`}>
-          {mine ? "T" : initialOf(c.author_name)}
+          {initialOf(c.author_name)}
         </span>
-        <div className={`min-w-0 max-w-[80%] rounded-xl px-3 py-2 ${
-          mine ? "bg-brand-blue text-white" : cHonza ? "bg-brand-dark text-white" : "bg-brand-light"
+        <div className={`min-w-0 flex-1 rounded-xl px-3 py-2 ${
+          cHonza ? "bg-brand-dark text-white" : mine ? "bg-brand-light" : "bg-gray-50"
         }`}>
-          <p className={`text-xs font-semibold flex items-center gap-1.5 ${
-            mine || cHonza ? "text-white/90" : "text-brand-dark"
-          } ${mine ? "flex-row-reverse" : ""}`}>
-            {mine ? "Ty" : nameOf(c.author_name)}
-            {cHonza && !mine && <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>}
-            <span className={`font-normal ${mine || cHonza ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
+          <p className={`text-xs font-semibold flex items-center gap-1.5 ${cHonza ? "text-white/90" : "text-brand-dark"}`}>
+            {nameOf(c.author_name)}
+            {cHonza ? (
+              <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>
+            ) : mine ? (
+              <span className="rounded-full bg-brand-blue/10 px-1.5 text-[9px] font-bold text-brand-blue">TY</span>
+            ) : null}
+            <span className={`font-normal ${cHonza ? "text-white/60" : "text-gray-400"}`}>· {timeAgo(c.created_at)}</span>
           </p>
-          <p className={`text-sm whitespace-pre-wrap ${mine || cHonza ? "text-white" : "text-brand-dark"}`}>{c.body}</p>
+          {c.body && <p className={`text-sm whitespace-pre-wrap ${cHonza ? "text-white" : "text-brand-dark"}`}>{c.body}</p>}
+          {c.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={c.image_url} alt="" className="mt-2 max-h-72 rounded-lg object-cover" />
+          )}
         </div>
         {(isAdmin || mine) && (
           <button
@@ -371,15 +442,18 @@ export default function KlubPage() {
               className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
             />
             <div className="mt-2 flex items-center justify-between gap-3">
-              {channel === "chat" && !isAdmin ? (
-                <span className="text-xs text-gray-400">
-                  Zbývají ti {topicsLeft} {topicsLeft === 1 ? "topic" : "topicy"} tento týden (limit 2).
-                </span>
-              ) : <span />}
+              <div className="flex items-center gap-3">
+                {attach("topic")}
+                {channel === "chat" && !isAdmin && (
+                  <span className="text-xs text-gray-400">
+                    Zbývají ti {topicsLeft} {topicsLeft === 1 ? "topic" : "topicy"} (limit 2/týden).
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={addPost}
-                disabled={posting || !draft.trim()}
+                disabled={posting || (!draft.trim() && !pendingImage["topic"])}
                 className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
                 <Send className="h-4 w-4" strokeWidth={2} />
@@ -455,7 +529,13 @@ export default function KlubPage() {
                   </div>
 
                   {/* Tělo */}
-                  <p className="mt-3 text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{post.body}</p>
+                  {post.body && (
+                    <p className="mt-3 text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{post.body}</p>
+                  )}
+                  {post.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={post.image_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />
+                  )}
 
                   {/* Reakce */}
                   <div className="mt-4 flex flex-wrap gap-1.5">
@@ -503,32 +583,35 @@ export default function KlubPage() {
                               {/* Odpovědět (vnoří se pod komentář) */}
                               {canComment && (
                                 replyOpen === c.id ? (
-                                  <div className="mt-2 ml-9 flex items-center gap-2">
-                                    <input
-                                      type="text"
-                                      autoFocus
-                                      value={replyDraft[c.id] ?? ""}
-                                      onChange={(e) => setReplyDraft((d) => ({ ...d, [c.id]: e.target.value }))}
-                                      onKeyDown={(e) => { if (e.key === "Enter") addReply(post.id, c.id); }}
-                                      placeholder="Odpověz na komentář…"
-                                      className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => addReply(post.id, c.id)}
-                                      disabled={!(replyDraft[c.id] ?? "").trim()}
-                                      className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
-                                      aria-label="Odeslat odpověď"
-                                    >
-                                      <Send className="h-4 w-4" strokeWidth={2} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setReplyOpen(null)}
-                                      className="shrink-0 text-xs text-gray-400 hover:text-brand-dark"
-                                    >
-                                      Zrušit
-                                    </button>
+                                  <div className="mt-2 ml-9">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        autoFocus
+                                        value={replyDraft[c.id] ?? ""}
+                                        onChange={(e) => setReplyDraft((d) => ({ ...d, [c.id]: e.target.value }))}
+                                        onKeyDown={(e) => { if (e.key === "Enter") addReply(post.id, c.id); }}
+                                        placeholder="Odpověz na komentář…"
+                                        className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => addReply(post.id, c.id)}
+                                        disabled={!(replyDraft[c.id] ?? "").trim() && !pendingImage[`rep:${c.id}`]}
+                                        className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
+                                        aria-label="Odeslat odpověď"
+                                      >
+                                        <Send className="h-4 w-4" strokeWidth={2} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setReplyOpen(null)}
+                                        className="shrink-0 text-xs text-gray-400 hover:text-brand-dark"
+                                      >
+                                        Zrušit
+                                      </button>
+                                    </div>
+                                    <div className="mt-1.5">{attach(`rep:${c.id}`)}</div>
                                   </div>
                                 ) : (
                                   <button
@@ -549,24 +632,27 @@ export default function KlubPage() {
 
                   {/* Přidat komentář / odpověď */}
                   {canComment ? (
-                    <div className="mt-3 flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={commentDraft[post.id] ?? ""}
-                        onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter") addComment(post.id); }}
-                        placeholder={isQa ? "Napiš odpověď…" : "Napiš komentář…"}
-                        className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => addComment(post.id)}
-                        disabled={!(commentDraft[post.id] ?? "").trim()}
-                        className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
-                        aria-label="Odeslat"
-                      >
-                        <Send className="h-4 w-4" strokeWidth={2} />
-                      </button>
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={commentDraft[post.id] ?? ""}
+                          onChange={(e) => setCommentDraft((d) => ({ ...d, [post.id]: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === "Enter") addComment(post.id); }}
+                          placeholder={isQa ? "Napiš odpověď…" : "Napiš komentář…"}
+                          className="flex-1 rounded-full border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addComment(post.id)}
+                          disabled={!(commentDraft[post.id] ?? "").trim() && !pendingImage[`cmt:${post.id}`]}
+                          className="shrink-0 rounded-full bg-brand-blue p-2 text-white disabled:opacity-30"
+                          aria-label="Odeslat"
+                        >
+                          <Send className="h-4 w-4" strokeWidth={2} />
+                        </button>
+                      </div>
+                      <div className="mt-1.5">{attach(`cmt:${post.id}`)}</div>
                     </div>
                   ) : (
                     <p className="mt-3 text-xs italic text-gray-400">Na otázky odpovídá lektor.</p>
