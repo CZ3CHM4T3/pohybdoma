@@ -36,26 +36,35 @@ export function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const [authUser, setAuthUser] = useState<User | null>(null);
+
+  // Pozor: uvnitř onAuthStateChange se NESMÍ volat awaitnutý dotaz do DB
+  // (Supabase drží zámek → deadlock). Proto tady jen nastavíme uživatele
+  // a úroveň členství dotáhneme v samostatném efektu níže.
   useEffect(() => {
     const supabase = createClient();
-    const apply = async (user: User | null) => {
-      setSignedIn(!!user);
-      const admin = isAdminEmail(user?.email);
-      setIsAdmin(admin);
-      if (!user) { setIsClub(false); return; }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("tier")
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsClub(admin || normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS");
-    };
-    supabase.auth.getUser().then(({ data }) => apply(data.user));
+    supabase.auth.getUser().then(({ data }) => setAuthUser(data.user));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
-      apply(session?.user ?? null)
+      setAuthUser(session?.user ?? null)
     );
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    setSignedIn(!!authUser);
+    const admin = isAdminEmail(authUser?.email);
+    setIsAdmin(admin);
+    if (!authUser) { setIsClub(false); return; }
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("tier")
+      .eq("id", authUser.id)
+      .maybeSingle()
+      .then(({ data }) =>
+        setIsClub(admin || normalizeTier(data?.tier as string | undefined) === "VIP_PLUS")
+      );
+  }, [authUser]);
 
   return (
     <header
