@@ -7,6 +7,17 @@ import { createClient as createAdmin } from "@supabase/supabase-js";
  * Volá se z klienta (fire-and-forget) po vložení komentáře/odpovědi.
  * Příjemci: autor topicu + (u odpovědi) autor nadřazeného komentáře.
  */
+// Diagnostika: ukáže, zda jsou na serveru nastavené potřebné klíče (jen true/false).
+export async function GET() {
+  return NextResponse.json({
+    configured: {
+      supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      resend: !!process.env.RESEND_API_KEY,
+    },
+  });
+}
+
 export async function POST(req: Request) {
   let commentId: string | undefined;
   try {

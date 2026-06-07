@@ -96,6 +96,7 @@ export default function KlubPage() {
   const [fbTitle, setFbTitle] = useState("");
   const [fbDesc, setFbDesc] = useState("");
   const [fbRating, setFbRating] = useState(0);
+  const [fbHover, setFbHover] = useState(0);
 
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
@@ -613,12 +614,21 @@ export default function KlubPage() {
               placeholder="Popis – co tě trápí, nebo za co chválíš…"
               className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
             />
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Hodnocení:</span>
+            <div className="flex items-center gap-1" onMouseLeave={() => setFbHover(0)}>
+              <span className="text-sm text-gray-500 mr-1">Hodnocení:</span>
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" onClick={() => setFbRating(n)} aria-label={`${n} z 5`}>
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setFbRating(n)}
+                  onMouseEnter={() => setFbHover(n)}
+                  aria-label={`${n} z 5`}
+                  className="p-0.5"
+                >
                   <Star
-                    className={`h-5 w-5 transition-colors ${n <= fbRating ? "fill-amber-400 text-amber-400" : "text-gray-300 hover:text-amber-300"}`}
+                    className={`h-6 w-6 transition-colors ${
+                      n <= (fbHover || fbRating) ? "fill-amber-400 text-amber-400" : "text-gray-300"
+                    }`}
                   />
                 </button>
               ))}
