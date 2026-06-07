@@ -70,6 +70,26 @@ export default function UcetPage() {
     router.refresh();
   }
 
+  async function handleForgot() {
+    if (!email) {
+      setInfo(null);
+      setError("Nejdřív vyplň svůj e-mail v poli výše.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/obnova-hesla`,
+    });
+    setLoading(false);
+    if (error) {
+      setError("Odkaz se nepodařilo odeslat: " + error.message);
+      return;
+    }
+    setInfo("Poslal jsem ti e-mail s odkazem na obnovu hesla. Zkontroluj schránku.");
+  }
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -210,6 +230,14 @@ export default function UcetPage() {
               <Field id="login-password" label="Heslo" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
                 {loading ? "Přihlašuji…" : "Přihlásit se"}
+              </button>
+              <button
+                type="button"
+                onClick={handleForgot}
+                disabled={loading}
+                className="block w-full text-center text-xs font-semibold text-gray-500 hover:text-brand-blue disabled:opacity-50"
+              >
+                Zapomněl jsi heslo?
               </button>
             </form>
           ) : (
