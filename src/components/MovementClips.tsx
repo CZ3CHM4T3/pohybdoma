@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { AccessLevel } from "@/types";
-import { TIER_STYLES } from "@/lib/tiers";
 import { Reveal } from "@/components/ui/Reveal";
+import { LockBadge } from "@/components/ui/LockBadge";
 
 /**
  * Krátké videosekvence z domácího cvičení (formát 9:16, jako "reels").
@@ -130,10 +130,16 @@ export function MovementClips() {
                   {clip.duration}
                 </span>
 
-                {/* Štítek úrovně */}
-                <span className={`absolute top-3 left-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${TIER_STYLES[clip.access].solid}`}>
-                  {TIER_STYLES[clip.access].label}
-                </span>
+                {/* Štítek úrovně / zámeček */}
+                {clip.access === "FREE" ? (
+                  <span className="absolute top-3 left-3 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                    Zdarma
+                  </span>
+                ) : (
+                  <span className="absolute top-3 left-3">
+                    <LockBadge level={clip.access} />
+                  </span>
+                )}
 
                 {/* Název */}
                 <div className="absolute inset-x-0 bottom-0 p-4">

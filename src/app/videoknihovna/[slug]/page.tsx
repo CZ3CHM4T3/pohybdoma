@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
+import { LockBadge } from "@/components/ui/LockBadge";
 import { TIER_STYLES } from "@/lib/tiers";
 import { getUserTier } from "@/lib/supabase/user";
 
@@ -71,7 +72,11 @@ export default async function VideoDetailPage({ params }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
             <div className="flex items-start gap-3 mb-4 flex-wrap">
-              <AccessBadge level={video.accessLevel} />
+              {accessible ? (
+                <AccessBadge level={video.accessLevel} />
+              ) : (
+                <LockBadge level={video.accessLevel} />
+              )}
               <span className="text-xs bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full font-semibold capitalize">
                 {video.difficulty}
               </span>

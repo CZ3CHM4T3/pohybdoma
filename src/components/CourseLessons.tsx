@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, StickyNote, ChevronDown } from "lucide-react";
-import type { CourseLesson } from "@/types";
+import { Check, StickyNote, ChevronDown, Lock } from "lucide-react";
+import type { CourseLesson, UserTier } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { formatDuration } from "@/lib/access";
+import { formatDuration, canAccess } from "@/lib/access";
+import { normalizeTier } from "@/lib/tiers";
 import { AccessBadge } from "@/components/ui/Badge";
+import { LockBadge } from "@/components/ui/LockBadge";
 
 type ProgressRow = { completed: boolean; note: string };
 
@@ -21,6 +23,7 @@ export function CourseLessons({
 
   const [userId, setUserId] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
+  const [userTier, setUserTier] = useState<UserTier>("FREE");
   const [progress, setProgress] = useState<Record<string, ProgressRow>>({});
   const [openNote, setOpenNote] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
@@ -40,6 +43,13 @@ export function CourseLessons({
       setUserId(uid);
       setChecking(false);
       if (!uid) return;
+      // Úroveň členství (kvůli zamykání lekcí)
+      supabase
+        .from("profiles")
+        .select("tier")
+        .eq("id", uid)
+        .maybeSingle()
+        .then(({ data: p }) => setUserTier(normalizeTier(p?.tier as string | undefined)));
       const { data: rows } = await supabase
         .from("lesson_progress")
         .select("lesson_id, completed, note")
@@ -137,11 +147,19 @@ export function CourseLessons({
           const done = row?.completed ?? false;
           const noteOpen = openNote === lesson.id;
           const hasNote = (row?.note ?? "").trim().length > 0;
+          const locked = !canAccess(userTier, lesson.accessLevel);
           return (
             <li key={lesson.id} className="border-b border-gray-100 last:border-0">
               <div className="flex items-center gap-3 py-3">
-                {/* Zaškrtnutí / pořadí */}
-                {loggedIn ? (
+                {/* Zámek / zaškrtnutí / pořadí */}
+                {locked ? (
+                  <span
+                    className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-400"
+                    aria-label="Zamčená lekce"
+                  >
+                    <Lock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </span>
+                ) : loggedIn ? (
                   <button
                     type="button"
                     onClick={() => toggleCompleted(lesson.id)}
@@ -162,7 +180,7 @@ export function CourseLessons({
 
                 <span
                   className={`flex-1 text-sm font-medium ${
-                    done ? "text-gray-400 line-through" : "text-brand-dark"
+                    locked ? "text-gray-400" : done ? "text-gray-400 line-through" : "text-brand-dark"
                   }`}
                 >
                   {lesson.title}
@@ -172,8 +190,8 @@ export function CourseLessons({
                   {formatDuration(lesson.durationSeconds)}
                 </span>
 
-                {/* Tlačítko poznámky */}
-                {loggedIn && (
+                {/* Tlačítko poznámky (jen u odemčených lekcí) */}
+                {loggedIn && !locked && (
                   <button
                     type="button"
                     onClick={() => setOpenNote(noteOpen ? null : lesson.id)}
@@ -191,11 +209,17 @@ export function CourseLessons({
                   </button>
                 )}
 
-                <AccessBadge level={lesson.accessLevel} />
+                {locked ? (
+                  <Link href="/clenstvi" aria-label={`Odemknout úroveň ${lesson.accessLevel}`}>
+                    <LockBadge level={lesson.accessLevel} />
+                  </Link>
+                ) : (
+                  <AccessBadge level={lesson.accessLevel} />
+                )}
               </div>
 
               {/* Poznámky */}
-              {loggedIn && noteOpen && (
+              {loggedIn && !locked && noteOpen && (
                 <div className="pb-4 pl-10 pr-1">
                   <textarea
                     value={row?.note ?? ""}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Video, UserTier } from "@/types";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
+import { LockBadge } from "@/components/ui/LockBadge";
 import { TIER_STYLES } from "@/lib/tiers";
 
 interface VideoCardProps {
@@ -38,9 +39,13 @@ export function VideoCard({ video, userTier }: VideoCardProps) {
           {formatDuration(video.durationSeconds)}
         </div>
 
-        {/* Access badge */}
+        {/* Access badge / zámeček */}
         <div className="absolute top-2 left-2">
-          <AccessBadge level={video.accessLevel} />
+          {accessible ? (
+            <AccessBadge level={video.accessLevel} />
+          ) : (
+            <LockBadge level={video.accessLevel} />
+          )}
         </div>
       </div>
 
