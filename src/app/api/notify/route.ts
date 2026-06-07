@@ -12,8 +12,13 @@ export const dynamic = "force-dynamic";
  */
 // Diagnostika: ukáže, zda jsou na serveru nastavené potřebné klíče (jen true/false).
 export async function GET() {
+  // Jen NÁZVY proměnných (žádné hodnoty) – bezpečné, kvůli odhalení překlepu.
+  const relevantKeys = Object.keys(process.env).filter((k) =>
+    /SUPABASE|RESEND|SERVICE|ROLE/i.test(k)
+  );
   return NextResponse.json({
-    marker: "deploy-check-A2",
+    marker: "deploy-check-A3",
+    envKeys: relevantKeys,
     configured: {
       supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
