@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient as createServer } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 
+// Nikdy necachovat – musí číst živé runtime proměnné.
+export const dynamic = "force-dynamic";
+
 /**
  * Pošle e-mail upozornění, když někdo odpoví v klubu.
  * Volá se z klienta (fire-and-forget) po vložení komentáře/odpovědi.
@@ -10,7 +13,7 @@ import { createClient as createAdmin } from "@supabase/supabase-js";
 // Diagnostika: ukáže, zda jsou na serveru nastavené potřebné klíče (jen true/false).
 export async function GET() {
   return NextResponse.json({
-    marker: "deploy-check-A1",
+    marker: "deploy-check-A2",
     configured: {
       supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
