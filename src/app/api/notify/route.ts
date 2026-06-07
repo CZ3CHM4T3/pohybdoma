@@ -10,6 +10,7 @@ import { createClient as createAdmin } from "@supabase/supabase-js";
 // Diagnostika: ukáže, zda jsou na serveru nastavené potřebné klíče (jen true/false).
 export async function GET() {
   return NextResponse.json({
+    marker: "deploy-check-A1",
     configured: {
       supabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
       serviceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
