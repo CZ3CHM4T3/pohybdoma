@@ -4,11 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
-  ImagePlus, X, ThumbsUp, ThumbsDown, Flame, Laugh, Frown, HeartHandshake, type LucideIcon,
+  ImagePlus, X, BarChart3, Star, Plus, Check, ThumbsUp, ThumbsDown, Flame, Laugh,
+  Frown, HeartHandshake, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+
+const TABS: { key: Channel; label: string; Icon: LucideIcon }[] = [
+  { key: "chat", label: "Chat", Icon: MessageCircle },
+  { key: "qa", label: "Q&A", Icon: HelpCircle },
+  { key: "poll", label: "Ankety", Icon: BarChart3 },
+  { key: "feedback", label: "Feedback", Icon: Star },
+];
 
 // Reakce jako profesionální lucide ikony (klíč se ukládá do DB jako text).
 const REACTIONS: { key: string; Icon: LucideIcon; title: string }[] = [
@@ -20,18 +28,22 @@ const REACTIONS: { key: string; Icon: LucideIcon; title: string }[] = [
   { key: "thanks", Icon: HeartHandshake, title: "Děkuju" },
 ];
 
-type Channel = "chat" | "qa";
+type Channel = "chat" | "qa" | "poll" | "feedback";
 type Post = {
   id: string;
   author_id: string;
   author_name: string | null;
   author_role: string | null;
   body: string;
+  title: string | null;
+  rating: number | null;
   pinned: boolean;
   channel: string;
   image_url: string | null;
   created_at: string;
 };
+type PollOption = { id: string; post_id: string; label: string; position: number };
+type PollAgg = { counts: Record<string, number>; total: number; mine: string | null };
 type Comment = {
   id: string;
   post_id: string;
@@ -74,6 +86,16 @@ export default function KlubPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [reactions, setReactions] = useState<Record<string, ReactionAgg>>({});
+  const [pollOpts, setPollOpts] = useState<Record<string, PollOption[]>>({});
+  const [pollVotes, setPollVotes] = useState<Record<string, PollAgg>>({});
+
+  // Composer ankety (jen admin)
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollChoices, setPollChoices] = useState<string[]>(["", ""]);
+  // Composer feedbacku
+  const [fbTitle, setFbTitle] = useState("");
+  const [fbDesc, setFbDesc] = useState("");
+  const [fbRating, setFbRating] = useState(0);
 
   const [draft, setDraft] = useState("");
   const [posting, setPosting] = useState(false);
@@ -87,10 +109,10 @@ export default function KlubPage() {
 
   const loadAll = useCallback(async () => {
     const uid = uidRef.current;
-    const [p, c, r] = await Promise.all([
+    const [p, c, r, po, pv] = await Promise.all([
       supabase
         .from("community_posts")
-        .select("id, author_id, author_name, author_role, body, pinned, channel, image_url, created_at")
+        .select("id, author_id, author_name, author_role, body, title, rating, pinned, channel, image_url, created_at")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false }),
       supabase
@@ -98,9 +120,29 @@ export default function KlubPage() {
         .select("id, post_id, parent_id, author_id, author_name, author_role, body, image_url, created_at")
         .order("created_at", { ascending: true }),
       supabase.from("community_reactions").select("post_id, user_id, emoji"),
+      supabase.from("community_poll_options").select("id, post_id, label, position").order("position", { ascending: true }),
+      supabase.from("community_poll_votes").select("post_id, option_id, user_id"),
     ]);
 
     if (p.data) setPosts(p.data as unknown as Post[]);
+
+    if (po.data) {
+      const map: Record<string, PollOption[]> = {};
+      for (const o of po.data as unknown as PollOption[]) {
+        (map[o.post_id] ??= []).push(o);
+      }
+      setPollOpts(map);
+    }
+    if (pv.data) {
+      const map: Record<string, PollAgg> = {};
+      for (const row of pv.data as { post_id: string; option_id: string; user_id: string }[]) {
+        const agg = (map[row.post_id] ??= { counts: {}, total: 0, mine: null });
+        agg.counts[row.option_id] = (agg.counts[row.option_id] ?? 0) + 1;
+        agg.total += 1;
+        if (row.user_id === uid) agg.mine = row.option_id;
+      }
+      setPollVotes(map);
+    }
     if (c.data) {
       const map: Record<string, Comment[]> = {};
       for (const row of c.data as unknown as Comment[]) {
@@ -147,6 +189,8 @@ export default function KlubPage() {
         .on("postgres_changes", { event: "*", schema: "public", table: "community_posts" }, () => loadAll())
         .on("postgres_changes", { event: "*", schema: "public", table: "community_comments" }, () => loadAll())
         .on("postgres_changes", { event: "*", schema: "public", table: "community_reactions" }, () => loadAll())
+        .on("postgres_changes", { event: "*", schema: "public", table: "community_poll_votes" }, () => loadAll())
+        .on("postgres_changes", { event: "*", schema: "public", table: "community_poll_options" }, () => loadAll())
         .subscribe();
     })();
     return () => { if (channelSub) supabase.removeChannel(channelSub); };
@@ -347,6 +391,77 @@ export default function KlubPage() {
     );
   };
 
+  // ── Ankety ────────────────────────────────────────────────────────────────
+  async function createPoll() {
+    if (!userId) return;
+    const q = pollQuestion.trim();
+    const choices = pollChoices.map((c) => c.trim()).filter(Boolean);
+    if (!q || choices.length < 2) {
+      setError("Anketa potřebuje otázku a aspoň 2 možnosti.");
+      return;
+    }
+    setError(null);
+    const { data: post, error: err } = await supabase
+      .from("community_posts")
+      .insert({ author_id: userId, body: q, channel: "poll" })
+      .select("id")
+      .single();
+    if (err || !post) {
+      setError("Anketu se nepodařilo vytvořit (" + (err?.message ?? "") + ").");
+      return;
+    }
+    const rows = choices.map((label, i) => ({ post_id: post.id, label, position: i }));
+    const { error: optErr } = await supabase.from("community_poll_options").insert(rows);
+    if (optErr) {
+      setError("Možnosti ankety se nepodařilo uložit (" + optErr.message + "). Spustil jsi community_v5.sql?");
+      return;
+    }
+    setPollQuestion("");
+    setPollChoices(["", ""]);
+    loadAll();
+  }
+  async function vote(postId: string, optionId: string) {
+    if (!userId) return;
+    setError(null);
+    const { error: err } = await supabase
+      .from("community_poll_votes")
+      .upsert({ post_id: postId, option_id: optionId, user_id: userId }, { onConflict: "post_id,user_id" });
+    if (err) {
+      setError("Hlas se nepodařilo uložit (" + err.message + ").");
+      return;
+    }
+    loadAll();
+  }
+
+  // ── Feedback ────────────────────────────────────────────────────────────────
+  async function createFeedback() {
+    if (!userId) return;
+    if (!fbTitle.trim() || fbRating < 1) {
+      setError("Vyplň název a vyber hodnocení (1–5 hvězd).");
+      return;
+    }
+    setError(null);
+    const img = await uploadImage("feedback");
+    if (img === "error") return;
+    const { error: err } = await supabase.from("community_posts").insert({
+      author_id: userId,
+      channel: "feedback",
+      title: fbTitle.trim(),
+      body: fbDesc.trim(),
+      rating: fbRating,
+      image_url: img,
+    });
+    if (err) {
+      setError("Feedback se nepodařilo odeslat (" + err.message + ").");
+      return;
+    }
+    setFbTitle("");
+    setFbDesc("");
+    setFbRating(0);
+    setPendingImage((p) => ({ ...p, feedback: null }));
+    loadAll();
+  }
+
   // ── Stavy přístupu ──────────────────────────────────────────────────────
   if (phase === "loading") {
     return <Centered><p className="text-gray-400">Načítám klub…</p></Centered>;
@@ -407,26 +522,21 @@ export default function KlubPage() {
           </div>
         </div>
 
-        {/* Záložky Chat / Q&A */}
+        {/* Záložky */}
         <div className="mb-5 flex gap-1 rounded-xl bg-white p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setChannel("chat")}
-            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition-colors ${
-              channel === "chat" ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
-            }`}
-          >
-            <MessageCircle className="h-4 w-4" strokeWidth={2} /> Chat
-          </button>
-          <button
-            type="button"
-            onClick={() => setChannel("qa")}
-            className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-semibold transition-colors ${
-              channel === "qa" ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
-            }`}
-          >
-            <HelpCircle className="h-4 w-4" strokeWidth={2} /> Q&amp;A
-          </button>
+          {TABS.map(({ key, label, Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setChannel(key)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-semibold transition-colors ${
+                channel === key ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
         </div>
 
         {error && (
@@ -435,8 +545,92 @@ export default function KlubPage() {
           </p>
         )}
 
-        {/* Composer */}
-        {chatLimitReached ? (
+        {/* Composer – podle kanálu */}
+        {channel === "poll" ? (
+          isAdmin ? (
+            <div className="card p-4 mb-6 space-y-3">
+              <input
+                type="text"
+                value={pollQuestion}
+                onChange={(e) => setPollQuestion(e.target.value)}
+                placeholder="Otázka ankety…"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+              {pollChoices.map((choice, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={choice}
+                    onChange={(e) =>
+                      setPollChoices((arr) => arr.map((c, idx) => (idx === i ? e.target.value : c)))
+                    }
+                    placeholder={`Možnost ${i + 1}`}
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                  />
+                  {pollChoices.length > 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setPollChoices((arr) => arr.filter((_, idx) => idx !== i))}
+                      className="p-1 text-gray-300 hover:text-red-600"
+                      aria-label="Odebrat možnost"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setPollChoices((arr) => [...arr, ""])}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-brand-blue hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Přidat možnost
+                </button>
+                <button type="button" onClick={createPoll} className="btn-primary text-sm">
+                  Vytvořit anketu
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-4 mb-6 text-center text-sm text-gray-500">
+              Ankety vytváří lektor. Můžeš hlasovat a diskutovat u jednotlivých anket níže. 🙂
+            </div>
+          )
+        ) : channel === "feedback" ? (
+          <div className="card p-4 mb-6 space-y-3">
+            <input
+              type="text"
+              value={fbTitle}
+              onChange={(e) => setFbTitle(e.target.value)}
+              placeholder="Název – čeho se to týká?"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-blue"
+            />
+            <textarea
+              value={fbDesc}
+              onChange={(e) => setFbDesc(e.target.value)}
+              rows={3}
+              placeholder="Popis – co tě trápí, nebo za co chválíš…"
+              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Hodnocení:</span>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => setFbRating(n)} aria-label={`${n} z 5`}>
+                  <Star
+                    className={`h-5 w-5 transition-colors ${n <= fbRating ? "fill-amber-400 text-amber-400" : "text-gray-300 hover:text-amber-300"}`}
+                  />
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              {attach("feedback")}
+              <button type="button" onClick={createFeedback} className="btn-primary text-sm">
+                Odeslat feedback
+              </button>
+            </div>
+          </div>
+        ) : chatLimitReached ? (
           <div className="card p-4 mb-6 text-center text-sm text-gray-500">
             Tento týden jsi založil <strong>2 topicy</strong> (limit kvůli přehlednosti).
             Další můžeš založit příští týden — do diskuze pod stávající topicy můžeš psát dál. 🙂
@@ -472,7 +666,7 @@ export default function KlubPage() {
                 className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
               >
                 <Send className="h-4 w-4" strokeWidth={2} />
-                {posting ? "Odesílám…" : isQa ? "Položit otázku" : "Založit topic"}
+                {posting ? "Odesílám…" : "Založit topic"}
               </button>
             </div>
           </div>
@@ -481,11 +675,18 @@ export default function KlubPage() {
         {/* Feed */}
         {visiblePosts.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
-            {isQa
-              ? <HelpCircle className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />
-              : <MessageCircle className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />}
+            {(() => {
+              const Icon = TABS.find((t) => t.key === channel)?.Icon ?? MessageCircle;
+              return <Icon className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />;
+            })()}
             <p className="text-sm">
-              {isQa ? "Zatím žádné otázky. Zeptej se jako první!" : "Zatím tu nic není. Buď první, kdo napíše!"}
+              {channel === "qa"
+                ? "Zatím žádné otázky. Zeptej se jako první!"
+                : channel === "poll"
+                  ? "Zatím žádné ankety."
+                  : channel === "feedback"
+                    ? "Zatím žádný feedback. Napiš první!"
+                    : "Zatím tu nic není. Buď první, kdo napíše!"}
             </p>
           </div>
         ) : (
@@ -494,7 +695,7 @@ export default function KlubPage() {
               const rx = reactions[post.id];
               const postComments = comments[post.id] ?? [];
               const honza = post.author_role === "lektor";
-              const canComment = (post.channel ?? "chat") === "chat" || isAdmin;
+              const canComment = (post.channel ?? "chat") !== "qa" || isAdmin;
               return (
                 <article key={post.id} className={`card p-5 ${post.pinned ? "ring-2 ring-amber-300" : ""}`}>
                   {post.pinned && (
@@ -543,13 +744,71 @@ export default function KlubPage() {
                     )}
                   </div>
 
-                  {/* Tělo */}
-                  {post.body && (
-                    <p className="mt-3 text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{post.body}</p>
-                  )}
-                  {post.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.image_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />
+                  {/* Tělo – podle typu */}
+                  {post.channel === "poll" ? (
+                    <div className="mt-3">
+                      <p className="mb-3 text-sm font-semibold text-brand-dark">{post.body}</p>
+                      <div className="space-y-2">
+                        {(pollOpts[post.id] ?? []).map((o) => {
+                          const agg = pollVotes[post.id] ?? { counts: {}, total: 0, mine: null };
+                          const cnt = agg.counts[o.id] ?? 0;
+                          const pct = agg.total ? Math.round((cnt / agg.total) * 100) : 0;
+                          const mineOpt = agg.mine === o.id;
+                          return (
+                            <button
+                              key={o.id}
+                              type="button"
+                              onClick={() => vote(post.id, o.id)}
+                              className={`relative block w-full overflow-hidden rounded-lg border text-left transition-colors ${
+                                mineOpt ? "border-brand-blue" : "border-gray-200 hover:border-brand-blue"
+                              }`}
+                            >
+                              <div className="absolute inset-y-0 left-0 bg-brand-light" style={{ width: `${pct}%` }} />
+                              <div className="relative flex items-center justify-between px-3 py-2 text-sm">
+                                <span className="flex items-center gap-2 font-medium text-brand-dark">
+                                  {mineOpt && <Check className="h-4 w-4 text-brand-blue" strokeWidth={3} />}
+                                  {o.label}
+                                </span>
+                                <span className="font-semibold text-gray-500">{pct} %</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-400">
+                        {(pollVotes[post.id]?.total ?? 0)} {(pollVotes[post.id]?.total ?? 0) === 1 ? "hlas" : "hlasů"}
+                        {!pollVotes[post.id]?.mine && " · klikni pro hlasování"}
+                      </p>
+                    </div>
+                  ) : post.channel === "feedback" ? (
+                    <div className="mt-3">
+                      <div className="mb-1 flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            className={`h-4 w-4 ${n <= (post.rating ?? 0) ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+                          />
+                        ))}
+                      </div>
+                      {post.title && <h3 className="font-semibold text-brand-dark">{post.title}</h3>}
+                      {post.body && (
+                        <p className="mt-1 text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{post.body}</p>
+                      )}
+                      {post.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.image_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      {post.body && (
+                        <p className="mt-3 text-sm text-brand-dark leading-relaxed whitespace-pre-wrap">{post.body}</p>
+                      )}
+                      {post.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.image_url} alt="" className="mt-3 max-h-96 w-full rounded-lg object-cover" />
+                      )}
+                    </>
                   )}
 
                   {/* Reakce */}
