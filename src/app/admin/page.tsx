@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
+import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import type { UserTier } from "@/types";
 
 const HOURS = [
@@ -157,6 +158,26 @@ export default function AdminPage() {
     const { error } = await supabase.from("availability_overrides").delete().eq("id", id);
     if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
     setOverrides((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  // ── Výjimky z měsíčního kalendáře (klik na hodinu konkrétního dne) ──
+  async function setOverrideAt(date: string, time: string, status: "free" | "booked") {
+    setError(null);
+    const { error } = await supabase
+      .from("availability_overrides")
+      .upsert({ date, time, status }, { onConflict: "date,time" });
+    if (error) { setError("Uložení výjimky selhalo: " + error.message); return; }
+    await loadData();
+  }
+  async function resetOverrideAt(date: string, time: string) {
+    setError(null);
+    const { error } = await supabase
+      .from("availability_overrides")
+      .delete()
+      .eq("date", date)
+      .eq("time", time);
+    if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
+    await loadData();
   }
 
   // ── Členové (úroveň přístupu) ──
@@ -315,6 +336,23 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* ── Měsíční kalendář ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Kalendář měsíce</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Celý měsíc s možností listovat. Klikni na den a uprav dostupnost hodin
+            jen pro to datum (výjimky). Týdenní rozvrh výše zůstává jako základ.
+          </p>
+          <MonthCalendar
+            weekly={weekly}
+            overrides={overrides}
+            events={events}
+            bookings={bookings}
+            onSetOverride={setOverrideAt}
+            onResetOverride={resetOverrideAt}
+          />
         </section>
 
         {/* ── Akce / workshopy ── */}
