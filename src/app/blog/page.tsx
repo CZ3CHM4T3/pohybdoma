@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PenLine } from "lucide-react";
 import { Reveal } from "@/components/ui/Reveal";
 import { NewsletterForm } from "@/components/NewsletterForm";
 import { LikeButton } from "@/components/LikeButton";
@@ -86,7 +87,7 @@ export default function BlogPage() {
                 <article className="card card-3d h-full p-0 flex flex-col">
                   {/* Náhled */}
                   <div className="relative aspect-video bg-gradient-to-br from-brand-dark to-[#1256c0] flex items-center justify-center">
-                    <span className="text-4xl opacity-30">✍️</span>
+                    <PenLine className="h-9 w-9 text-white/30" strokeWidth={2} />
                     <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-brand-dark">
                       {post.tag}
                     </span>
