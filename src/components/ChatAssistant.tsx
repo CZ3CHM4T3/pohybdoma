@@ -31,6 +31,24 @@ const FAQS: Faq[] = [
       "Jsem průvodce webem POHYB DOMA, který provozuje lektor pohybu Honza Schröffel. Pomůžu ti najít cvičení, vysvětlit funkce a poradit s účtem nebo rezervací.",
   },
   {
+    keywords: ["zacit", "začít", "jak zacit", "novy", "novacek", "nováček", "zacatecnik", "začátečník", "prvni krok", "co delat", "jak to funguje", "co to je"],
+    answer:
+      "Začni klidně zdarma: vyber si pár ukázkových videí v knihovně a cvič vlastním tempem. Až budeš chtít víc obsahu, mrkni na členství. A kdykoliv se mě na cokoliv zeptej. 💪",
+    links: [{ label: "Videoknihovna", href: "/videoknihovna" }, { label: "Členství", href: "/clenstvi" }],
+  },
+  {
+    keywords: ["platba", "platit", "karta", "stripe", "faktura", "zaplatit", "platby"],
+    answer:
+      "Členství si zatím domluvíš přes stránku Členství (ozve se ti Honza); platby kartou se připravují. Klidně napiš i přes kontakt.",
+    links: [{ label: "Členství", href: "/clenstvi" }, { label: "Kontakt", href: "/kontakt" }],
+  },
+  {
+    keywords: ["spadova", "spádová", "kam jezdis", "kam jezdíš", "dojezd", "kde cvicis", "oblast", "osobne kde", "hradistko"],
+    answer:
+      "Osobní lekce probíhají ve spádové oblasti kolem Hradištka; odkudkoliv jinud se spojíme online. Termíny a detaily najdeš u rezervace.",
+    links: [{ label: "Rezervace", href: "/rezervace" }],
+  },
+  {
     keywords: ["clenstvi", "členství", "cena", "ceny", "kolik stoji", "kolik stojí", "predplatne", "předplatné", "member", "vip", "free", "tarif", "uroven", "úroveň", "platit"],
     answer:
       "Členství má úrovně FREE (zdarma, ukázky), MEMBER (přístup do videoknihovny), VIP (vedená cesta a víc obsahu) a VIP+ (navíc komunitní Klub). Přesné ceny a co je v každé úrovni najdeš na stránce Členství.",

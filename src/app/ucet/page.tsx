@@ -5,14 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import {
-  Heart, BookOpen, GraduationCap, CalendarDays, Crown,
+  Heart, BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
+  Lock, LockOpen, X, Check,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
-import { MOCK_COURSES } from "@/lib/mock-data";
+import { canAccess } from "@/lib/access";
+import { MOCK_COURSES, MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
-import type { UserTier } from "@/types";
+import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
 
@@ -35,6 +37,13 @@ export default function UcetPage() {
     { slug: string; title: string; done: number; total: number; pct: number }[]
   >([]);
   const [accMsg, setAccMsg] = useState<string | null>(null);
+
+  // Stav členství (modal s hierarchií) + zrušení přes heslo
+  const [showMembership, setShowMembership] = useState(false);
+  const [cancelStep, setCancelStep] = useState(false);
+  const [cancelPwd, setCancelPwd] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelErr, setCancelErr] = useState<string | null>(null);
 
   const [tab, setTab] = useState<Tab>("prihlaseni");
   const [email, setEmail] = useState("");
@@ -179,18 +188,32 @@ export default function UcetPage() {
     }
   }
 
-  async function cancelMembership() {
-    if (!user) return;
-    if (!window.confirm("Opravdu zrušit členství? Přejdeš na úroveň FREE.")) return;
-    setAccMsg(null);
+  async function confirmCancelMembership() {
+    if (!user?.email) return;
+    setCancelBusy(true);
+    setCancelErr(null);
+    // Potvrzení heslem (ověření re-přihlášením)
+    const { error: authErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: cancelPwd,
+    });
+    if (authErr) {
+      setCancelBusy(false);
+      setCancelErr("Nesprávné heslo. Zkus to prosím znovu.");
+      return;
+    }
     const { error } = await supabase.rpc("cancel_my_membership");
+    setCancelBusy(false);
     if (error) {
-      setAccMsg("Zrušení členství selhalo: " + error.message);
+      setCancelErr("Zrušení členství selhalo: " + error.message);
       return;
     }
     setTier("FREE");
     setTierSince(null);
     setTierUntil(null);
+    setCancelStep(false);
+    setCancelPwd("");
+    setShowMembership(false);
     setAccMsg("Členství zrušeno – jsi na úrovni FREE.");
   }
 
@@ -291,13 +314,29 @@ export default function UcetPage() {
     const daysLeft = tierUntil
       ? Math.ceil((new Date(tierUntil).getTime() - Date.now()) / 86400000)
       : null;
-    const tiles = [
+    const tiles: {
+      label: string;
+      Icon: typeof BookOpen;
+      href?: string;
+      req?: AccessLevel;
+      action?: "membership";
+    }[] = [
       { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen },
       { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap },
       { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays },
-      { href: "#stav-clenstvi", label: "Stav členství", Icon: ShieldCheck },
-      { href: "/kruhy", label: "Mé kruhy", Icon: Users },
-      { href: "/denik", label: "Můj deník", Icon: LineChart },
+      { label: "Stav členství", Icon: ShieldCheck, action: "membership" },
+      { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER" },
+      { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP" },
+    ];
+
+    // Hierarchie členství (pro dlaždici „Stav členství")
+    const planByTier = Object.fromEntries(MOCK_MEMBERSHIP_PLANS.map((p) => [p.tier, p]));
+    const membershipHierarchy: { tier: UserTier; tagline?: string; price: number; features: string[] }[] = [
+      { tier: "FREE", tagline: "Na vyzkoušení", price: 0, features: ["Ukázková videa zdarma", "Základní přístup k webu"] },
+      ...(["MEMBER", "VIP", "VIP_PLUS"] as UserTier[]).map((t) => {
+        const p = planByTier[t];
+        return { tier: t, tagline: p?.tagline, price: p?.priceKcMonth ?? 0, features: p?.features ?? [] };
+      }),
     ];
     return (
       <div className="min-h-screen bg-brand-light py-10">
@@ -346,18 +385,66 @@ export default function UcetPage() {
 
           {/* Rychlé dlaždice */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {tiles.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
-                  <Icon className="h-5 w-5" strokeWidth={2} />
-                </span>
-                <span className="text-xs font-semibold text-brand-dark">{label}</span>
-              </Link>
-            ))}
+            {tiles.map((t) => {
+              const Icon = t.Icon;
+              const locked = !!t.req && !canAccess(tier, t.req);
+
+              // Dlaždice „Stav členství" – otevře hierarchii členství
+              if (t.action === "membership") {
+                return (
+                  <button
+                    key="membership"
+                    type="button"
+                    onClick={() => setShowMembership(true)}
+                    className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
+                      <Icon className="h-5 w-5" strokeWidth={2} />
+                    </span>
+                    <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
+                  </button>
+                );
+              }
+
+              // Zamčená dlaždice (nedosažitelná úroveň) → odkaz na koupi členství
+              if (locked) {
+                return (
+                  <Link
+                    key={t.label}
+                    href="/clenstvi"
+                    className="group relative card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center overflow-hidden"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue opacity-30">
+                      <Icon className="h-5 w-5" strokeWidth={2} />
+                    </span>
+                    <span className="text-xs font-semibold text-brand-dark opacity-30">{t.label}</span>
+                    <span className={`absolute top-1.5 right-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${TIER_STYLES[t.req!].badge}`}>
+                      {TIER_STYLES[t.req!].label}
+                    </span>
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/5 transition-transform duration-200 group-hover:scale-125">
+                        <Lock className="h-4 w-4 text-brand-dark group-hover:hidden" strokeWidth={2} />
+                        <LockOpen className="hidden h-4 w-4 text-brand-blue group-hover:block" strokeWidth={2} />
+                      </span>
+                    </span>
+                  </Link>
+                );
+              }
+
+              // Běžná dlaždice
+              return (
+                <Link
+                  key={t.href}
+                  href={t.href!}
+                  className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
+                    <Icon className="h-5 w-5" strokeWidth={2} />
+                  </span>
+                  <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Dva sloupce */}
@@ -392,6 +479,10 @@ export default function UcetPage() {
                 )}
               </div>
 
+            </div>
+
+            {/* Pravý sloupec */}
+            <div className="space-y-6">
               {/* Oblíbená videa */}
               <div className="card p-6">
                 <div className="mb-3 flex items-center gap-2">
@@ -418,49 +509,6 @@ export default function UcetPage() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Pravý sloupec */}
-            <div className="space-y-6">
-              {/* Stav členství */}
-              <div id="stav-clenstvi" className={`card p-6 scroll-mt-24 ${TIER_STYLES[tier].card}`}>
-                <div className="mb-2 flex items-center gap-2">
-                  <Crown className={`h-4 w-4 ${TIER_STYLES[tier].accentText}`} strokeWidth={2} />
-                  <h2 className="text-sm font-semibold text-brand-dark">Stav členství</h2>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Tvoje úroveň je <strong className={TIER_STYLES[tier].accentText}>{TIER_STYLES[tier].label}</strong>.
-                  {tier !== "VIP_PLUS" && " Vyšší úroveň odemkne víc videí, kurzů a VIP+ Klub."}
-                </p>
-                {tier !== "FREE" && (tierSince || tierUntil) && (
-                  <div className="mt-3 rounded-lg bg-white/60 p-3 text-xs text-gray-600 space-y-0.5">
-                    {tierSince && <p>Aktivní od: <strong className="text-brand-dark">{fmtDate(tierSince)}</strong></p>}
-                    {tierUntil && (
-                      <p>
-                        Platí do: <strong className="text-brand-dark">{fmtDate(tierUntil)}</strong>
-                        {daysLeft != null && (daysLeft >= 0
-                          ? ` (zbývá ${daysLeft} dní)`
-                          : " (vypršelo – obnov si členství)")}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="mt-4 flex flex-wrap items-center gap-4">
-                  {tier !== "VIP_PLUS" && (
-                    <Link href="/clenstvi" className="btn-primary text-sm inline-flex">
-                      {tier === "FREE" ? "Vybrat členství" : "Změnit úroveň"}
-                    </Link>
-                  )}
-                  {tier !== "FREE" && (
-                    <button
-                      onClick={cancelMembership}
-                      className="text-xs font-semibold text-red-500 hover:text-red-700"
-                    >
-                      Zrušit členství
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -552,6 +600,122 @@ export default function UcetPage() {
             </div>
           </div>
         </div>
+
+        {/* Modal: hierarchie členství */}
+        {showMembership && (
+          <div
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+            onClick={() => { setShowMembership(false); setCancelStep(false); setCancelErr(null); }}
+          >
+            <div
+              className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { setShowMembership(false); setCancelStep(false); setCancelErr(null); }}
+                aria-label="Zavřít"
+                className="absolute right-4 top-4 text-gray-400 hover:text-brand-dark"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <h2 className="text-xl font-semibold text-brand-dark">Tvoje členství</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Aktuálně máš úroveň <strong className={TIER_STYLES[tier].accentText}>{TIER_STYLES[tier].label}</strong>.
+                {tier !== "FREE" && tierUntil &&
+                  ` Platí do ${fmtDate(tierUntil)}${daysLeft != null && daysLeft >= 0 ? ` (zbývá ${daysLeft} dní)` : ""}.`}
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {membershipHierarchy.map((m) => {
+                  const current = m.tier === tier;
+                  return (
+                    <div
+                      key={m.tier}
+                      className={`rounded-xl border p-4 ${
+                        current
+                          ? `${TIER_STYLES[m.tier].card} border-transparent ring-2 ring-offset-1 ring-brand-blue/40`
+                          : "border-gray-200 bg-gray-50 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${current ? TIER_STYLES[m.tier].badge : "bg-gray-200 text-gray-500"}`}>
+                            {TIER_STYLES[m.tier].label}
+                          </span>
+                          {m.tagline && <span className={`text-xs ${current ? "text-gray-600" : "text-gray-400"}`}>{m.tagline}</span>}
+                        </div>
+                        {current ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                            <Check className="h-4 w-4" /> Máš
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-gray-400">{m.price > 0 ? `${m.price} Kč/měs` : "zdarma"}</span>
+                        )}
+                      </div>
+                      {m.features.length > 0 && (
+                        <ul className={`mt-2 space-y-1 text-xs ${current ? "text-gray-700" : "text-gray-400"}`}>
+                          {m.features.map((f, i) => (
+                            <li key={i} className="flex items-start gap-1.5">
+                              <Check className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${current ? TIER_STYLES[m.tier].accentText : "text-gray-300"}`} />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-4">
+                {tier !== "VIP_PLUS" && (
+                  <Link href="/clenstvi" className="btn-primary text-sm">
+                    {tier === "FREE" ? "Vybrat členství" : "Změnit úroveň"}
+                  </Link>
+                )}
+                {tier !== "FREE" && !cancelStep && (
+                  <button
+                    onClick={() => { setCancelStep(true); setCancelErr(null); setCancelPwd(""); }}
+                    className="text-xs font-semibold text-red-500 hover:text-red-700"
+                  >
+                    Zrušit členství
+                  </button>
+                )}
+              </div>
+
+              {cancelStep && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-700">Zrušit členství?</p>
+                  <p className="mt-0.5 text-xs text-red-600">Přejdeš na úroveň FREE. Pro potvrzení zadej své heslo.</p>
+                  {cancelErr && <p className="mt-2 text-xs font-medium text-red-700">{cancelErr}</p>}
+                  <input
+                    type="password"
+                    value={cancelPwd}
+                    onChange={(e) => setCancelPwd(e.target.value)}
+                    placeholder="Tvoje heslo"
+                    className="mt-2 w-full rounded-lg border border-red-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      onClick={confirmCancelMembership}
+                      disabled={cancelBusy || !cancelPwd}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {cancelBusy ? "Ruším…" : "Potvrdit zrušení"}
+                    </button>
+                    <button
+                      onClick={() => { setCancelStep(false); setCancelErr(null); setCancelPwd(""); }}
+                      className="text-xs font-semibold text-gray-500 hover:text-brand-dark"
+                    >
+                      Zpět
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
