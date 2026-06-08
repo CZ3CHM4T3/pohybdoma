@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { Star, Quote } from "lucide-react";
-import { REVIEWS } from "@/lib/reviews";
+import type { Review } from "@/lib/reviews";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -17,7 +17,7 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-function Card({ name, place, rating, text }: (typeof REVIEWS)[number]) {
+function Card({ name, place, rating, text }: Review) {
   return (
     <figure className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 transition-transform duration-300 ease-out hover:scale-[1.04] hover:shadow-xl">
       <Quote className="h-7 w-7 text-brand-light" strokeWidth={2} fill="currentColor" />
@@ -33,8 +33,16 @@ function Card({ name, place, rating, text }: (typeof REVIEWS)[number]) {
   );
 }
 
-export function Reviews({ limit, carousel }: { limit?: number; carousel?: boolean }) {
-  const list = limit ? REVIEWS.slice(0, limit) : REVIEWS;
+export function Reviews({
+  reviews,
+  limit,
+  carousel,
+}: {
+  reviews: Review[];
+  limit?: number;
+  carousel?: boolean;
+}) {
+  const list = limit ? reviews.slice(0, limit) : reviews;
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef({ down: false, startX: 0, scroll: 0, moved: false });
 

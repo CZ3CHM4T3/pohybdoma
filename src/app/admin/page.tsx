@@ -60,6 +60,15 @@ type Booking = {
   status: string;
   created_at: string;
 };
+type ReviewRow = {
+  id: string;
+  author_name: string;
+  place: string | null;
+  rating: number;
+  text: string;
+  approved: boolean;
+  created_at: string;
+};
 
 export default function AdminPage() {
   const supabase = createClient();
@@ -72,8 +81,15 @@ export default function AdminPage() {
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Formulář nové recenze
+  const [rvName, setRvName] = useState("");
+  const [rvPlace, setRvPlace] = useState("");
+  const [rvRating, setRvRating] = useState("5");
+  const [rvText, setRvText] = useState("");
 
   // Formulář nové akce
   const [evDate, setEvDate] = useState("");
@@ -100,13 +116,14 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o, s, m] = await Promise.all([
+    const [w, b, e, o, s, m, r] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
       supabase.from("availability_overrides").select("*").order("date"),
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,email,full_name,tier").order("email"),
+      supabase.from("reviews").select("*").order("created_at", { ascending: false }),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
@@ -114,6 +131,7 @@ export default function AdminPage() {
     if (o.data) setOverrides(o.data as OverrideRow[]);
     if (s.data) setSubscribers(s.data as { id: string; email: string; created_at: string }[]);
     if (m.data) setMembers(m.data as Member[]);
+    if (r.data) setReviews(r.data as ReviewRow[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -196,6 +214,35 @@ export default function AdminPage() {
         "Změna úrovně selhala. Spustil jsi v Supabase membership.sql? (" + error.message + ")"
       );
     }
+  }
+
+  // ── Recenze ──
+  async function addReview(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const rating = Math.min(5, Math.max(1, Number(rvRating) || 5));
+    const { error } = await supabase.from("reviews").insert({
+      author_name: rvName.trim(),
+      place: rvPlace.trim() || null,
+      rating,
+      text: rvText.trim(),
+      approved: true,
+    });
+    if (error) { setError("Recenzi se nepodařilo uložit: " + error.message); return; }
+    setRvName(""); setRvPlace(""); setRvRating("5"); setRvText("");
+    loadData();
+  }
+  async function deleteReview(id: string) {
+    setError(null);
+    const { error } = await supabase.from("reviews").delete().eq("id", id);
+    if (error) { setError("Smazání recenze selhalo: " + error.message); return; }
+    setReviews((prev) => prev.filter((x) => x.id !== id));
+  }
+  async function toggleReviewApproved(id: string, approved: boolean) {
+    setError(null);
+    const { error } = await supabase.from("reviews").update({ approved: !approved }).eq("id", id);
+    if (error) { setError("Změna stavu recenze selhala: " + error.message); return; }
+    setReviews((prev) => prev.map((x) => (x.id === id ? { ...x, approved: !approved } : x)));
   }
 
   // ── Odběratelé newsletteru ──
@@ -563,6 +610,81 @@ export default function AdminPage() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* ── Recenze ── */}
+        <section className="card p-6 mt-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">
+            Recenze <span className="text-gray-400 font-normal">({reviews.length})</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Přidej recenzi (zobrazí se hned). Návrhy od členů se objeví jako neschválené – schválíš je tlačítkem.
+          </p>
+
+          {/* Seznam */}
+          {reviews.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {reviews.map((r) => (
+                <div key={r.id} className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-brand-dark">
+                      {r.author_name}{r.place ? ` · ${r.place}` : ""}{" "}
+                      <span className="text-amber-500">{"★".repeat(r.rating)}</span>
+                      {!r.approved && (
+                        <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">čeká na schválení</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">{r.text}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleReviewApproved(r.id, r.approved)}
+                      className={`text-xs font-semibold ${r.approved ? "text-gray-400 hover:text-gray-600" : "text-emerald-600 hover:text-emerald-700"}`}
+                    >
+                      {r.approved ? "Skrýt" : "Schválit"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteReview(r.id)}
+                      className="text-xs font-semibold text-red-500 hover:text-red-700"
+                    >
+                      Smazat
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Přidat recenzi */}
+          <form onSubmit={addReview} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AdminInput label="Jméno *" value={rvName} onChange={setRvName} placeholder="Jan N." required />
+            <AdminInput label="Obec" value={rvPlace} onChange={setRvPlace} placeholder="Dobřichovice" />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Hodnocení</label>
+              <select
+                value={rvRating}
+                onChange={(e) => setRvRating(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white"
+              >
+                {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Text recenze *</label>
+              <textarea
+                value={rvText}
+                onChange={(e) => setRvText(e.target.value)}
+                rows={3}
+                required
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary text-sm">Přidat recenzi</button>
+            </div>
+          </form>
         </section>
 
         {/* ── Odběratelé newsletteru ── */}

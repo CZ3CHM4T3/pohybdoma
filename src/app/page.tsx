@@ -5,6 +5,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
 import { Reviews } from "@/components/Reviews";
+import { getApprovedReviews } from "@/lib/reviews-server";
 import { Dumbbell, Film, Star, Play } from "lucide-react";
 import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
@@ -48,7 +49,8 @@ const STEPS = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const reviews = await getApprovedReviews();
   return (
     <>
       {/* ── Hero – fullscreen logo splash ── */}
@@ -139,21 +141,23 @@ export default function HomePage() {
       </section>
 
       {/* ── Recenze (nad videi) ── */}
-      <section className="bg-brand-light py-16 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <Reveal variant="up">
-            <SectionHeading label="Recenze" title="Co říkají lidé" centered />
-          </Reveal>
-          <div className="mt-12">
-            <Reviews carousel />
+      {reviews.length > 0 && (
+        <section className="bg-brand-light py-16 lg:py-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <Reveal variant="up">
+              <SectionHeading label="Recenze" title="Co říkají lidé" centered />
+            </Reveal>
+            <div className="mt-12">
+              <Reviews reviews={reviews} carousel />
+            </div>
+            <div className="mt-8 text-center">
+              <Link href="/recenze" className="btn-outline text-sm">
+                Všechny recenze →
+              </Link>
+            </div>
           </div>
-          <div className="mt-8 text-center">
-            <Link href="/recenze" className="btn-outline text-sm">
-              Všechny recenze →
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Ukázky cvičení (videosekvence) ── */}
       <MovementClips />
