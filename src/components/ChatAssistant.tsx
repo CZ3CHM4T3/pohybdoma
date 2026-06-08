@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, Sparkles } from "lucide-react";
 
-const NAME = "Hejblík";
+const NAME = "Jeník";
 const AVATAR_SRC = "/asistent.png"; // sem hoď svou miniaturu (PNG, ideálně průhledné pozadí)
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const WELCOME: Msg = {
   role: "assistant",
-  content: `Ahoj, jsem ${NAME} 🤸 Zeptej se mě na cokoliv o POHYB DOMA – členství, videa, rezervace, deník…`,
+  content: `Ahoj, jsem ${NAME} 🤸 Rád ti pomůžu zorientovat se na POHYB DOMA – najít cvičení, vysvětlit funkce, poradit s členstvím, rezervací nebo účtem. S čím začneme?`,
 };
 
 function Avatar({ className = "" }: { className?: string }) {
