@@ -8,6 +8,7 @@ const FOOTER_LINKS = {
     { href: "/videoknihovna", label: "Knihovna pohybu" },
     { href: "/kurzy", label: "Kurzy" },
     { href: "/clenstvi", label: "Členství" },
+    { href: "/recenze", label: "Recenze" },
     { href: "/blog", label: "Blog" },
   ],
   legal: [
@@ -99,7 +100,18 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-white/40">
+        {/* Zdravotní upozornění */}
+        <div className="mt-12 pt-6 border-t border-white/10">
+          <p className="text-xs text-white/55 leading-relaxed max-w-3xl">
+            <strong className="text-white/80">Zdravotní upozornění:</strong> POHYB DOMA poskytuje pohybovou
+            edukaci a kondiční vedení. Nejde o zdravotní službu a obsah nenahrazuje péči lékaře ani
+            fyzioterapeuta. Při akutní či silné bolesti, po úrazu nebo operaci, v těhotenství a po porodu
+            nebo při zdravotních potížích (vystřelující bolest, mravenčení, závratě) se nejdřív poraď
+            s odborníkem. Cvič vždy v rozsahu bez bolesti – ostrá bolest je signál přestat.
+          </p>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-white/40">
           <p>© {new Date().getFullYear()} POHYB DOMA. Všechna práva vyhrazena.</p>
           <p>pohybdoma.cz</p>
         </div>

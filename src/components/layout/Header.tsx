@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: "/videoknihovna", label: "Knihovna pohybu" },
   { href: "/kurzy", label: "Kurzy" },
   { href: "/clenstvi", label: "Členství" },
+  { href: "/recenze", label: "Recenze" },
   { href: "/blog", label: "Blog" },
   { href: "/ucet", label: "Účet" },
 ];

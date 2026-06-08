@@ -167,6 +167,7 @@ export interface MembershipPlan {
   id: string;
   tier: Exclude<UserTier, "FREE">;
   name: string;
+  tagline?: string;
   priceKcMonth: number;
   features: string[];
   highlighted: boolean;

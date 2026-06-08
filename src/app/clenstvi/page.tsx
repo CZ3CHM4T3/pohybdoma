@@ -18,7 +18,7 @@ export default function ClenstviPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Členství</p>
           <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">
-            Vyberte svoji cestu
+            Vyber si, jak hluboko chceš jít
           </h1>
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
             Tři úrovně přístupu. Zrušení kdykoliv. Žádné závazky.
@@ -52,9 +52,12 @@ export default function ClenstviPage() {
                   )}
 
                   <div className="p-7">
-                    <h2 className={`text-xl font-semibold tracking-wide mb-1 ${t.accentText}`}>
+                    <h2 className={`text-xl font-semibold tracking-wide ${t.accentText}`}>
                       {plan.name}
                     </h2>
+                    {plan.tagline && (
+                      <p className="text-sm text-gray-500 mb-3">{plan.tagline}</p>
+                    )}
                     <div className="flex items-baseline gap-1 mb-6">
                       <span className="text-4xl font-semibold text-brand-dark">{plan.priceKcMonth}</span>
                       <span className="text-sm text-gray-400">Kč / měsíc</span>
@@ -69,13 +72,15 @@ export default function ClenstviPage() {
                       ))}
                     </ul>
 
-                    <button
-                      type="button"
-                      className={`w-full rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 ${t.solid}`}
+                    <Link
+                      href={`/kontakt?zajem=${plan.name}`}
+                      className={`block w-full text-center rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 ${t.solid}`}
                     >
-                      Vybrat {plan.name}
-                    </button>
-                    <p className="mt-3 text-xs text-center text-gray-400">Platba brzy dostupná</p>
+                      Chci {plan.name}
+                    </Link>
+                    <p className="mt-3 text-xs text-center text-gray-400">
+                      Spouštím brzy – ozvi se a budeš u toho první.
+                    </p>
                   </div>
                 </div>
               );
@@ -139,8 +144,8 @@ export default function ClenstviPage() {
       {/* CTA */}
       <section className="bg-brand-light py-12">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-2xl font-semibold text-brand-dark mb-3">Ještě si nejste jisti?</h2>
-          <p className="text-gray-600 mb-6">Vyzkoušejte FREE videa zdarma – bez registrace.</p>
+          <h2 className="text-2xl font-semibold text-brand-dark mb-3">Nejsi si jistý/á?</h2>
+          <p className="text-gray-600 mb-6">Vyzkoušej videa zdarma – bez registrace. Uvidíš sám/sama, jak pracuju.</p>
           <Link href="/videoknihovna" className="btn-outline">
             Procházet videa zdarma
           </Link>

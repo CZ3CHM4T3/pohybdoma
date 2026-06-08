@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
+import { Reviews } from "@/components/Reviews";
 import { Dumbbell, Film, Star } from "lucide-react";
 import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
@@ -13,7 +14,7 @@ import { NewsletterForm } from "@/components/NewsletterForm";
 export const metadata: Metadata = {
   title: "Domů",
   description:
-    "Cvič doma, naprav si tělo a rostu na pohybové cestě s minimem vybavení.",
+    "Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
 };
 
 const FREE_VIDEOS = MOCK_VIDEOS.filter((v) => v.accessLevel === "FREE").slice(0, 4);
@@ -62,9 +63,22 @@ export default function HomePage() {
           />
         </Reveal>
 
+        {/* Prodejní věta */}
+        <Reveal variant="up" delay={120}>
+          <div className="mt-8 max-w-2xl">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark leading-snug">
+              Vrať svému tělu svobodu pohybu – z obýváku, vlastním tempem.
+            </h1>
+            <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">
+              Naučím tě rozumět vlastnímu tělu a řešit bolesti i ztuhlost u zdroje.
+              Žádná posilovna, žádné vybavení – jen jasný systém, který funguje a vydrží.
+            </p>
+          </div>
+        </Reveal>
+
         {/* CTA tlačítka */}
         <Reveal variant="up" delay={200}>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
               Začít svou cestu
             </Link>
@@ -112,6 +126,23 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Recenze ── */}
+      <section className="bg-brand-light py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal variant="up">
+            <SectionHeading label="Recenze" title="Co říkají lidé" centered />
+          </Reveal>
+          <div className="mt-12">
+            <Reviews limit={3} />
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/recenze" className="btn-outline text-sm">
+              Všechny recenze →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── Three pillars ── */}
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -141,9 +172,9 @@ export default function HomePage() {
               {
                 Icon: Star,
                 title: "Členství",
-                desc: "Odemkněte VIP obsah, živé streamy a přímou komunikaci se mnou. Tři úrovně, zrušení kdykoliv.",
+                desc: "Odemkni si VIP obsah, živé streamy a chat přímo se mnou. Tři úrovně, zrušíš kdykoliv.",
                 href: "/clenstvi",
-                cta: "Zobrazit plány",
+                cta: "Zobrazit členství",
               },
             ].map((item, i) => (
               <Reveal

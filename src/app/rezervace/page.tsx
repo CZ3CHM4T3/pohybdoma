@@ -115,6 +115,7 @@ export default function RezervacePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -152,6 +153,27 @@ export default function RezervacePage() {
       }
       setLoadingData(false);
     })();
+  }, []);
+
+  // Přihlášený uživatel → ulož user_id a předvyplň kontakt.
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user;
+      if (!user) return;
+      setUserId(user.id);
+      setEmail((e) => e || user.email || "");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      const fullName =
+        (profile?.full_name as string | undefined) ||
+        (user.user_metadata?.full_name as string | undefined) ||
+        "";
+      if (fullName) setName((n) => n || fullName);
+    });
   }, []);
 
   const service: Service | null =
@@ -226,6 +248,7 @@ export default function RezervacePage() {
 
     const supabase = createClient();
     const { error } = await supabase.from("bookings").insert({
+      user_id: userId,
       service_id: service.id,
       service_name: service.name,
       date: dateKey(selectedDate),
