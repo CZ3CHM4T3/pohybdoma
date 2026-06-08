@@ -1,7 +1,25 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@supabase/supabase-js";
 
 // Per-uživatele odpověď, nikdy ne cache.
 export const dynamic = "force-dynamic";
+
+const DAILY_LIMIT = 5; // max dotazů na jednu IP za den
+
+// Vrátí true, pokud je dotaz povolen (pod denním limitem). Při chybě raději povolí.
+async function withinDailyLimit(ip: string): Promise<boolean> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return true;
+    const supabase = createClient(url, key);
+    const { data, error } = await supabase.rpc("asistent_limit", { p_ip: ip, p_max: DAILY_LIMIT });
+    if (error) return true; // funkce ještě nespuštěná / chyba → neblokuj
+    return data === true;
+  } catch {
+    return true;
+  }
+}
 
 const SYSTEM = `Jsi „Jeník" – přátelský a velmi nápomocný průvodce webem POHYB DOMA (pohybdoma.cz).
 Web provozuje Mgr. Jan „Honza" Schröffel, lektor pohybu. Tvým úkolem je pomáhat návštěvníkům: zorientovat se, najít obsah, vysvětlit jak co funguje a vyřešit problémy s webem.
@@ -85,6 +103,17 @@ export async function POST(req: Request) {
 
   if (clean.length === 0 || clean[clean.length - 1].role !== "user") {
     return Response.json({ error: "Chybí dotaz." }, { status: 400 });
+  }
+
+  // Denní limit na osobu (počítá se jen reálně obsloužený dotaz)
+  if (!(await withinDailyLimit(ip))) {
+    return Response.json(
+      {
+        reply:
+          `Pro dnešek jsme vyčerpali společný limit dotazů 🙂 Zkus to prosím zítra – nebo mrkni přímo do sekcí webu, rád pomůžu zase pak.`,
+      },
+      { status: 200 }
+    );
   }
 
   try {
