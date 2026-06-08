@@ -6,6 +6,7 @@ import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
 import { FavoriteHeart } from "@/components/FavoriteHeart";
+import { SafetyNote } from "@/components/SafetyNote";
 import { TIER_STYLES } from "@/lib/tiers";
 import { getUserTier } from "@/lib/supabase/user";
 
@@ -96,6 +97,8 @@ export default async function VideoDetailPage({ params }: Props) {
                 </span>
               ))}
             </div>
+
+            <SafetyNote note={video.caution} className="mt-6" />
           </div>
 
           <aside className="card p-5">

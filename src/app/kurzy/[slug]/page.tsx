@@ -5,6 +5,7 @@ import { MOCK_COURSES } from "@/lib/mock-data";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { formatDuration } from "@/lib/access";
 import { CourseLessons } from "@/components/CourseLessons";
+import { SafetyNote } from "@/components/SafetyNote";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -59,6 +60,9 @@ export default async function CourseDetailPage({ params }: Props) {
                 </div>
               </div>
             </div>
+
+            {/* Kontraindikace / bezpečnost */}
+            <SafetyNote note={course.caution} className="mb-6" />
 
             {/* Lessons list + postup + poznámky */}
             <CourseLessons courseSlug={course.slug} lessons={course.lessons} />

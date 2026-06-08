@@ -14,6 +14,7 @@ const FOOTER_LINKS = {
   legal: [
     { href: "/obchodni-podminky", label: "Obchodní podmínky" },
     { href: "/gdpr", label: "GDPR & Ochrana dat" },
+    { href: "/zdravotni-upozorneni", label: "Zdravotní upozornění" },
     { href: "/kontakt", label: "Kontakt" },
   ],
 };

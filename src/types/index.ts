@@ -33,7 +33,7 @@ export type ProblemType =
   | "bolest"
   | "tuhnutí"
   | "slabost"
-  | "rehabilitace"
+  | "po zranění"
   | "prevence"
   | "posílení"
   | "mobilita";
@@ -55,6 +55,8 @@ export interface Video {
   equipment: Equipment[];
   tags: string[];
   publishedAt: string;
+  /** Volitelné upozornění / pro koho cvik není vhodný (kontraindikace). */
+  caution?: string;
 }
 
 // ─── Course ───────────────────────────────────────────────────────────────────
@@ -79,6 +81,8 @@ export interface Course {
   lessons: CourseLesson[];
   tags: string[];
   publishedAt: string;
+  /** Volitelné upozornění / pro koho kurz není vhodný (kontraindikace). */
+  caution?: string;
 }
 
 // ─── Services (rezervace) ─────────────────────────────────────────────────────
