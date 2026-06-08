@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
+import { ChatAssistant } from "@/components/ChatAssistant";
 
 const montserrat = Montserrat({
   subsets: ["latin", "latin-ext"],
@@ -39,6 +40,7 @@ export default function RootLayout({
         <main className="flex-1">{children}</main>
         <Footer />
         <CookieBanner />
+        <ChatAssistant />
       </body>
     </html>
   );
