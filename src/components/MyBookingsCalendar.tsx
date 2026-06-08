@@ -49,7 +49,13 @@ function buildCalendar(view: Date): Date[] {
   });
 }
 
-export function MyBookingsCalendar({ bookings }: { bookings: MyBooking[] }) {
+export function MyBookingsCalendar({
+  bookings,
+  onCancel,
+}: {
+  bookings: MyBooking[];
+  onCancel?: (id: string) => void;
+}) {
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
@@ -142,23 +148,46 @@ export function MyBookingsCalendar({ bookings }: { bookings: MyBooking[] }) {
             <p className="text-xs text-gray-400">V tento den nemáš žádnou rezervaci.</p>
           ) : (
             <div className="space-y-2">
-              {selBookings.map((b) => (
-                <div key={b.id} className="rounded-lg bg-brand-light/50 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-brand-dark">{b.time} · {b.service_name}</span>
-                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{b.status}</span>
+              {selBookings.map((b) => {
+                const cancelled = b.status === "cancelled" || b.status === "zrušeno";
+                const dt = new Date(`${b.date}T${(b.time || "00:00")}:00`);
+                const canCancel =
+                  !!onCancel && !cancelled && dt.getTime() - Date.now() > 24 * 60 * 60 * 1000;
+                return (
+                  <div key={b.id} className={`rounded-lg p-3 ${cancelled ? "bg-gray-100 opacity-70" : "bg-brand-light/50"}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-sm font-semibold ${cancelled ? "text-gray-400 line-through" : "text-brand-dark"}`}>
+                        {b.time} · {b.service_name}
+                      </span>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${cancelled ? "bg-gray-200 text-gray-500" : "bg-amber-100 text-amber-700"}`}>
+                        {cancelled ? "zrušeno" : b.status}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                      <span className="inline-flex items-center gap-1">
+                        {b.mode === "online" ? <MonitorPlay className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                        {b.mode === "online" ? "Online" : "Osobně"}
+                      </span>
+                      {b.municipality && <span>{b.address}, {b.municipality}</span>}
+                      {b.price_kc != null && <span>{b.price_kc} Kč</span>}
+                    </div>
+                    {b.reason && <p className="mt-1 text-xs text-gray-500 italic">„{b.reason}"</p>}
+                    {!cancelled && (
+                      canCancel ? (
+                        <button
+                          type="button"
+                          onClick={() => onCancel!(b.id)}
+                          className="mt-2 text-xs font-semibold text-red-500 hover:text-red-700"
+                        >
+                          Zrušit rezervaci
+                        </button>
+                      ) : (
+                        onCancel && <p className="mt-2 text-[11px] text-gray-400">Zrušení už není možné (méně než 24 h předem).</p>
+                      )
+                    )}
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                    <span className="inline-flex items-center gap-1">
-                      {b.mode === "online" ? <MonitorPlay className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                      {b.mode === "online" ? "Online" : "Osobně"}
-                    </span>
-                    {b.municipality && <span>{b.address}, {b.municipality}</span>}
-                    {b.price_kc != null && <span>{b.price_kc} Kč</span>}
-                  </div>
-                  {b.reason && <p className="mt-1 text-xs text-gray-500 italic">„{b.reason}"</p>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

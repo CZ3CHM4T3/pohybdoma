@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { CookieBanner } from "@/components/CookieBanner";
 
 const montserrat = Montserrat({
   subsets: ["latin", "latin-ext"],
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     template: "%s | POHYB DOMA",
   },
   description:
-    "Osobní lektor pohybu. Cvič doma, naprav si tělo a rostu na pohybové cestě s minimem vybavení.",
+    "Osobní lektor pohybu. Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
   metadataBase: new URL("https://pohybdoma.cz"),
   openGraph: {
     siteName: "POHYB DOMA",
@@ -37,6 +38,7 @@ export default function RootLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <CookieBanner />
       </body>
     </html>
   );

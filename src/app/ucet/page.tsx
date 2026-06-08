@@ -166,6 +166,15 @@ export default function UcetPage() {
     setAccMsg("Profilová fotka aktualizována. ✅");
   }
 
+  async function cancelBooking(id: string) {
+    if (!user) return;
+    if (!window.confirm("Opravdu zrušit tuto rezervaci? Tuto akci nelze vrátit.")) return;
+    const { error } = await supabase.from("bookings").update({ status: "cancelled" }).eq("id", id);
+    if (!error) {
+      setBookings((arr) => arr.map((b) => (b.id === id ? { ...b, status: "cancelled" } : b)));
+    }
+  }
+
   async function cancelMembership() {
     if (!user) return;
     if (!window.confirm("Opravdu zrušit členství? Přejdeš na úroveň FREE.")) return;
@@ -465,7 +474,7 @@ export default function UcetPage() {
                 Rezervovat →
               </Link>
             </div>
-            <MyBookingsCalendar bookings={bookings} />
+            <MyBookingsCalendar bookings={bookings} onCancel={cancelBooking} />
           </div>
 
           {/* Nastavení */}

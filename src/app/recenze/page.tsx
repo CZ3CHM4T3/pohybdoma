@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Reviews } from "@/components/Reviews";
+import { ReviewForm } from "@/components/ReviewForm";
 import { getApprovedReviews } from "@/lib/reviews-server";
 
 export const metadata: Metadata = {
@@ -26,11 +26,8 @@ export default async function RecenzePage() {
           <p className="text-gray-400">Zatím tu nejsou žádné recenze. Brzy přibydou. 🙂</p>
         )}
 
-        <div className="mt-12 card p-6 text-center">
-          <p className="text-gray-600 mb-4">
-            Cvičil/a jsi se mnou a chceš se podělit o zkušenost? Moc mi to pomůže.
-          </p>
-          <Link href="/kontakt" className="btn-primary">Napsat ohlas</Link>
+        <div className="mt-12 max-w-xl">
+          <ReviewForm />
         </div>
       </div>
     </div>
