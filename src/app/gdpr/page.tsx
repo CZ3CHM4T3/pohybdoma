@@ -7,7 +7,7 @@ export default function GdprPage() {
     <div className="min-h-screen bg-white py-12 lg:py-16">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold text-brand-dark mb-2">Zásady ochrany osobních údajů</h1>
-        <p className="text-sm text-gray-400 mb-8">Účinné od [DOPLŇ datum] · ve znění platném pro rok 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Účinné od června 2026</p>
 
         <div className="space-y-6 text-sm text-gray-700 leading-relaxed [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-brand-dark [&_h2]:mt-8 [&_h2]:mb-2 [&_strong]:text-brand-dark [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
 
@@ -19,8 +19,8 @@ export default function GdprPage() {
 
           <h2>1. Správce údajů</h2>
           <p>
-            Správcem je <strong>[DOPLŇ jméno / název]</strong>, [DOPLŇ OSVČ / právní forma],
-            IČO: <strong>[DOPLŇ IČO]</strong>, se sídlem [DOPLŇ adresa sídla].
+            Správcem je <strong>Mgr. Jan Schröffel</strong>, fyzická osoba podnikající (OSVČ),
+            IČO: <strong>045 31 817</strong>, se sídlem Chovatelů 159, 252 09 Hradištko.
             Kontakt: <a href="mailto:pohybdoma@seznam.cz" className="text-brand-blue hover:underline">pohybdoma@seznam.cz</a>.
           </p>
 
@@ -53,8 +53,8 @@ export default function GdprPage() {
             <li><strong>Vercel</strong> – hosting webu.</li>
             <li><strong>Resend</strong> – odesílání e-mailů (potvrzení, upozornění).</li>
             <li><strong>Ecomail</strong> – rozesílka newsletteru.</li>
-            <li><strong>[DOPLŇ platební brána, např. Stripe / GoPay]</strong> – zpracování plateb.</li>
-            <li><strong>[DOPLŇ fakturační / účetní systém]</strong> – vystavování dokladů.</li>
+            <li><strong>Stripe</strong> – zpracování plateb (bude aktivní po spuštění plateb).</li>
+            <li>Vlastní fakturace přes <strong>Air Bank</strong> – vystavování dokladů.</li>
           </ul>
           <p>Někteří zpracovatelé mohou údaje zpracovávat i mimo EU; v takovém případě je zajištěna odpovídající ochrana (standardní smluvní doložky EU).</p>
 

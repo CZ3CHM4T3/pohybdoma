@@ -7,7 +7,7 @@ export default function ObchodniPodminkyPage() {
     <div className="min-h-screen bg-white py-12 lg:py-16">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold text-brand-dark mb-2">Obchodní podmínky</h1>
-        <p className="text-sm text-gray-400 mb-8">Účinné od [DOPLŇ datum] · ve znění platném pro rok 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Účinné od června 2026</p>
 
         <div className="space-y-6 text-sm text-gray-700 leading-relaxed [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-brand-dark [&_h2]:mt-8 [&_h2]:mb-2 [&_strong]:text-brand-dark [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
 
@@ -15,9 +15,9 @@ export default function ObchodniPodminkyPage() {
           <p>
             Tyto obchodní podmínky upravují práva a povinnosti mezi provozovatelem webu
             <strong> pohybdoma.cz</strong> a uživatelem (zákazníkem). Provozovatel:
-            <strong> [DOPLŇ jméno / název]</strong>, IČO: <strong>[DOPLŇ IČO]</strong>,
-            se sídlem [DOPLŇ adresa], [DOPLŇ „neplátce DPH" / DIČ], zapsán [DOPLŇ živnostenský rejstřík /
-            úřad]. Kontakt: <a href="mailto:pohybdoma@seznam.cz" className="text-brand-blue hover:underline">pohybdoma@seznam.cz</a>.
+            <strong> Mgr. Jan Schröffel</strong>, IČO: <strong>045 31 817</strong>,
+            se sídlem Chovatelů 159, 252 09 Hradištko, neplátce DPH, zapsán v živnostenském
+            rejstříku. Kontakt: <a href="mailto:pohybdoma@seznam.cz" className="text-brand-blue hover:underline">pohybdoma@seznam.cz</a>.
             Vztahy se řídí právem ČR, zejm. zákonem č. 89/2012 Sb. (občanský zákoník) a zákonem č. 634/1992 Sb.
             (o ochraně spotřebitele).
           </p>
@@ -39,9 +39,9 @@ export default function ObchodniPodminkyPage() {
 
           <h2>4. Ceny a platby</h2>
           <p>
-            Ceny jsou uvedené u jednotlivých služeb v Kč. Platby zpracovává platební brána
-            <strong> [DOPLŇ Stripe / GoPay …]</strong>. Daňový doklad je vystaven prostřednictvím
-            <strong> [DOPLŇ fakturační systém]</strong> a zaslán e-mailem. Členství je opakovaná platba,
+            Ceny jsou uvedené u jednotlivých služeb v Kč (provozovatel je neplátce DPH).
+            Platby zpracovává platební brána <strong>Stripe</strong> (po spuštění plateb).
+            Doklad je vystaven provozovatelem a zaslán e-mailem. Členství je opakovaná platba,
             která se automaticky obnovuje vždy na další období, dokud ji zákazník nezruší.
           </p>
 

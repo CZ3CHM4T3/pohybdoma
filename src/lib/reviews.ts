@@ -12,9 +12,9 @@ export type Review = {
  */
 export const REVIEWS: Review[] = [
   {
-    name: "[DOPLŇ jméno]",
-    place: "[obec]",
+    name: "Veronika Š.",
     rating: 5,
-    text: "[Sem přijde tvoje první reálná recenze – tu mi pošleš a já ji vložím.]",
+    text:
+      "Honzu mít jako svého trenéra, to je absolutní must-have, pokud vám záleží na svém těle a chcete se cítit dobře. Ne, není to jako posilování ve fitku nebo pilates, ale Honzu potřebujete k tomu, aby vás tělo podrželo a nic vás nebolelo. Pokud bychom mohli doma dát hvězdičky, tak jednoznačně 10 z 10!",
   },
 ];
