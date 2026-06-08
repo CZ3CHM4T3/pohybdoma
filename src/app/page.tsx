@@ -63,17 +63,11 @@ export default function HomePage() {
           />
         </Reveal>
 
-        {/* Prodejní věta */}
+        {/* Prodejní věta – jeden řádek */}
         <Reveal variant="up" delay={120}>
-          <div className="mt-8 max-w-2xl">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-brand-dark leading-snug">
-              Vrať svému tělu svobodu pohybu – z obýváku, vlastním tempem.
-            </h1>
-            <p className="mt-3 text-base sm:text-lg text-gray-600 leading-relaxed">
-              Naučím tě rozumět vlastnímu tělu a řešit bolesti i ztuhlost u zdroje.
-              Žádná posilovna, žádné vybavení – jen jasný systém, který funguje a vydrží.
-            </p>
-          </div>
+          <h1 className="mt-8 text-base sm:text-xl lg:text-2xl font-semibold text-brand-dark sm:whitespace-nowrap">
+            Vrať svému tělu svobodu pohybu z domova a vlastním tempem.
+          </h1>
         </Reveal>
 
         {/* CTA tlačítka */}
@@ -105,6 +99,23 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── Recenze (nad videi) ── */}
+      <section className="bg-brand-light py-16 lg:py-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal variant="up">
+            <SectionHeading label="Recenze" title="Co říkají lidé" centered />
+          </Reveal>
+          <div className="mt-12">
+            <Reviews limit={3} />
+          </div>
+          <div className="mt-8 text-center">
+            <Link href="/recenze" className="btn-outline text-sm">
+              Všechny recenze →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ── Ukázky cvičení (videosekvence) ── */}
       <MovementClips />
 
@@ -122,23 +133,6 @@ export default function HomePage() {
                 </div>
               </Reveal>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Recenze ── */}
-      <section className="bg-brand-light py-16 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <Reveal variant="up">
-            <SectionHeading label="Recenze" title="Co říkají lidé" centered />
-          </Reveal>
-          <div className="mt-12">
-            <Reviews limit={3} />
-          </div>
-          <div className="mt-8 text-center">
-            <Link href="/recenze" className="btn-outline text-sm">
-              Všechny recenze →
-            </Link>
           </div>
         </div>
       </section>
