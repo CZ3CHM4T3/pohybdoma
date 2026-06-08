@@ -259,7 +259,11 @@ export default function DenikPage() {
             <h2 className="text-sm font-semibold text-brand-dark">Vývoj v měsíci</h2>
           </div>
           <p className="text-xs text-gray-400 mb-4">Vše přepočteno na 0–100 (čím výš, tím líp – kromě bolesti).</p>
-          <MonthChart view={view} entries={entries} />
+          <MonthChart
+            view={view}
+            entries={entries}
+            onPickDay={(day) => setSelected(new Date(view.getFullYear(), view.getMonth(), day))}
+          />
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
             {CURVES.map((c) => (
               <span key={c.key} className="inline-flex items-center gap-1.5 text-xs text-gray-500">
@@ -274,54 +278,159 @@ export default function DenikPage() {
   );
 }
 
-function MonthChart({ view, entries }: { view: Date; entries: Record<string, Entry> }) {
+function MonthChart({
+  view,
+  entries,
+  onPickDay,
+}: {
+  view: Date;
+  entries: Record<string, Entry>;
+  onPickDay?: (day: number) => void;
+}) {
   const W = 700;
-  const H = 200;
-  const padX = 8;
-  const padY = 12;
+  const H = 210;
+  const padX = 12;
+  const padTop = 12;
+  const padBottom = 24;
   const daysInMonth = endOfMonth(view).getDate();
+  const [hoverDay, setHoverDay] = useState<number | null>(null);
 
   const x = (day: number) => padX + ((day - 1) / Math.max(1, daysInMonth - 1)) * (W - padX * 2);
-  const y = (val: number) => padY + (1 - val / 100) * (H - padY * 2);
+  const y = (val: number) => padTop + (1 - val / 100) * (H - padTop - padBottom);
+
+  // hodnota dané křivky pro daný den (normalizovaná 0–100) nebo null
+  function curveVal(key: string, e: Entry): number | null {
+    let raw: number | null = null;
+    if (key === "composite") raw = composite(e);
+    else raw = e[key as "energy" | "sleep" | "pain"] ?? null;
+    if (raw == null) return null;
+    const cfg = CURVES.find((c) => c.key === key)!;
+    return Math.max(0, Math.min(100, cfg.norm(raw)));
+  }
 
   const lines = CURVES.map((c) => {
-    const pts: string[] = [];
+    const pts: { day: number; cx: number; cy: number }[] = [];
     for (let day = 1; day <= daysInMonth; day++) {
-      const d = new Date(view.getFullYear(), view.getMonth(), day);
-      const e = entries[dateKey(d)];
+      const e = entries[dateKey(new Date(view.getFullYear(), view.getMonth(), day))];
       if (!e) continue;
-      let raw: number | null = null;
-      if (c.key === "composite") raw = composite(e);
-      else raw = (e[c.key as "energy" | "sleep" | "pain"] ?? null);
-      if (raw == null) continue;
-      const v = Math.max(0, Math.min(100, c.norm(raw)));
-      pts.push(`${x(day).toFixed(1)},${y(v).toFixed(1)}`);
+      const v = curveVal(c.key, e);
+      if (v == null) continue;
+      pts.push({ day, cx: x(day), cy: y(v) });
     }
-    return { color: c.color, pts };
+    return { ...c, pts };
   });
 
   const hasAny = lines.some((l) => l.pts.length > 0);
+  const dayTicks: number[] = [];
+  for (let d = 1; d <= daysInMonth; d += 5) dayTicks.push(d);
+  if (dayTicks[dayTicks.length - 1] !== daysInMonth) dayTicks.push(daysInMonth);
+
+  const hoverEntry =
+    hoverDay != null ? entries[dateKey(new Date(view.getFullYear(), view.getMonth(), hoverDay))] : undefined;
+
+  function handleMove(e: React.MouseEvent<SVGSVGElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    const day = Math.round(ratio * (daysInMonth - 1)) + 1;
+    setHoverDay(Math.max(1, Math.min(daysInMonth, day)));
+  }
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: 320 }}>
-        {/* vodorovné linky */}
-        {[0, 25, 50, 75, 100].map((v) => (
-          <line key={v} x1={padX} x2={W - padX} y1={y(v)} y2={y(v)} stroke="#eef2f7" strokeWidth={1} />
-        ))}
-        {lines.map((l, i) =>
-          l.pts.length > 1 ? (
-            <polyline key={i} points={l.pts.join(" ")} fill="none" stroke={l.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-          ) : l.pts.length === 1 ? (
-            <circle key={i} cx={Number(l.pts[0].split(",")[0])} cy={Number(l.pts[0].split(",")[1])} r={3} fill={l.color} />
-          ) : null
+    <div className="w-full">
+      {/* Odečet vybraného dne */}
+      <div className="mb-2 h-5 text-xs">
+        {hoverDay != null && (
+          <span className="text-gray-600">
+            <strong className="text-brand-dark">{hoverDay}. {MONTHS_CS[view.getMonth()]}</strong>
+            {hoverEntry ? (
+              <>
+                {CURVES.map((c) => {
+                  const raw =
+                    c.key === "composite"
+                      ? composite(hoverEntry)
+                      : (hoverEntry[c.key as "energy" | "sleep" | "pain"] ?? null);
+                  return raw == null ? null : (
+                    <span key={c.key} className="ml-3" style={{ color: c.color }}>
+                      {c.label}: {raw}
+                    </span>
+                  );
+                })}
+                {hoverEntry.weight != null && <span className="ml-3 text-gray-500">Váha: {hoverEntry.weight} kg</span>}
+              </>
+            ) : (
+              <span className="ml-2 text-gray-400">žádný záznam</span>
+            )}
+          </span>
         )}
-        {!hasAny && (
-          <text x={W / 2} y={H / 2} textAnchor="middle" fill="#9ca3af" fontSize="13">
-            Zatím žádná data – vyplň pár dní a křivky se objeví.
-          </text>
-        )}
-      </svg>
+      </div>
+
+      <div className="w-full overflow-x-auto">
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full"
+          style={{ minWidth: 320 }}
+          onMouseMove={handleMove}
+          onMouseLeave={() => setHoverDay(null)}
+          onClick={() => hoverDay != null && onPickDay?.(hoverDay)}
+        >
+          {/* vodorovné linky + popisky 0–100 */}
+          {[0, 25, 50, 75, 100].map((v) => (
+            <g key={v}>
+              <line x1={padX} x2={W - padX} y1={y(v)} y2={y(v)} stroke="#eef2f7" strokeWidth={1} />
+              <text x={2} y={y(v) + 3} fill="#cbd5e1" fontSize="9">{v}</text>
+            </g>
+          ))}
+
+          {/* svislá mřížka dní */}
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
+            <line key={d} x1={x(d)} x2={x(d)} y1={padTop} y2={H - padBottom} stroke="#f6f8fb" strokeWidth={1} />
+          ))}
+
+          {/* popisky dní */}
+          {dayTicks.map((d) => (
+            <text key={d} x={x(d)} y={H - 8} textAnchor="middle" fill="#9ca3af" fontSize="9">{d}</text>
+          ))}
+
+          {/* zvýraznění dne pod kurzorem */}
+          {hoverDay != null && (
+            <line x1={x(hoverDay)} x2={x(hoverDay)} y1={padTop} y2={H - padBottom} stroke="#cbd5e1" strokeWidth={1.5} />
+          )}
+
+          {/* křivky + body */}
+          {lines.map((l) => (
+            <g key={l.key}>
+              {l.pts.length > 1 && (
+                <polyline
+                  points={l.pts.map((p) => `${p.cx.toFixed(1)},${p.cy.toFixed(1)}`).join(" ")}
+                  fill="none"
+                  stroke={l.color}
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {l.pts.map((p) => (
+                <circle
+                  key={p.day}
+                  cx={p.cx}
+                  cy={p.cy}
+                  r={hoverDay === p.day ? 4 : 2.5}
+                  fill={l.color}
+                  stroke="#fff"
+                  strokeWidth={hoverDay === p.day ? 1.5 : 0}
+                />
+              ))}
+            </g>
+          ))}
+
+          {!hasAny && (
+            <text x={W / 2} y={H / 2} textAnchor="middle" fill="#9ca3af" fontSize="13">
+              Zatím žádná data – vyplň pár dní a křivky se objeví.
+            </text>
+          )}
+        </svg>
+      </div>
+      <p className="mt-1 text-[11px] text-gray-400">Najeď myší na den · klikni pro otevření dne ve formuláři.</p>
     </div>
   );
 }
