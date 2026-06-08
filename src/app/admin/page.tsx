@@ -8,7 +8,19 @@ import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
-import type { UserTier } from "@/types";
+import { VIDEO_COLS, type VideoRow } from "@/lib/content";
+import { MOCK_VIDEOS } from "@/lib/mock-data";
+import type { UserTier, AccessLevel } from "@/types";
+
+const ACCESS_OPTS: AccessLevel[] = ["FREE", "MEMBER", "VIP", "VIP_PLUS"];
+const DIFF_OPTS = ["začátečník", "mírně pokročilý", "pokročilý"];
+function slugifyVideo(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 50);
+}
+function toArr(s: string): string[] {
+  return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
 
 const HOURS = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
@@ -84,7 +96,20 @@ export default function AdminPage() {
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
+  const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+
+  // Formulář nového videa
+  const [viTitle, setViTitle] = useState("");
+  const [viDesc, setViDesc] = useState("");
+  const [viAccess, setViAccess] = useState<AccessLevel>("FREE");
+  const [viBody, setViBody] = useState("");
+  const [viDiff, setViDiff] = useState("začátečník");
+  const [viDur, setViDur] = useState("");
+  const [viCf, setViCf] = useState("");
+  const [viTags, setViTags] = useState("");
+  const [viCaution, setViCaution] = useState("");
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Formulář nové recenze
@@ -119,7 +144,7 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o, s, m, r] = await Promise.all([
+    const [w, b, e, o, s, m, r, v] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
@@ -127,6 +152,7 @@ export default function AdminPage() {
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,email,full_name,tier").order("email"),
       supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
+      supabase.from("videos").select(VIDEO_COLS).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
@@ -135,6 +161,7 @@ export default function AdminPage() {
     if (s.data) setSubscribers(s.data as { id: string; email: string; created_at: string }[]);
     if (m.data) setMembers(m.data as Member[]);
     if (r.data) setReviews(r.data as ReviewRow[]);
+    if (v.data) setVideos(v.data as VideoRow[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -261,6 +288,65 @@ export default function AdminPage() {
     if (error) setError("Uložení pořadí selhalo. Spustil jsi reviews_order.sql?");
   }
 
+  // ── Videa ──
+  async function addVideo(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!viTitle.trim()) return;
+    const row = {
+      slug: `${slugifyVideo(viTitle)}-${Math.random().toString(36).slice(2, 5)}`,
+      title: viTitle.trim(),
+      description: viDesc.trim(),
+      access_level: viAccess,
+      body_parts: toArr(viBody),
+      difficulty: viDiff,
+      duration_seconds: Number(viDur) || 0,
+      cf_uid: viCf.trim() || null,
+      tags: toArr(viTags),
+      caution: viCaution.trim() || null,
+      published: true,
+    };
+    const { error } = await supabase.from("videos").insert(row);
+    if (error) { setError("Video se nepodařilo uložit: " + error.message); return; }
+    setViTitle(""); setViDesc(""); setViAccess("FREE"); setViBody(""); setViDiff("začátečník");
+    setViDur(""); setViCf(""); setViTags(""); setViCaution("");
+    loadData();
+  }
+  async function deleteVideo(id: string) {
+    setError(null);
+    const { error } = await supabase.from("videos").delete().eq("id", id);
+    if (error) { setError("Smazání videa selhalo: " + error.message); return; }
+    setVideos((prev) => prev.filter((x) => x.id !== id));
+  }
+  async function toggleVideoPublished(id: string, published: boolean) {
+    setError(null);
+    const { error } = await supabase.from("videos").update({ published: !published }).eq("id", id);
+    if (error) { setError("Změna stavu videa selhala: " + error.message); return; }
+    setVideos((prev) => prev.map((x) => (x.id === id ? { ...x, published: !published } : x)));
+  }
+  async function importMockVideos() {
+    setImporting(true);
+    setError(null);
+    const rows = MOCK_VIDEOS.map((v) => ({
+      slug: v.slug,
+      title: v.title,
+      description: v.description,
+      access_level: v.accessLevel,
+      body_parts: v.bodyParts,
+      difficulty: v.difficulty,
+      problem_types: v.problemTypes,
+      equipment: v.equipment,
+      tags: v.tags,
+      duration_seconds: v.durationSeconds,
+      caution: v.caution ?? null,
+      published: true,
+    }));
+    const { error } = await supabase.from("videos").upsert(rows, { onConflict: "slug", ignoreDuplicates: true });
+    setImporting(false);
+    if (error) { setError("Import selhal: " + error.message); return; }
+    loadData();
+  }
+
   // ── Odběratelé newsletteru ──
   async function deleteSubscriber(id: string) {
     setError(null);
@@ -349,6 +435,85 @@ export default function AdminPage() {
             {error}
           </p>
         )}
+
+        {/* ── Videa ── */}
+        <section className="card p-6 mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold text-brand-dark">
+              Videa <span className="text-gray-400 font-normal">({videos.length})</span>
+            </h2>
+            <button
+              type="button"
+              onClick={importMockVideos}
+              disabled={importing}
+              className="text-xs font-semibold text-brand-blue hover:underline disabled:opacity-50"
+            >
+              {importing ? "Importuji…" : "Importovat ukázková videa"}
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">
+            Soubor nahraješ na Cloudflare Stream a sem vložíš jeho <strong>UID</strong>. Bez UID je
+            video „bez přehrávače" – metadata ale fungují.
+          </p>
+
+          {videos.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {videos.map((v) => {
+                const t = normalizeTier(v.access_level);
+                return (
+                  <div key={v.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-brand-dark truncate">
+                        {v.title}
+                        <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${TIER_STYLES[t].badge}`}>{TIER_STYLES[t].label}</span>
+                        {!v.published && <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-[11px] text-gray-500">skryté</span>}
+                        {!v.cf_uid && <span className="ml-2 text-[11px] font-medium text-amber-600">chybí Cloudflare UID</span>}
+                      </p>
+                      <p className="text-xs text-gray-400">{(v.body_parts ?? []).join(", ")}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button type="button" onClick={() => toggleVideoPublished(v.id, v.published)} className="text-xs font-semibold text-gray-400 hover:text-gray-600">
+                        {v.published ? "Skrýt" : "Zveřejnit"}
+                      </button>
+                      <button type="button" onClick={() => deleteVideo(v.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <form onSubmit={addVideo} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AdminInput label="Název *" value={viTitle} onChange={setViTitle} placeholder="Ranní mobilita" required />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Úroveň přístupu</label>
+              <select value={viAccess} onChange={(e) => setViAccess(e.target.value as AccessLevel)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue">
+                {ACCESS_OPTS.map((a) => <option key={a} value={a}>{TIER_STYLES[a].label}</option>)}
+              </select>
+            </div>
+            <AdminInput label="Části těla (oddělené čárkou)" value={viBody} onChange={setViBody} placeholder="záda, kyčle" />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Obtížnost</label>
+              <select value={viDiff} onChange={(e) => setViDiff(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue">
+                {DIFF_OPTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+            <AdminInput label="Délka (vteřiny)" type="number" value={viDur} onChange={setViDur} placeholder="600" />
+            <AdminInput label="Cloudflare UID (zatím nech prázdné)" value={viCf} onChange={setViCf} />
+            <AdminInput label="Štítky (oddělené čárkou)" value={viTags} onChange={setViTags} placeholder="ráno, protažení" />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+              <textarea value={viDesc} onChange={(e) => setViDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Upozornění / kontraindikace (nepovinné)</label>
+              <textarea value={viCaution} onChange={(e) => setViCaution(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary text-sm">Přidat video</button>
+            </div>
+          </form>
+        </section>
 
         {/* ── Týdenní rozvrh ── */}
         <section className="card p-6 mb-8">

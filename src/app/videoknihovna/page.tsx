@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import type { BodyPart, Difficulty, AccessLevel, UserTier } from "@/types";
-import { MOCK_VIDEOS } from "@/lib/mock-data";
+import type { BodyPart, Difficulty, AccessLevel, UserTier, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
+import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
 import { createClient } from "@/lib/supabase/client";
 
 const BODY_PARTS: BodyPart[] = ["záda", "noha", "kyčle", "rameno", "krk", "dech", "celé tělo", "core"];
@@ -40,8 +40,10 @@ export default function VideoknihovnaPage() {
   const [access, setAccess] = useState<AccessLevel | "all">("all");
   const [search, setSearch] = useState("");
   const [userTier, setUserTier] = useState<UserTier>("FREE");
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Načti úroveň členství přihlášeného uživatele (kvůli odemykání videí).
+  // Načti úroveň členství + videa z databáze.
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
@@ -53,10 +55,20 @@ export default function VideoknihovnaPage() {
         .maybeSingle();
       setUserTier(normalizeTier(profile?.tier as string | undefined));
     });
+    supabase
+      .from("videos")
+      .select(VIDEO_COLS)
+      .eq("published", true)
+      .order("position", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        setVideos((data ?? []).map((r) => rowToVideo(r as VideoRow)));
+        setLoading(false);
+      });
   }, []);
 
   const filtered = useMemo(() => {
-    return MOCK_VIDEOS.filter((v) => {
+    return videos.filter((v) => {
       if (bodyPart && !v.bodyParts.includes(bodyPart)) return false;
       if (difficulty && v.difficulty !== difficulty) return false;
       if (access !== "all" && v.accessLevel !== access) return false;
@@ -66,7 +78,7 @@ export default function VideoknihovnaPage() {
       }
       return true;
     });
-  }, [bodyPart, difficulty, access, search]);
+  }, [videos, bodyPart, difficulty, access, search]);
 
   return (
     <>
@@ -138,17 +150,23 @@ export default function VideoknihovnaPage() {
           </p>
 
           {/* Grid */}
-          {filtered.length > 0 ? (
+          {loading ? (
+            <p className="py-20 text-center text-sm text-gray-400">Načítám videa…</p>
+          ) : filtered.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filtered.map((video) => (
                 <VideoCard key={video.id} video={video} userTier={userTier} />
               ))}
             </div>
+          ) : videos.length === 0 ? (
+            <div className="py-20 text-center text-gray-400">
+              <p className="font-semibold">Zatím tu nejsou žádná videa</p>
+              <p className="text-sm mt-1">Brzy je doplním. 🙂</p>
+            </div>
           ) : (
             <div className="py-20 text-center text-gray-400">
-              <div className="text-5xl mb-4">🔍</div>
               <p className="font-semibold">Žádná videa nenalezena</p>
-              <p className="text-sm mt-1">Zkuste změnit filtry nebo hledaný výraz.</p>
+              <p className="text-sm mt-1">Zkus změnit filtry nebo hledaný výraz.</p>
             </div>
           )}
 

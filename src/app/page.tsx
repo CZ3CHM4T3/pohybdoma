@@ -7,7 +7,8 @@ import { MovementClips } from "@/components/MovementClips";
 import { Reviews } from "@/components/Reviews";
 import { getApprovedReviews } from "@/lib/reviews-server";
 import { Dumbbell, Film, Star, Play } from "lucide-react";
-import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
+import { MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
+import { getVideos } from "@/lib/content-server";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { VideoCard } from "@/components/VideoCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
@@ -17,8 +18,6 @@ export const metadata: Metadata = {
   description:
     "Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
 };
-
-const FREE_VIDEOS = MOCK_VIDEOS.filter((v) => v.accessLevel === "FREE").slice(0, 4);
 
 // 👉 Až budeš mít video, nahraj ho do /public/videos/intro.mp4 (+ poster intro-poster.jpg)
 //    a přepni na true. Do té doby se ukáže elegantní placeholder.
@@ -50,7 +49,8 @@ const STEPS = [
 ];
 
 export default async function HomePage() {
-  const reviews = await getApprovedReviews();
+  const [reviews, allVideos] = await Promise.all([getApprovedReviews(), getVideos()]);
+  const freeVideos = allVideos.filter((v) => v.accessLevel === "FREE").slice(0, 4);
   return (
     <>
       {/* ── Hero – fullscreen logo splash ── */}
@@ -300,13 +300,17 @@ export default async function HomePage() {
               </Link>
             </div>
           </Reveal>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {FREE_VIDEOS.map((video, i) => (
-              <Reveal key={video.id} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
-                <VideoCard video={video} userTier="FREE" />
-              </Reveal>
-            ))}
-          </div>
+          {freeVideos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {freeVideos.map((video, i) => (
+                <Reveal key={video.id} variant={i % 2 === 0 ? "left" : "right"} delay={i * 90}>
+                  <VideoCard video={video} userTier="FREE" />
+                </Reveal>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Brzy přibydou první videa.</p>
+          )}
         </div>
       </section>
 

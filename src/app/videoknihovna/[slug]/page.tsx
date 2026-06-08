@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MOCK_VIDEOS } from "@/lib/mock-data";
+import { getVideoBySlug } from "@/lib/content-server";
 import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
@@ -20,14 +20,14 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const video = MOCK_VIDEOS.find((v) => v.slug === slug);
+  const video = await getVideoBySlug(slug);
   if (!video) return { title: "Video nenalezeno" };
   return { title: video.title, description: video.description };
 }
 
 export default async function VideoDetailPage({ params }: Props) {
   const { slug } = await params;
-  const video = MOCK_VIDEOS.find((v) => v.slug === slug);
+  const video = await getVideoBySlug(slug);
   if (!video) notFound();
 
   const userTier = await getUserTier();

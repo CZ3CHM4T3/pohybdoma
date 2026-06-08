@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
-import { MOCK_VIDEOS, MOCK_COURSES } from "@/lib/mock-data";
+import { MOCK_COURSES } from "@/lib/mock-data";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import type { UserTier } from "@/types";
 
@@ -29,7 +29,7 @@ export default function UcetPage() {
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [favSlugs, setFavSlugs] = useState<string[]>([]);
+  const [favVideos, setFavVideos] = useState<{ slug: string; title: string }[]>([]);
   const [bookings, setBookings] = useState<MyBooking[]>([]);
   const [progress, setProgress] = useState<
     { slug: string; title: string; done: number; total: number; pct: number }[]
@@ -81,17 +81,21 @@ export default function UcetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Načti oblíbená videa.
+  // Načti oblíbená videa (slug + název z DB).
   useEffect(() => {
-    if (!user) { setFavSlugs([]); return; }
-    supabase
-      .from("video_favorites")
-      .select("video_slug")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) =>
-        setFavSlugs((data ?? []).map((r: { video_slug: string }) => r.video_slug))
-      );
+    if (!user) { setFavVideos([]); return; }
+    (async () => {
+      const { data: favs } = await supabase
+        .from("video_favorites")
+        .select("video_slug")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      const slugs = (favs ?? []).map((r: { video_slug: string }) => r.video_slug);
+      if (slugs.length === 0) { setFavVideos([]); return; }
+      const { data: vids } = await supabase.from("videos").select("slug, title").in("slug", slugs);
+      const titleBySlug = new Map((vids ?? []).map((v: { slug: string; title: string }) => [v.slug, v.title]));
+      setFavVideos(slugs.filter((s) => titleBySlug.has(s)).map((s) => ({ slug: s, title: titleBySlug.get(s)! })));
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -295,10 +299,6 @@ export default function UcetPage() {
       { href: "/kruhy", label: "Mé kruhy", Icon: Users },
       { href: "/denik", label: "Můj deník", Icon: LineChart },
     ];
-    const favVideos = favSlugs
-      .map((slug) => MOCK_VIDEOS.find((v) => v.slug === slug))
-      .filter((v): v is (typeof MOCK_VIDEOS)[number] => !!v);
-
     return (
       <div className="min-h-screen bg-brand-light py-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
