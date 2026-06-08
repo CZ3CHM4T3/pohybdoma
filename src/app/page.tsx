@@ -53,30 +53,39 @@ export default function HomePage() {
     <>
       {/* ── Hero – fullscreen logo splash ── */}
       {/* Pozadí je čistě bílé (#fff) = stejné jako pozadí loga, takže rámeček loga splývá. */}
-      <section className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden bg-white px-4 pt-12 pb-28 text-center">
-        {/* Logo */}
+      <section className="relative flex flex-col items-center justify-center overflow-hidden bg-white px-4 py-10 lg:py-16 text-center">
+        {/* Web v procesu vzniku – nenápadné upozornění */}
+        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+          </span>
+          Web se právě dotváří – některé funkce ještě přibývají.
+        </div>
+
+        {/* Logo – dominanta */}
         <Reveal variant="scale">
           <Image
             src="/LOGO.png"
             alt="POHYB DOMA – Tvoje možnosti. Tvoje cesta."
             width={1535}
             height={1024}
-            className="h-auto w-[82vw] max-w-md sm:max-w-lg lg:max-w-2xl animate-float-slow"
-            sizes="(max-width: 1024px) 82vw, 672px"
+            className="h-auto w-[60vw] max-w-[280px] sm:max-w-sm lg:max-w-md animate-float-slow"
+            sizes="(max-width: 1024px) 60vw, 448px"
             priority
           />
         </Reveal>
 
         {/* Prodejní věta – jeden řádek */}
         <Reveal variant="up" delay={120}>
-          <h1 className="mt-8 text-base sm:text-xl lg:text-2xl font-semibold text-brand-dark sm:whitespace-nowrap">
+          <h1 className="mt-6 text-base sm:text-xl lg:text-2xl font-semibold text-brand-dark sm:whitespace-nowrap">
             Vrať svému tělu svobodu pohybu z domova a vlastním tempem.
           </h1>
         </Reveal>
 
         {/* Video – představení projektu (logo zůstává dominantou) */}
         <Reveal variant="up" delay={160}>
-          <div className="mt-8 w-[88vw] max-w-2xl">
+          <div className="mt-6 w-[88vw] max-w-2xl">
             {HAS_INTRO_VIDEO ? (
               <video
                 src="/videos/intro.mp4"
@@ -102,7 +111,7 @@ export default function HomePage() {
 
         {/* CTA tlačítka */}
         <Reveal variant="up" delay={200}>
-          <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
               Začít svou cestu
             </Link>
@@ -113,7 +122,7 @@ export default function HomePage() {
         </Reveal>
 
         {/* Scroll hint – v toku pod tlačítky, aby nikdy nepřekrýval obsah */}
-        <div className="mt-14 flex flex-col items-center gap-1 text-brand-dark/40">
+        <div className="mt-10 flex flex-col items-center gap-1 text-brand-dark/40">
           <span className="text-[11px] font-medium tracking-widest uppercase">
             Scrolluj
           </span>
