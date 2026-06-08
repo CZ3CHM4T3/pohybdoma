@@ -5,7 +5,7 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
 import { Reviews } from "@/components/Reviews";
-import { Dumbbell, Film, Star } from "lucide-react";
+import { Dumbbell, Film, Star, Play } from "lucide-react";
 import { MOCK_VIDEOS, MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { VideoCard } from "@/components/VideoCard";
@@ -18,6 +18,10 @@ export const metadata: Metadata = {
 };
 
 const FREE_VIDEOS = MOCK_VIDEOS.filter((v) => v.accessLevel === "FREE").slice(0, 4);
+
+// 👉 Až budeš mít video, nahraj ho do /public/videos/intro.mp4 (+ poster intro-poster.jpg)
+//    a přepni na true. Do té doby se ukáže elegantní placeholder.
+const HAS_INTRO_VIDEO = false;
 
 const STATS = [
   { value: `${MOCK_COURSES.length}`, label: "kurzů v přípravě" },
@@ -70,6 +74,32 @@ export default function HomePage() {
           </h1>
         </Reveal>
 
+        {/* Video – představení projektu (logo zůstává dominantou) */}
+        <Reveal variant="up" delay={160}>
+          <div className="mt-8 w-[88vw] max-w-2xl">
+            {HAS_INTRO_VIDEO ? (
+              <video
+                src="/videos/intro.mp4"
+                poster="/videos/intro-poster.jpg"
+                controls
+                playsInline
+                className="aspect-video w-full rounded-2xl object-cover shadow-xl ring-1 ring-black/5"
+              />
+            ) : (
+              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark to-[#1256c0] shadow-xl ring-1 ring-black/5">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+                <div className="relative px-6 text-center text-white">
+                  <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-brand-dark shadow-lg">
+                    <Play className="ml-1 h-7 w-7" fill="currentColor" strokeWidth={0} />
+                  </span>
+                  <p className="font-semibold">Představení projektu</p>
+                  <p className="text-sm text-white/60">Video už brzy</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </Reveal>
+
         {/* CTA tlačítka */}
         <Reveal variant="up" delay={200}>
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
@@ -106,7 +136,7 @@ export default function HomePage() {
             <SectionHeading label="Recenze" title="Co říkají lidé" centered />
           </Reveal>
           <div className="mt-12">
-            <Reviews limit={3} />
+            <Reviews carousel />
           </div>
           <div className="mt-8 text-center">
             <Link href="/recenze" className="btn-outline text-sm">
