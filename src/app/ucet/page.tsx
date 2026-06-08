@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import {
   Heart, BookOpen, GraduationCap, CalendarDays, Crown,
-  KeyRound, LogOut, Settings, Camera, Save,
+  KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -166,6 +166,21 @@ export default function UcetPage() {
     setAccMsg("Profilová fotka aktualizována. ✅");
   }
 
+  async function cancelMembership() {
+    if (!user) return;
+    if (!window.confirm("Opravdu zrušit členství? Přejdeš na úroveň FREE.")) return;
+    setAccMsg(null);
+    const { error } = await supabase.rpc("cancel_my_membership");
+    if (error) {
+      setAccMsg("Zrušení členství selhalo: " + error.message);
+      return;
+    }
+    setTier("FREE");
+    setTierSince(null);
+    setTierUntil(null);
+    setAccMsg("Členství zrušeno – jsi na úrovni FREE.");
+  }
+
   async function saveName() {
     if (!user || !nameInput.trim()) return;
     setSavingName(true);
@@ -267,6 +282,9 @@ export default function UcetPage() {
       { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen },
       { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap },
       { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays },
+      { href: "#stav-clenstvi", label: "Stav členství", Icon: ShieldCheck },
+      { href: "/kruhy", label: "Mé kruhy", Icon: Users },
+      { href: "/denik", label: "Můj deník", Icon: LineChart },
     ];
     const favVideos = favSlugs
       .map((slug) => MOCK_VIDEOS.find((v) => v.slug === slug))
@@ -275,6 +293,14 @@ export default function UcetPage() {
     return (
       <div className="min-h-screen bg-brand-light py-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          {/* Název stránky */}
+          <div className="mb-6">
+            <h1 className="text-3xl lg:text-4xl font-semibold text-brand-dark">Moje cesta</h1>
+            <p className="mt-1 text-gray-500">
+              Vítej zpět{displayName ? `, ${displayName}` : ""}! Tvoje základna na jednom místě.
+            </p>
+          </div>
+
           {/* Hlavička */}
           <div className="card p-6 mb-6 flex flex-wrap items-center gap-4">
             {avatarUrl ? (
@@ -286,9 +312,7 @@ export default function UcetPage() {
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold text-brand-dark">
-                Vítej zpět{displayName ? `, ${displayName}` : ""}!
-              </h1>
+              <h2 className="text-lg font-semibold text-brand-dark truncate">{displayName}</h2>
               <p className="text-sm text-gray-500 truncate">{user.email}</p>
             </div>
             <div className="ml-auto flex flex-col items-end gap-1">
@@ -312,7 +336,7 @@ export default function UcetPage() {
           </div>
 
           {/* Rychlé dlaždice */}
-          <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             {tiles.map(({ href, label, Icon }) => (
               <Link
                 key={href}
@@ -390,11 +414,11 @@ export default function UcetPage() {
 
             {/* Pravý sloupec */}
             <div className="space-y-6">
-              {/* Členství */}
-              <div className={`card p-6 ${TIER_STYLES[tier].card}`}>
+              {/* Stav členství */}
+              <div id="stav-clenstvi" className={`card p-6 scroll-mt-24 ${TIER_STYLES[tier].card}`}>
                 <div className="mb-2 flex items-center gap-2">
                   <Crown className={`h-4 w-4 ${TIER_STYLES[tier].accentText}`} strokeWidth={2} />
-                  <h2 className="text-sm font-semibold text-brand-dark">Členství</h2>
+                  <h2 className="text-sm font-semibold text-brand-dark">Stav členství</h2>
                 </div>
                 <p className="text-sm text-gray-600">
                   Tvoje úroveň je <strong className={TIER_STYLES[tier].accentText}>{TIER_STYLES[tier].label}</strong>.
@@ -413,11 +437,21 @@ export default function UcetPage() {
                     )}
                   </div>
                 )}
-                {tier !== "VIP_PLUS" && (
-                  <Link href="/clenstvi" className="btn-primary text-sm mt-4 inline-flex">
-                    Zobrazit členství
-                  </Link>
-                )}
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  {tier !== "VIP_PLUS" && (
+                    <Link href="/clenstvi" className="btn-primary text-sm inline-flex">
+                      {tier === "FREE" ? "Vybrat členství" : "Změnit úroveň"}
+                    </Link>
+                  )}
+                  {tier !== "FREE" && (
+                    <button
+                      onClick={cancelMembership}
+                      className="text-xs font-semibold text-red-500 hover:text-red-700"
+                    >
+                      Zrušit členství
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
