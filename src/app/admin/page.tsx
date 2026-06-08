@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { GripVertical } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -67,6 +68,7 @@ type ReviewRow = {
   rating: number;
   text: string;
   approved: boolean;
+  position: number | null;
   created_at: string;
 };
 
@@ -90,6 +92,7 @@ export default function AdminPage() {
   const [rvPlace, setRvPlace] = useState("");
   const [rvRating, setRvRating] = useState("5");
   const [rvText, setRvText] = useState("");
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
   // Formulář nové akce
   const [evDate, setEvDate] = useState("");
@@ -123,7 +126,7 @@ export default function AdminPage() {
       supabase.from("availability_overrides").select("*").order("date"),
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,email,full_name,tier").order("email"),
-      supabase.from("reviews").select("*").order("created_at", { ascending: false }),
+      supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
@@ -243,6 +246,19 @@ export default function AdminPage() {
     const { error } = await supabase.from("reviews").update({ approved: !approved }).eq("id", id);
     if (error) { setError("Změna stavu recenze selhala: " + error.message); return; }
     setReviews((prev) => prev.map((x) => (x.id === id ? { ...x, approved: !approved } : x)));
+  }
+  async function handleReviewDrop(target: number) {
+    if (dragIdx === null || dragIdx === target) { setDragIdx(null); return; }
+    const arr = [...reviews];
+    const [moved] = arr.splice(dragIdx, 1);
+    arr.splice(target, 0, moved);
+    setReviews(arr);
+    setDragIdx(null);
+    setError(null);
+    const { error } = await Promise.all(
+      arr.map((r, i) => supabase.from("reviews").update({ position: i }).eq("id", r.id))
+    ).then(() => ({ error: null })).catch((e) => ({ error: e }));
+    if (error) setError("Uložení pořadí selhalo. Spustil jsi reviews_order.sql?");
   }
 
   // ── Odběratelé newsletteru ──
@@ -621,12 +637,27 @@ export default function AdminPage() {
             Přidej recenzi (zobrazí se hned). Návrhy od členů se objeví jako neschválené – schválíš je tlačítkem.
           </p>
 
-          {/* Seznam */}
+          {/* Seznam (přetažením změníš pořadí zobrazení na webu) */}
           {reviews.length > 0 && (
             <div className="space-y-2 mb-6">
-              {reviews.map((r) => (
-                <div key={r.id} className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 p-3">
-                  <div className="min-w-0">
+              <p className="text-xs text-gray-400">Pořadí změníš přetažením za úchyt vlevo.</p>
+              {reviews.map((r, i) => (
+                <div
+                  key={r.id}
+                  draggable
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleReviewDrop(i)}
+                  onDragEnd={() => setDragIdx(null)}
+                  className={`flex items-start gap-3 rounded-lg border p-3 ${dragIdx === i ? "border-brand-blue bg-brand-light/40" : "border-gray-100"}`}
+                >
+                  <span
+                    className="mt-0.5 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
+                    title="Přetáhni pro změnu pořadí"
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-brand-dark">
                       {r.author_name}{r.place ? ` · ${r.place}` : ""}{" "}
                       <span className="text-amber-500">{"★".repeat(r.rating)}</span>

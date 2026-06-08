@@ -9,6 +9,7 @@ export async function getApprovedReviews(): Promise<Review[]> {
       .from("reviews")
       .select("author_name, place, rating, text")
       .eq("approved", true)
+      .order("position", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
     return (data ?? []).map((r) => ({
       name: r.author_name as string,
