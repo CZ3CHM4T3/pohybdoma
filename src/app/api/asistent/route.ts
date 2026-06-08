@@ -39,7 +39,28 @@ Typické problémy, se kterými pomáháš: kde co najít, jak filtrovat videa, 
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// ── Jednoduchý rate limit (ochrana proti zneužití / nečekaným nákladům) ──────
+const WINDOW_MS = 60_000;
+const MAX_PER_WINDOW = 8; // max 8 dotazů za minutu z jedné IP
+const hits = new Map<string, number[]>();
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const arr = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
+  arr.push(now);
+  hits.set(ip, arr);
+  if (hits.size > 5000) hits.clear(); // pojistka proti růstu paměti
+  return arr.length > MAX_PER_WINDOW;
+}
+
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  if (rateLimited(ip)) {
+    return Response.json(
+      { error: "Moc dotazů najednou 🙂 Zkus to prosím za chvilku." },
+      { status: 429 }
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json(
