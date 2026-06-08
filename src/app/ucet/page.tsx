@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import {
-  Heart, BookOpen, GraduationCap, CalendarDays, Crown, Newspaper,
-  KeyRound, LogOut, MapPin, MonitorPlay,
+  Heart, BookOpen, GraduationCap, CalendarDays, Crown,
+  KeyRound, LogOut, Settings, Camera, Save,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { MOCK_VIDEOS, MOCK_COURSES } from "@/lib/mock-data";
+import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import type { UserTier } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -23,10 +23,14 @@ export default function UcetPage() {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
   const [tier, setTier] = useState<UserTier>("FREE");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [tierSince, setTierSince] = useState<string | null>(null);
+  const [tierUntil, setTierUntil] = useState<string | null>(null);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [favSlugs, setFavSlugs] = useState<string[]>([]);
-  const [bookings, setBookings] = useState<
-    { id: string; service_name: string; date: string; time: string; status: string; mode: string }[]
-  >([]);
+  const [bookings, setBookings] = useState<MyBooking[]>([]);
   const [progress, setProgress] = useState<
     { slug: string; title: string; done: number; total: number; pct: number }[]
   >([]);
@@ -52,15 +56,28 @@ export default function UcetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Načti úroveň členství přihlášeného uživatele.
+  // Načti profil přihlášeného uživatele (úroveň, fotka, platnost, jméno).
   useEffect(() => {
-    if (!user) { setTier("FREE"); return; }
+    if (!user) {
+      setTier("FREE"); setAvatarUrl(null); setTierSince(null); setTierUntil(null);
+      return;
+    }
     supabase
       .from("profiles")
-      .select("tier")
+      .select("tier, avatar_url, tier_since, tier_until, full_name")
       .eq("id", user.id)
       .maybeSingle()
-      .then(({ data }) => setTier(normalizeTier(data?.tier as string | undefined)));
+      .then(({ data }) => {
+        setTier(normalizeTier(data?.tier as string | undefined));
+        setAvatarUrl((data?.avatar_url as string | null) ?? null);
+        setTierSince((data?.tier_since as string | null) ?? null);
+        setTierUntil((data?.tier_until as string | null) ?? null);
+        setNameInput(
+          (data?.full_name as string | undefined) ||
+            (user.user_metadata?.full_name as string | undefined) ||
+            ""
+        );
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -78,18 +95,16 @@ export default function UcetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Nadcházející rezervace.
+  // Moje rezervace (všechny – pro měsíční kalendář).
   useEffect(() => {
     if (!user) { setBookings([]); return; }
-    const today = new Date().toISOString().slice(0, 10);
     supabase
       .from("bookings")
-      .select("id, service_name, date, time, status, mode")
+      .select("id, service_name, date, time, status, mode, municipality, address, reason, price_kc")
       .eq("user_id", user.id)
-      .gte("date", today)
       .order("date")
       .order("time")
-      .then(({ data }) => setBookings((data ?? []) as typeof bookings));
+      .then(({ data }) => setBookings((data ?? []) as MyBooking[]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -126,6 +141,39 @@ export default function UcetPage() {
       redirectTo: `${window.location.origin}/auth/callback?next=/obnova-hesla`,
     });
     setAccMsg(error ? "Nepodařilo se odeslat: " + error.message : "Poslal jsem ti e-mail pro změnu hesla.");
+  }
+
+  async function uploadAvatar(file: File) {
+    if (!user) return;
+    setUploadingAvatar(true);
+    setAccMsg(null);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (upErr) {
+      setUploadingAvatar(false);
+      setAccMsg("Nahrání fotky selhalo (" + upErr.message + "). Spustil jsi account.sql?");
+      return;
+    }
+    const url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+    const { error: updErr } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+    setUploadingAvatar(false);
+    if (updErr) {
+      setAccMsg("Uložení fotky selhalo: " + updErr.message);
+      return;
+    }
+    setAvatarUrl(url);
+    setAccMsg("Profilová fotka aktualizována. ✅");
+  }
+
+  async function saveName() {
+    if (!user || !nameInput.trim()) return;
+    setSavingName(true);
+    setAccMsg(null);
+    const { error: e1 } = await supabase.from("profiles").update({ full_name: nameInput.trim() }).eq("id", user.id);
+    await supabase.auth.updateUser({ data: { full_name: nameInput.trim() } });
+    setSavingName(false);
+    setAccMsg(e1 ? "Uložení jména selhalo: " + e1.message : "Jméno uloženo. ✅");
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -209,14 +257,16 @@ export default function UcetPage() {
   // ── Přihlášený pohled ──
   if (!checking && user) {
     const displayName =
-      (user.user_metadata?.full_name as string | undefined) || user.email || "";
-    const isClub = tier === "VIP_PLUS" || isAdminEmail(user.email);
+      nameInput || (user.user_metadata?.full_name as string | undefined) || user.email || "";
+    const fmtDate = (s: string | null) =>
+      s ? new Date(s).toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" }) : null;
+    const daysLeft = tierUntil
+      ? Math.ceil((new Date(tierUntil).getTime() - Date.now()) / 86400000)
+      : null;
     const tiles = [
-      { href: "/videoknihovna", label: "Knihovna pohybu", Icon: BookOpen },
-      { href: "/kurzy", label: "Kurzy", Icon: GraduationCap },
-      { href: "/rezervace", label: "Rezervace", Icon: CalendarDays },
-      ...(isClub ? [{ href: "/klub", label: "VIP+ Klub", Icon: Crown }] : []),
-      { href: "/blog", label: "Blog", Icon: Newspaper },
+      { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen },
+      { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap },
+      { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays },
     ];
     const favVideos = favSlugs
       .map((slug) => MOCK_VIDEOS.find((v) => v.slug === slug))
@@ -227,36 +277,49 @@ export default function UcetPage() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           {/* Hlavička */}
           <div className="card p-6 mb-6 flex flex-wrap items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-2xl font-semibold text-white">
-              {(displayName?.[0] ?? "U").toUpperCase()}
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-2xl font-semibold text-white">
+                {(displayName?.[0] ?? "U").toUpperCase()}
+              </div>
+            )}
             <div className="min-w-0">
               <h1 className="text-xl font-semibold text-brand-dark">
-                Vítej zpátky{displayName ? `, ${displayName}` : ""}!
+                Vítej zpět{displayName ? `, ${displayName}` : ""}!
               </h1>
               <p className="text-sm text-gray-500 truncate">{user.email}</p>
             </div>
-            <div className="ml-auto flex items-center gap-3">
-              <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${TIER_STYLES[tier].badge}`}>
-                {TIER_STYLES[tier].label}
-              </span>
-              {tier !== "VIP_PLUS" && (
-                <Link href="/clenstvi" className="text-xs font-semibold text-brand-blue hover:underline whitespace-nowrap">
-                  Vylepšit →
-                </Link>
+            <div className="ml-auto flex flex-col items-end gap-1">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${TIER_STYLES[tier].badge}`}>
+                  {TIER_STYLES[tier].label}
+                </span>
+                {tier !== "VIP_PLUS" && (
+                  <Link href="/clenstvi" className="text-xs font-semibold text-brand-blue hover:underline whitespace-nowrap">
+                    Vylepšit →
+                  </Link>
+                )}
+              </div>
+              {tier !== "FREE" && tierUntil && (
+                <span className="text-[11px] text-gray-400">
+                  platí do {fmtDate(tierUntil)}
+                  {daysLeft != null && daysLeft >= 0 ? ` · zbývá ${daysLeft} dní` : " · vypršelo"}
+                </span>
               )}
             </div>
           </div>
 
           {/* Rychlé dlaždice */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {tiles.map(({ href, label, Icon }) => (
               <Link
                 key={href}
                 href={href}
                 className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
               >
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${href === "/klub" ? "bg-amber-100 text-amber-600" : "bg-brand-light text-brand-blue"}`}>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </span>
                 <span className="text-xs font-semibold text-brand-dark">{label}</span>
@@ -327,40 +390,6 @@ export default function UcetPage() {
 
             {/* Pravý sloupec */}
             <div className="space-y-6">
-              {/* Moje rezervace */}
-              <div className="card p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-brand-blue" strokeWidth={2} />
-                  <h2 className="text-sm font-semibold text-brand-dark">Moje rezervace</h2>
-                </div>
-                {bookings.length === 0 ? (
-                  <p className="text-xs text-gray-400">
-                    Žádné nadcházející rezervace.{" "}
-                    <Link href="/rezervace" className="text-brand-blue hover:underline">Rezervovat →</Link>
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {bookings.map((b) => (
-                      <div key={b.id} className="rounded-lg border border-gray-100 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-semibold text-brand-dark">{b.service_name}</span>
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{b.status}</span>
-                        </div>
-                        <p className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                          <span>
-                            {new Date(b.date).toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "long" })} · {b.time}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            {b.mode === "online" ? <MonitorPlay className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
-                            {b.mode === "online" ? "Online" : "Osobně"}
-                          </span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {/* Členství */}
               <div className={`card p-6 ${TIER_STYLES[tier].card}`}>
                 <div className="mb-2 flex items-center gap-2">
@@ -371,6 +400,19 @@ export default function UcetPage() {
                   Tvoje úroveň je <strong className={TIER_STYLES[tier].accentText}>{TIER_STYLES[tier].label}</strong>.
                   {tier !== "VIP_PLUS" && " Vyšší úroveň odemkne víc videí, kurzů a VIP+ Klub."}
                 </p>
+                {tier !== "FREE" && (tierSince || tierUntil) && (
+                  <div className="mt-3 rounded-lg bg-white/60 p-3 text-xs text-gray-600 space-y-0.5">
+                    {tierSince && <p>Aktivní od: <strong className="text-brand-dark">{fmtDate(tierSince)}</strong></p>}
+                    {tierUntil && (
+                      <p>
+                        Platí do: <strong className="text-brand-dark">{fmtDate(tierUntil)}</strong>
+                        {daysLeft != null && (daysLeft >= 0
+                          ? ` (zbývá ${daysLeft} dní)`
+                          : " (vypršelo – obnov si členství)")}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {tier !== "VIP_PLUS" && (
                   <Link href="/clenstvi" className="btn-primary text-sm mt-4 inline-flex">
                     Zobrazit členství
@@ -380,24 +422,90 @@ export default function UcetPage() {
             </div>
           </div>
 
-          {/* Účet */}
+          {/* Moje rezervace – měsíční kalendář */}
+          <div id="moje-rezervace" className="card p-6 mt-6 scroll-mt-24">
+            <div className="mb-4 flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-brand-blue" strokeWidth={2} />
+              <h2 className="text-sm font-semibold text-brand-dark">Moje rezervace</h2>
+              <Link href="/rezervace" className="ml-auto text-xs font-semibold text-brand-blue hover:underline">
+                Rezervovat →
+              </Link>
+            </div>
+            <MyBookingsCalendar bookings={bookings} />
+          </div>
+
+          {/* Nastavení */}
           <div className="card p-6 mt-6">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-brand-dark">
-              <KeyRound className="h-4 w-4 text-gray-400" /> Účet
+            <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-brand-dark">
+              <Settings className="h-4 w-4 text-gray-400" /> Nastavení
             </h2>
             {accMsg && (
-              <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{accMsg}</p>
+              <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-700">{accMsg}</p>
             )}
-            <div className="flex flex-wrap items-center gap-4">
-              <button onClick={sendPasswordReset} className="btn-outline text-sm inline-flex items-center gap-2">
-                <KeyRound className="h-4 w-4" /> Změnit heslo
-              </button>
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-dark"
-              >
-                <LogOut className="h-4 w-4" /> Odhlásit se
-              </button>
+
+            <div className="space-y-5">
+              {/* Profilová fotka */}
+              <div className="flex items-center gap-4">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" className="h-12 w-12 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-light text-brand-blue">
+                    <Camera className="h-5 w-5" strokeWidth={2} />
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-brand-dark">Profilová fotka</p>
+                  <label className="cursor-pointer text-xs font-semibold text-brand-blue hover:underline">
+                    {uploadingAvatar ? "Nahrávám…" : "Změnit fotku"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingAvatar}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) uploadAvatar(f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Jméno */}
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-1.5">Jméno</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    placeholder="Tvoje jméno"
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                  />
+                  <button
+                    onClick={saveName}
+                    disabled={savingName || !nameInput.trim()}
+                    className="btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-40"
+                  >
+                    <Save className="h-4 w-4" /> Uložit
+                  </button>
+                </div>
+              </div>
+
+              {/* Heslo + odhlášení */}
+              <div className="flex flex-wrap items-center gap-4 border-t border-gray-100 pt-4">
+                <button onClick={sendPasswordReset} className="btn-outline text-sm inline-flex items-center gap-2">
+                  <KeyRound className="h-4 w-4" /> Změnit heslo
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-dark"
+                >
+                  <LogOut className="h-4 w-4" /> Odhlásit se
+                </button>
+              </div>
             </div>
           </div>
         </div>
