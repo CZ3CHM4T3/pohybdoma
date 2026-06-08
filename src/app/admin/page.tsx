@@ -109,6 +109,9 @@ export default function AdminPage() {
   const [viCf, setViCf] = useState("");
   const [viTags, setViTags] = useState("");
   const [viCaution, setViCaution] = useState("");
+  const [viSystems, setViSystems] = useState("");
+  const [viProps, setViProps] = useState("");
+  const [viUnsuitable, setViUnsuitable] = useState("");
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -304,12 +307,16 @@ export default function AdminPage() {
       cf_uid: viCf.trim() || null,
       tags: toArr(viTags),
       caution: viCaution.trim() || null,
+      systems: toArr(viSystems),
+      props: toArr(viProps),
+      unsuitable_for: toArr(viUnsuitable),
       published: true,
     };
     const { error } = await supabase.from("videos").insert(row);
     if (error) { setError("Video se nepodařilo uložit: " + error.message); return; }
     setViTitle(""); setViDesc(""); setViAccess("FREE"); setViBody(""); setViDiff("začátečník");
     setViDur(""); setViCf(""); setViTags(""); setViCaution("");
+    setViSystems(""); setViProps(""); setViUnsuitable("");
     loadData();
   }
   async function deleteVideo(id: string) {
@@ -501,6 +508,9 @@ export default function AdminPage() {
             <AdminInput label="Délka (vteřiny)" type="number" value={viDur} onChange={setViDur} placeholder="600" />
             <AdminInput label="Cloudflare UID (zatím nech prázdné)" value={viCf} onChange={setViCf} />
             <AdminInput label="Štítky (oddělené čárkou)" value={viTags} onChange={setViTags} placeholder="ráno, protažení" />
+            <AdminInput label="Systém (čárkou)" value={viSystems} onChange={setViSystems} placeholder="floorwork, kettlebell" />
+            <AdminInput label="Co dům dá (čárkou)" value={viProps} onChange={setViProps} placeholder="gauč, zem" />
+            <AdminInput label="Nevhodné pro (čárkou)" value={viUnsuitable} onChange={setViUnsuitable} placeholder="těhotenství, akutní bolest zad" />
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
               <textarea value={viDesc} onChange={(e) => setViDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />

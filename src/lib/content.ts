@@ -14,6 +14,9 @@ export type VideoRow = {
   cf_uid: string | null;
   duration_seconds: number | null;
   caution: string | null;
+  systems: string[] | null;
+  props: string[] | null;
+  unsuitable_for: string[] | null;
   published: boolean;
   position: number | null;
   created_at: string;
@@ -21,7 +24,7 @@ export type VideoRow = {
 
 /** Sloupce pro select (sdílené server i klient). */
 export const VIDEO_COLS =
-  "id, slug, title, description, body_parts, difficulty, access_level, problem_types, equipment, tags, cf_uid, duration_seconds, caution, published, position, created_at";
+  "id, slug, title, description, body_parts, difficulty, access_level, problem_types, equipment, tags, cf_uid, duration_seconds, caution, systems, props, unsuitable_for, published, position, created_at";
 
 export function rowToVideo(r: VideoRow): Video {
   return {
@@ -40,5 +43,8 @@ export function rowToVideo(r: VideoRow): Video {
     tags: r.tags ?? [],
     publishedAt: r.created_at,
     caution: r.caution ?? undefined,
+    systems: r.systems ?? [],
+    props: r.props ?? [],
+    unsuitableFor: r.unsuitable_for ?? [],
   };
 }

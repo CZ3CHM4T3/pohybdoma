@@ -2,58 +2,56 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import type { BodyPart, Difficulty, AccessLevel, UserTier, Video } from "@/types";
+import { Search, X, SlidersHorizontal } from "lucide-react";
+import type { UserTier, AccessLevel, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
 import { createClient } from "@/lib/supabase/client";
 
-const BODY_PARTS: BodyPart[] = ["záda", "noha", "kyčle", "rameno", "krk", "dech", "celé tělo", "core"];
-const DIFFICULTIES: Difficulty[] = ["začátečník", "mírně pokročilý", "pokročilý"];
-const ACCESS_LEVELS: { label: string; value: AccessLevel | "all" }[] = [
-  { label: "Vše", value: "all" },
-  { label: TIER_STYLES.FREE.label, value: "FREE" },
-  { label: TIER_STYLES.MEMBER.label, value: "MEMBER" },
-  { label: TIER_STYLES.VIP.label, value: "VIP" },
-  { label: TIER_STYLES.VIP_PLUS.label, value: "VIP_PLUS" },
+// ── Skupiny filtrů ──────────────────────────────────────────────────────────
+type Group = { key: string; title: string; options: { value: string; label: string }[]; access?: boolean };
+const opt = (xs: string[]) => xs.map((x) => ({ value: x, label: x }));
+
+const GROUPS: Group[] = [
+  {
+    key: "access",
+    title: "Přístup",
+    access: true,
+    options: (["FREE", "MEMBER", "VIP", "VIP_PLUS"] as AccessLevel[]).map((v) => ({ value: v, label: TIER_STYLES[v].label })),
+  },
+  { key: "difficulty", title: "Obtížnost", options: opt(["začátečník", "mírně pokročilý", "pokročilý"]) },
+  { key: "duration", title: "Délka", options: opt(["do 10 min", "10–20 min", "20+ min"]) },
+  { key: "body", title: "Část těla", options: opt(["záda", "krk", "ramena", "hrudní páteř", "kyčle", "kolena", "kotníky", "zápěstí", "pánev", "chodidla", "core", "celé tělo"]) },
+  { key: "system", title: "Systém", options: opt(["floorwork", "zdravotní cvičení", "dechová cvičení", "foamroller", "kettlebell", "kruhy", "hrazda", "bandy a gumy", "medicinbal"]) },
+  { key: "props", title: "Co dům dá", options: opt(["gauč", "židle", "tyč", "stůl", "zeď", "zem", "schody", "ručník", "polštář"]) },
+  { key: "goal", title: "Cíl", options: opt(["bolest", "ztuhlost", "mobilita", "síla", "prevence", "po zranění"]) },
+  { key: "suitability", title: "Vhodnost (skryje nevhodné)", options: opt(["těhotenství", "akutní bolest zad", "problémy s rameny", "problémy s koleny", "vysoký tlak", "závratě", "po operaci"]) },
 ];
 
-function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
-        active
-          ? "bg-brand-blue text-white"
-          : "bg-gray-100 text-gray-600 hover:bg-brand-light hover:text-brand-blue"
-      }`}
-    >
-      {label}
-    </button>
-  );
+function durationBucket(sec: number): string {
+  if (sec < 600) return "do 10 min";
+  if (sec <= 1200) return "10–20 min";
+  return "20+ min";
 }
 
 export default function VideoknihovnaPage() {
-  const [bodyPart, setBodyPart] = useState<BodyPart | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [access, setAccess] = useState<AccessLevel | "all">("all");
-  const [search, setSearch] = useState("");
-  const [userTier, setUserTier] = useState<UserTier>("FREE");
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userTier, setUserTier] = useState<UserTier>("FREE");
+  const [search, setSearch] = useState("");
+  const [onlyNew, setOnlyNew] = useState(false);
+  const [open, setOpen] = useState(false); // mobil: zobrazit filtry
+  const [sel, setSel] = useState<Record<string, Set<string>>>(() =>
+    Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()]))
+  );
 
-  // Načti úroveň členství + videa z databáze.
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("tier")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      setUserTier(normalizeTier(profile?.tier as string | undefined));
+      const { data: p } = await supabase.from("profiles").select("tier").eq("id", data.user.id).maybeSingle();
+      setUserTier(normalizeTier(p?.tier as string | undefined));
     });
     supabase
       .from("videos")
@@ -67,121 +65,172 @@ export default function VideoknihovnaPage() {
       });
   }, []);
 
+  function toggle(group: string, value: string) {
+    setSel((prev) => {
+      const s = new Set(prev[group]);
+      if (s.has(value)) s.delete(value);
+      else s.add(value);
+      return { ...prev, [group]: s };
+    });
+  }
+  function clearAll() {
+    setSel(Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()])));
+    setOnlyNew(false);
+    setSearch("");
+  }
+
+  const activeCount = GROUPS.reduce((n, g) => n + sel[g.key].size, 0) + (onlyNew ? 1 : 0);
+
   const filtered = useMemo(() => {
+    if (onlyNew) {
+      return [...videos]
+        .sort((a, b) => +new Date(b.publishedAt) - +new Date(a.publishedAt))
+        .slice(0, 10);
+    }
     return videos.filter((v) => {
-      if (bodyPart && !v.bodyParts.includes(bodyPart)) return false;
-      if (difficulty && v.difficulty !== difficulty) return false;
-      if (access !== "all" && v.accessLevel !== access) return false;
+      if (sel.access.size && !sel.access.has(v.accessLevel)) return false;
+      if (sel.difficulty.size && !sel.difficulty.has(v.difficulty)) return false;
+      if (sel.duration.size && !sel.duration.has(durationBucket(v.durationSeconds))) return false;
+      if (sel.body.size && !v.bodyParts.some((b) => sel.body.has(b))) return false;
+      if (sel.system.size && !(v.systems ?? []).some((s) => sel.system.has(s))) return false;
+      if (sel.props.size && !(v.props ?? []).some((p) => sel.props.has(p))) return false;
+      if (sel.goal.size && !v.problemTypes.some((g) => sel.goal.has(g))) return false;
+      if (sel.suitability.size && (v.unsuitableFor ?? []).some((u) => sel.suitability.has(u))) return false;
       if (search) {
         const q = search.toLowerCase();
         if (!v.title.toLowerCase().includes(q) && !v.description.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [videos, bodyPart, difficulty, access, search]);
+  }, [videos, sel, onlyNew, search]);
 
   return (
-    <>
-      {/* Header */}
-      <section className="bg-brand-light py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Knihovna pohybu</p>
-          <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">
-            Videa pro každé tělo
-          </h1>
-          <p className="text-lg text-gray-600 max-w-xl">
-            Filtrujte dle části těla, obtížnosti nebo úrovně přístupu. FREE videa jsou okamžitě dostupná.
-          </p>
-        </div>
-      </section>
+    <section className="bg-brand-light min-h-screen py-10 lg:py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Knihovna pohybu</p>
+        <h1 className="text-3xl lg:text-4xl font-semibold text-brand-dark mb-6">Najdi přesně to svoje</h1>
 
-      {/* Filters + Grid */}
-      <section className="bg-white py-10 lg:py-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Search */}
-          <div className="mb-6">
+        {/* Hledání + filtry toggle (mobil) */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
-              type="search"
-              placeholder="Hledat video..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full max-w-md px-4 py-2.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm"
+              placeholder="Hledat video…"
+              className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
             />
           </div>
+          <button
+            type="button"
+            onClick={() => setOnlyNew((v) => !v)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${onlyNew ? "bg-brand-blue text-white" : "bg-white text-brand-dark hover:bg-brand-light"}`}
+          >
+            ✨ Novinky
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="lg:hidden inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-dark"
+          >
+            <SlidersHorizontal className="h-4 w-4" /> Filtry{activeCount > 0 ? ` (${activeCount})` : ""}
+          </button>
+        </div>
 
-          {/* Filters */}
-          <div className="space-y-4 mb-8">
-            {/* Body parts */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Část těla</p>
-              <div className="flex flex-wrap gap-2">
-                <Chip label="Vše" active={bodyPart === null} onClick={() => setBodyPart(null)} />
-                {BODY_PARTS.map((bp) => (
-                  <Chip key={bp} label={bp} active={bodyPart === bp} onClick={() => setBodyPart(bodyPart === bp ? null : bp)} />
-                ))}
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8">
+          {/* Sidebar filtrů */}
+          <aside className={`${open ? "block" : "hidden"} lg:block`}>
+            <div className="card p-5 lg:sticky lg:top-24 space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-brand-dark">Filtry</h2>
+                {activeCount > 0 && (
+                  <button type="button" onClick={clearAll} className="text-xs font-semibold text-brand-blue hover:underline">
+                    Vymazat vše
+                  </button>
+                )}
               </div>
-            </div>
-
-            {/* Difficulty */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Obtížnost</p>
-              <div className="flex flex-wrap gap-2">
-                <Chip label="Vše" active={difficulty === null} onClick={() => setDifficulty(null)} />
-                {DIFFICULTIES.map((d) => (
-                  <Chip key={d} label={d} active={difficulty === d} onClick={() => setDifficulty(difficulty === d ? null : d)} />
-                ))}
-              </div>
-            </div>
-
-            {/* Access */}
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Přístup</p>
-              <div className="flex flex-wrap gap-2">
-                {ACCESS_LEVELS.map((al) => (
-                  <Chip key={al.value} label={al.label} active={access === al.value} onClick={() => setAccess(al.value)} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Results count */}
-          <p className="text-sm text-gray-500 mb-6">
-            Zobrazeno: <strong className="text-brand-dark">{filtered.length}</strong> videí
-          </p>
-
-          {/* Grid */}
-          {loading ? (
-            <p className="py-20 text-center text-sm text-gray-400">Načítám videa…</p>
-          ) : filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filtered.map((video) => (
-                <VideoCard key={video.id} video={video} userTier={userTier} />
+              {GROUPS.map((g) => (
+                <div key={g.key}>
+                  <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">{g.title}</h3>
+                  <div className="space-y-1">
+                    {g.options.map((o) => {
+                      const checked = sel[g.key].has(o.value);
+                      return (
+                        <label key={o.value} className="flex cursor-pointer items-center gap-2 text-sm text-brand-dark">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggle(g.key, o.value)}
+                            className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
+                          />
+                          {g.access && (
+                            <span className={`inline-block h-2.5 w-2.5 rounded-full ${TIER_STYLES[o.value as AccessLevel].dot}`} />
+                          )}
+                          <span className={g.access ? TIER_STYLES[o.value as AccessLevel].accentText : ""}>{o.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
             </div>
-          ) : videos.length === 0 ? (
-            <div className="py-20 text-center text-gray-400">
-              <p className="font-semibold">Zatím tu nejsou žádná videa</p>
-              <p className="text-sm mt-1">Brzy je doplním. 🙂</p>
-            </div>
-          ) : (
-            <div className="py-20 text-center text-gray-400">
-              <p className="font-semibold">Žádná videa nenalezena</p>
-              <p className="text-sm mt-1">Zkus změnit filtry nebo hledaný výraz.</p>
-            </div>
-          )}
+          </aside>
 
-          {/* VIP upsell */}
-          <div className="mt-12 p-6 lg:p-8 rounded-2xl bg-gradient-to-r from-brand-dark to-[#1256c0] text-white flex flex-col sm:flex-row items-center gap-6 justify-between">
-            <div>
-              <h3 className="text-xl font-semibold mb-1">Chceš přístup ke všem videím?</h3>
-              <p className="text-white/75 text-sm">Knihovna roste každý týden. Členství od 199 Kč / měsíc.</p>
+          {/* Výsledky */}
+          <div>
+            {/* Aktivní filtry */}
+            {activeCount > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {onlyNew && (
+                  <button onClick={() => setOnlyNew(false)} className="inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-3 py-1 text-xs font-semibold text-brand-blue">
+                    Novinky <X className="h-3 w-3" />
+                  </button>
+                )}
+                {GROUPS.flatMap((g) =>
+                  [...sel[g.key]].map((val) => (
+                    <button key={g.key + val} onClick={() => toggle(g.key, val)} className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-xs font-medium text-brand-dark ring-1 ring-gray-200">
+                      {val} <X className="h-3 w-3 text-gray-400" />
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            <p className="mb-4 text-sm text-gray-500">{loading ? "Načítám…" : `${filtered.length} videí`}</p>
+
+            {loading ? (
+              <p className="py-20 text-center text-sm text-gray-400">Načítám videa…</p>
+            ) : filtered.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filtered.map((video) => (
+                  <VideoCard key={video.id} video={video} userTier={userTier} />
+                ))}
+              </div>
+            ) : videos.length === 0 ? (
+              <div className="py-20 text-center text-gray-400">
+                <p className="font-semibold">Zatím tu nejsou žádná videa</p>
+                <p className="text-sm mt-1">Brzy je doplním. 🙂</p>
+              </div>
+            ) : (
+              <div className="py-20 text-center text-gray-400">
+                <p className="font-semibold">Nic neodpovídá filtrům</p>
+                <button onClick={clearAll} className="mt-2 text-sm font-semibold text-brand-blue hover:underline">Vymazat filtry</button>
+              </div>
+            )}
+
+            {/* VIP upsell */}
+            <div className="mt-12 p-6 lg:p-8 rounded-2xl bg-gradient-to-r from-brand-dark to-[#1256c0] text-white flex flex-col sm:flex-row items-center gap-6 justify-between">
+              <div>
+                <h3 className="text-xl font-semibold mb-1">Chceš přístup ke všem videím?</h3>
+                <p className="text-white/75 text-sm">Knihovna roste každý týden. Členství od 199 Kč / měsíc.</p>
+              </div>
+              <Link href="/clenstvi" className="btn-primary shrink-0 bg-white text-brand-dark hover:opacity-90 py-3 px-6">
+                Zobrazit členství
+              </Link>
             </div>
-            <Link href="/clenstvi" className="btn-primary shrink-0 bg-white text-brand-dark hover:opacity-90 py-3 px-6">
-              Zobrazit členství
-            </Link>
           </div>
         </div>
-      </section>
-    </>
+      </div>
+    </section>
   );
 }

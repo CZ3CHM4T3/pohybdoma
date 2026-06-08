@@ -57,6 +57,12 @@ export interface Video {
   publishedAt: string;
   /** Volitelné upozornění / pro koho cvik není vhodný (kontraindikace). */
   caution?: string;
+  /** Tréninkový systém (floorwork, kettlebell, dech…). */
+  systems?: string[];
+  /** Domácí pomůcky (gauč, židle, tyč, zeď, zem…). */
+  props?: string[];
+  /** Pro koho NENÍ vhodné (filtr Vhodnost skryje). */
+  unsuitableFor?: string[];
 }
 
 // ─── Course ───────────────────────────────────────────────────────────────────
