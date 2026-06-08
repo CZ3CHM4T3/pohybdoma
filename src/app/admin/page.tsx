@@ -9,6 +9,9 @@ import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
+import {
+  FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
+} from "@/lib/filters";
 import { MOCK_VIDEOS } from "@/lib/mock-data";
 import type { UserTier, AccessLevel } from "@/types";
 
@@ -103,16 +106,19 @@ export default function AdminPage() {
   const [viTitle, setViTitle] = useState("");
   const [viDesc, setViDesc] = useState("");
   const [viAccess, setViAccess] = useState<AccessLevel>("FREE");
-  const [viBody, setViBody] = useState("");
   const [viDiff, setViDiff] = useState("začátečník");
   const [viDur, setViDur] = useState("");
   const [viCf, setViCf] = useState("");
   const [viTags, setViTags] = useState("");
   const [viCaution, setViCaution] = useState("");
-  const [viSystems, setViSystems] = useState("");
-  const [viProps, setViProps] = useState("");
-  const [viUnsuitable, setViUnsuitable] = useState("");
+  const [viBody, setViBody] = useState<string[]>([]);
+  const [viSystems, setViSystems] = useState<string[]>([]);
+  const [viProps, setViProps] = useState<string[]>([]);
+  const [viGoal, setViGoal] = useState<string[]>([]);
+  const [viUnsuitable, setViUnsuitable] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+  const togArr = (arr: string[], set: (v: string[]) => void, val: string) =>
+    set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
   const [error, setError] = useState<string | null>(null);
 
   // Formulář nové recenze
@@ -301,22 +307,23 @@ export default function AdminPage() {
       title: viTitle.trim(),
       description: viDesc.trim(),
       access_level: viAccess,
-      body_parts: toArr(viBody),
+      body_parts: viBody,
       difficulty: viDiff,
       duration_seconds: Number(viDur) || 0,
       cf_uid: viCf.trim() || null,
       tags: toArr(viTags),
       caution: viCaution.trim() || null,
-      systems: toArr(viSystems),
-      props: toArr(viProps),
-      unsuitable_for: toArr(viUnsuitable),
+      systems: viSystems,
+      props: viProps,
+      problem_types: viGoal,
+      unsuitable_for: viUnsuitable,
       published: true,
     };
     const { error } = await supabase.from("videos").insert(row);
     if (error) { setError("Video se nepodařilo uložit: " + error.message); return; }
-    setViTitle(""); setViDesc(""); setViAccess("FREE"); setViBody(""); setViDiff("začátečník");
+    setViTitle(""); setViDesc(""); setViAccess("FREE"); setViDiff("začátečník");
     setViDur(""); setViCf(""); setViTags(""); setViCaution("");
-    setViSystems(""); setViProps(""); setViUnsuitable("");
+    setViBody([]); setViSystems([]); setViProps([]); setViGoal([]); setViUnsuitable([]);
     loadData();
   }
   async function deleteVideo(id: string) {
@@ -498,7 +505,6 @@ export default function AdminPage() {
                 {ACCESS_OPTS.map((a) => <option key={a} value={a}>{TIER_STYLES[a].label}</option>)}
               </select>
             </div>
-            <AdminInput label="Části těla (oddělené čárkou)" value={viBody} onChange={setViBody} placeholder="záda, kyčle" />
             <div>
               <label className="block text-xs font-semibold text-brand-dark mb-1">Obtížnost</label>
               <select value={viDiff} onChange={(e) => setViDiff(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue">
@@ -508,15 +514,19 @@ export default function AdminPage() {
             <AdminInput label="Délka (vteřiny)" type="number" value={viDur} onChange={setViDur} placeholder="600" />
             <AdminInput label="Cloudflare UID (zatím nech prázdné)" value={viCf} onChange={setViCf} />
             <AdminInput label="Štítky (oddělené čárkou)" value={viTags} onChange={setViTags} placeholder="ráno, protažení" />
-            <AdminInput label="Systém (čárkou)" value={viSystems} onChange={setViSystems} placeholder="floorwork, kettlebell" />
-            <AdminInput label="Co dům dá (čárkou)" value={viProps} onChange={setViProps} placeholder="gauč, zem" />
-            <AdminInput label="Nevhodné pro (čárkou)" value={viUnsuitable} onChange={setViUnsuitable} placeholder="těhotenství, akutní bolest zad" />
+
+            <CheckGroup label="Část těla" options={FILTER_BODY} selected={viBody} onToggle={(v) => togArr(viBody, setViBody, v)} />
+            <CheckGroup label="Systém" options={FILTER_SYSTEMS} selected={viSystems} onToggle={(v) => togArr(viSystems, setViSystems, v)} />
+            <CheckGroup label="Co dům dá" options={FILTER_PROPS} selected={viProps} onToggle={(v) => togArr(viProps, setViProps, v)} />
+            <CheckGroup label="Cíl" options={FILTER_GOALS} selected={viGoal} onToggle={(v) => togArr(viGoal, setViGoal, v)} />
+            <CheckGroup label="Nevhodné pro (kontraindikace)" options={FILTER_SUITABILITY} selected={viUnsuitable} onToggle={(v) => togArr(viUnsuitable, setViUnsuitable, v)} />
+
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
               <textarea value={viDesc} onChange={(e) => setViDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-brand-dark mb-1">Upozornění / kontraindikace (nepovinné)</label>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Upozornění / kontraindikace text (nepovinné)</label>
               <textarea value={viCaution} onChange={(e) => setViCaution(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
             </div>
             <div className="sm:col-span-2">
@@ -937,6 +947,38 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+function CheckGroup({
+  label, options, selected, onToggle,
+}: {
+  label: string;
+  options: string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  return (
+    <div className="sm:col-span-2">
+      <label className="block text-xs font-semibold text-brand-dark mb-1">{label}</label>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const on = selected.includes(o);
+          return (
+            <button
+              key={o}
+              type="button"
+              onClick={() => onToggle(o)}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                on ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-600 hover:bg-brand-light hover:text-brand-blue"
+              }`}
+            >
+              {o}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

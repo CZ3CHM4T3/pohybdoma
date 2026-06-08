@@ -7,6 +7,9 @@ import type { UserTier, AccessLevel, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
+import {
+  FILTER_DIFFICULTIES, FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
+} from "@/lib/filters";
 import { createClient } from "@/lib/supabase/client";
 
 // ── Skupiny filtrů ──────────────────────────────────────────────────────────
@@ -20,13 +23,13 @@ const GROUPS: Group[] = [
     access: true,
     options: (["FREE", "MEMBER", "VIP", "VIP_PLUS"] as AccessLevel[]).map((v) => ({ value: v, label: TIER_STYLES[v].label })),
   },
-  { key: "difficulty", title: "Obtížnost", options: opt(["začátečník", "mírně pokročilý", "pokročilý"]) },
+  { key: "difficulty", title: "Obtížnost", options: opt(FILTER_DIFFICULTIES) },
   { key: "duration", title: "Délka", options: opt(["do 10 min", "10–20 min", "20+ min"]) },
-  { key: "body", title: "Část těla", options: opt(["záda", "krk", "ramena", "hrudní páteř", "kyčle", "kolena", "kotníky", "zápěstí", "pánev", "chodidla", "core", "celé tělo"]) },
-  { key: "system", title: "Systém", options: opt(["floorwork", "zdravotní cvičení", "dechová cvičení", "foamroller", "kettlebell", "kruhy", "hrazda", "bandy a gumy", "medicinbal"]) },
-  { key: "props", title: "Co dům dá", options: opt(["gauč", "židle", "tyč", "stůl", "zeď", "zem", "schody", "ručník", "polštář"]) },
-  { key: "goal", title: "Cíl", options: opt(["bolest", "ztuhlost", "mobilita", "síla", "prevence", "po zranění"]) },
-  { key: "suitability", title: "Vhodnost (skryje nevhodné)", options: opt(["těhotenství", "akutní bolest zad", "problémy s rameny", "problémy s koleny", "vysoký tlak", "závratě", "po operaci"]) },
+  { key: "body", title: "Část těla", options: opt(FILTER_BODY) },
+  { key: "system", title: "Systém", options: opt(FILTER_SYSTEMS) },
+  { key: "props", title: "Co dům dá", options: opt(FILTER_PROPS) },
+  { key: "goal", title: "Cíl", options: opt(FILTER_GOALS) },
+  { key: "suitability", title: "Vhodnost (skryje nevhodné)", options: opt(FILTER_SUITABILITY) },
 ];
 
 function durationBucket(sec: number): string {
