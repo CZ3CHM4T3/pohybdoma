@@ -772,7 +772,6 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     features: [
       "Všechno z MEMBER, a navíc:",
       "Exkluzivní VIP videa a pokročilé kurzy navíc",
-      "Vedená cesta – doporučený plán, co a kdy cvičit ke tvému cíli",
       "Můj deník – sleduj váhu, bolest, energii a pokrok v přehledných grafech",
       "Členská sleva 10 % na osobní lekce a konzultace",
       "Přednost při rezervaci termínů",
@@ -795,4 +794,30 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
       "Nejvyšší priorita termínů",
     ],
   },
+];
+
+// Srovnávací matice členství – co je v které úrovni (✓/✗ nebo hodnota).
+export type MatrixCell = boolean | string;
+export const MEMBERSHIP_MATRIX: {
+  label: string;
+  free: MatrixCell;
+  member: MatrixCell;
+  vip: MatrixCell;
+  vipPlus: MatrixCell;
+}[] = [
+  { label: "Ukázková videa zdarma", free: true, member: true, vip: true, vipPlus: true },
+  { label: "Plná videoknihovna pro členy", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Chytré filtry knihovny", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Kurzy pro členy (krok za krokem)", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Oblíbená videa a sledování postupu", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Komunita Kruhů – připojení", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Možnost napsat recenzi", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Exkluzivní VIP videa a pokročilé kurzy", free: false, member: false, vip: true, vipPlus: true },
+  { label: "Můj deník (váha, bolest, energie, grafy)", free: false, member: false, vip: true, vipPlus: true },
+  { label: "Členská sleva na lekce a konzultace", free: false, member: false, vip: "10 %", vipPlus: "15 %" },
+  { label: "Přednost při rezervaci termínů", free: false, member: false, vip: true, vipPlus: "nejvyšší" },
+  { label: "Zakládání vlastních Kruhů", free: false, member: false, vip: false, vipPlus: true },
+  { label: "VIP+ Klub – Q&A přímo s Honzou", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Živé online lekce a vysílání", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Předběžný přístup k novinkám", free: false, member: false, vip: false, vipPlus: true },
 ];

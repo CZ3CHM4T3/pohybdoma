@@ -1,9 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, Gift } from "lucide-react";
-import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
+import { Check, X, Gift } from "lucide-react";
+import { MOCK_MEMBERSHIP_PLANS, MEMBERSHIP_MATRIX, type MatrixCell } from "@/lib/mock-data";
 import { TIER_STYLES } from "@/lib/tiers";
+import type { AccessLevel } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+
+const MATRIX_COLS: { key: "free" | "member" | "vip" | "vipPlus"; tier: AccessLevel }[] = [
+  { key: "free", tier: "FREE" },
+  { key: "member", tier: "MEMBER" },
+  { key: "vip", tier: "VIP" },
+  { key: "vipPlus", tier: "VIP_PLUS" },
+];
+
+function MatrixValue({ v }: { v: MatrixCell }) {
+  if (v === true) return <Check className="mx-auto h-5 w-5 text-emerald-500" strokeWidth={3} />;
+  if (v === false) return <X className="mx-auto h-5 w-5 text-gray-300" strokeWidth={2.5} />;
+  return <span className="text-xs font-bold text-brand-blue">{v}</span>;
+}
 
 export const metadata: Metadata = {
   title: "Členství",
@@ -85,6 +99,42 @@ export default function ClenstviPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Srovnávací tabulka */}
+          <div className="mt-16">
+            <SectionHeading label="Srovnání" title="Co je v které úrovni" centered />
+            <div className="mt-8 overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="p-3 text-left font-semibold text-brand-dark">Co je součástí</th>
+                    {MATRIX_COLS.map((c) => (
+                      <th key={c.key} className={`p-3 text-center ${c.tier === "VIP_PLUS" ? "bg-amber-50" : ""}`}>
+                        <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${TIER_STYLES[c.tier].badge}`}>
+                          {TIER_STYLES[c.tier].label}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {MEMBERSHIP_MATRIX.map((row, i) => (
+                    <tr key={row.label} className={i % 2 === 1 ? "bg-brand-light/40" : ""}>
+                      <td className="p-3 text-gray-700">{row.label}</td>
+                      {MATRIX_COLS.map((c) => (
+                        <td key={c.key} className={`p-3 text-center ${c.tier === "VIP_PLUS" ? "bg-amber-50" : ""}`}>
+                          <MatrixValue v={row[c.key]} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-center text-xs text-gray-400">
+              Členství zrušíš kdykoliv. Přístup trvá do konce zaplaceného období.
+            </p>
           </div>
 
           {/* Darovat členství */}
