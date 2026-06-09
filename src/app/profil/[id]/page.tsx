@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame } from "lucide-react";
+import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame, Award } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { BADGE_MAP } from "@/lib/badges";
@@ -34,6 +34,7 @@ export default function ProfilPage() {
   const [phase, setPhase] = useState<"loading" | "notfound" | "ready">("loading");
   const [p, setP] = useState<Pub | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
+  const [best, setBest] = useState<{ rank: number; month: string } | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [theme, setTheme] = useState<string>("default");
@@ -43,11 +44,16 @@ export default function ProfilPage() {
     (async () => {
       const { data: au } = await supabase.auth.getUser();
       setMeId(au.user?.id ?? null);
-      const { data } = await supabase.rpc("public_profile", { p_id: id });
+      const [{ data }, { data: br }] = await Promise.all([
+        supabase.rpc("public_profile", { p_id: id }),
+        supabase.rpc("personal_best_rank", { p_id: id }),
+      ]);
       const row = (data ?? [])[0] as Pub | undefined;
       if (!row) { setPhase("notfound"); return; }
       setP(row);
       setTheme(row.theme ?? "default");
+      const b = (br ?? [])[0] as { rank: number; month: string } | undefined;
+      setBest(b ?? null);
       setPhase("ready");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,6 +107,22 @@ export default function ProfilPage() {
             <Stat Icon={Clock} value={fmtMin(p.minutes_total)} label="celkem" tint="text-sky-600" />
             <Stat Icon={CalendarDays} value={fmtMonth(p.member_since)} label="člen od" tint="text-emerald-600" small />
           </div>
+
+          {/* Osobní rekord v žebříčku (jen pokud se dostal do TOP 10) */}
+          {best && (
+            <div className="mt-3 flex items-center gap-3 rounded-xl bg-gradient-to-r from-amber-50 to-amber-100/50 px-4 py-3 ring-1 ring-amber-200">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400 text-white shadow">
+                <Award className="h-5 w-5" strokeWidth={2} />
+              </span>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600">🏅 Osobní rekord v žebříčku</p>
+                <p className="text-sm font-semibold text-brand-dark">
+                  {best.rank}. místo
+                  <span className="font-normal text-gray-500"> · {fmtMonth(best.month)}</span>
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Výběr vzhledu (jen vlastník) */}
           {isOwner && (
