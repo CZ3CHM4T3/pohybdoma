@@ -223,6 +223,23 @@ export default function KlubPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // "Ťuplík" na Nástěnce – načtení poslední návštěvy + označení za přečtené
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setNastenkaSeen(Number(localStorage.getItem("klub_nastenka_seen") || 0));
+  }, []);
+
+  useEffect(() => {
+    if (channel !== "nastenka" || typeof window === "undefined") return;
+    const latest = posts
+      .filter((p) => (p.channel ?? "chat") === "nastenka")
+      .reduce((max, p) => Math.max(max, new Date(p.created_at).getTime()), 0);
+    if (latest > 0) {
+      localStorage.setItem("klub_nastenka_seen", String(latest));
+      setNastenkaSeen(latest);
+    }
+  }, [channel, posts]);
+
   // Nahraje obrázek do úložiště a vrátí veřejnou URL (nebo null při chybě).
   async function uploadImage(key: string): Promise<string | null | "error"> {
     const file = pendingImage[key];
@@ -525,20 +542,6 @@ export default function KlubPage() {
     .filter((p) => (p.channel ?? "chat") === "nastenka")
     .reduce((max, p) => Math.max(max, new Date(p.created_at).getTime()), 0);
   const nastenkaUnread = nastenkaLatest > 0 && nastenkaLatest > nastenkaSeen;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const v = Number(localStorage.getItem("klub_nastenka_seen") || 0);
-    setNastenkaSeen(v);
-  }, []);
-
-  useEffect(() => {
-    if (channel !== "nastenka" || typeof window === "undefined") return;
-    if (nastenkaLatest > 0) {
-      localStorage.setItem("klub_nastenka_seen", String(nastenkaLatest));
-      setNastenkaSeen(nastenkaLatest);
-    }
-  }, [channel, nastenkaLatest]);
 
   return (
     <div className="min-h-screen bg-brand-light py-10">
