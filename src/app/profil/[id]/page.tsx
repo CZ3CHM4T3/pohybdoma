@@ -160,9 +160,9 @@ export default function ProfilPage() {
             </div>
           )}
 
-          {/* Síň slávy */}
+          {/* Odznaky */}
           <div className="mt-7 border-t border-black/5 pt-6">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Síň slávy</h2>
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Odznaky</h2>
             {pins.length === 0 ? (
               <p className="text-sm text-gray-400">
                 {isOwner ? "Přišpendli si odznaky v Síni slávy." : "Tenhle člen si zatím žádný odznak nepřišpendlil."}

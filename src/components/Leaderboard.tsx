@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Crown, Flame } from "lucide-react";
+import { Crown, Flame, Trophy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Row = { user_id: string; name: string; minutes: number; rank: number };
@@ -47,7 +47,10 @@ export function Leaderboard() {
   return (
     <div className="card p-5 mb-6">
       <div className="mb-4 flex flex-col items-center text-center">
-        <h2 className="text-xl font-bold text-brand-dark">Žebříček</h2>
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+          <Trophy className="h-5 w-5" strokeWidth={2} />
+        </span>
+        <h2 className="mt-2 text-xl font-bold text-brand-dark">Žebříček</h2>
         <span className="text-xs text-gray-400">nejvíc odcvičených minut tento měsíc</span>
       </div>
 

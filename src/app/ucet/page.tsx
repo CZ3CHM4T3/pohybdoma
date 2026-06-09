@@ -7,7 +7,7 @@ import type { User } from "@supabase/supabase-js";
 import {
   BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
-  Lock, LockOpen, X, Check, PartyPopper, UserPlus, Trophy,
+  Lock, LockOpen, X, Check, PartyPopper, UserPlus, Award,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -290,7 +290,7 @@ export default function UcetPage() {
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: TINT.kruhy },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER", tint: TINT.chlubirna },
       { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER", tint: TINT.buddies },
-      { href: "/sin-slavy", label: "Síň slávy", Icon: Trophy, tint: TINT.sinslavy },
+      { href: "/sin-slavy", label: "Odznaky", Icon: Award, tint: TINT.sinslavy },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: TINT.denik },
     ];
 

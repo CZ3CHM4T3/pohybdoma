@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Film, Users, Flame, Radio, ChevronRight, type LucideIcon } from "lucide-react";
+import { Newspaper, Film, Users, Flame, Radio, ChevronRight, type LucideIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Item = {
@@ -100,12 +100,13 @@ export function NovinkyFeed() {
   return (
     <div className="card p-5 mb-6">
       <div className="mb-4 flex flex-col items-center text-center">
-        <h2 className="relative text-xl font-bold text-brand-dark">
-          Novinky
+        <span className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
+          <Newspaper className="h-5 w-5" strokeWidth={2} />
           {hasNew && (
-            <span className="absolute -right-3 top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
           )}
-        </h2>
+        </span>
+        <h2 className="mt-2 text-xl font-bold text-brand-dark">Novinky</h2>
         <span className="text-xs text-gray-400">co je nového v POHYB DOMA</span>
       </div>
       <ul className="divide-y divide-gray-100">

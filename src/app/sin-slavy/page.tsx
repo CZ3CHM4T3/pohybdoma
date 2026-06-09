@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trophy, Pin } from "lucide-react";
+import { Award, Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TRACKS, trackState, TIER_LABEL, type Stats, type Track } from "@/lib/badges";
 import { BadgeMedal } from "@/components/BadgeMedal";
@@ -66,8 +66,8 @@ export default function SinSlavyPage() {
   if (phase === "anon") {
     return (
       <Centered>
-        <Trophy className="mx-auto mb-3 h-10 w-10 text-amber-500" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">Síň slávy</h1>
+        <Award className="mx-auto mb-3 h-10 w-10 text-amber-500" strokeWidth={1.8} />
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">Odznaky</h1>
         <p className="text-sm text-gray-500 mb-5">Tvoje odznaky uvidíš po přihlášení.</p>
         <Link href="/ucet" className="btn-primary">Přihlásit se</Link>
       </Centered>
@@ -81,10 +81,10 @@ export default function SinSlavyPage() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-            <Trophy className="h-6 w-6" strokeWidth={2} />
+            <Award className="h-6 w-6" strokeWidth={2} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-2xl font-semibold text-brand-dark">Síň slávy</h1>
+            <h1 className="text-2xl font-semibold text-brand-dark">Odznaky</h1>
             <p className="text-sm text-gray-500">
               Rozjel jsi {started} z {TRACKS.length} sbírek. Každý medailon se sám upgraduje na vyšší stupeň. Přišpendli si až 3. 📌
             </p>
