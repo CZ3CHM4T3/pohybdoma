@@ -106,3 +106,37 @@ export function isEarned(b: BadgeDef, s: Stats): boolean {
   if (b.manual || !b.metric || b.threshold == null) return false;
   return s[b.metric] >= b.threshold;
 }
+
+// ── Cesty (série) – jeden medailon, který se upgraduje (bronz→stříbro→…) ──────
+export type Track = { id: string; label: string; cat: string; Icon: LucideIcon; steps: string[] };
+
+export const TRACKS: Track[] = [
+  { id: "t-lessons", label: "Odcvičená videa", cat: "Pohyb", Icon: Activity, steps: ["lessons-1", "lessons-10", "lessons-50", "lessons-100"] },
+  { id: "t-course", label: "Kurzy", cat: "Pohyb", Icon: GraduationCap, steps: ["course-1", "course-5"] },
+  { id: "t-lib", label: "Knihovna", cat: "Pohyb", Icon: Sparkles, steps: ["lib-10", "lib-100"] },
+  { id: "t-diary", label: "Deník", cat: "Návyk", Icon: BookOpen, steps: ["diary-7", "diary-30", "diary-100"] },
+  { id: "t-streak", label: "Série dní", cat: "Návyk", Icon: Flame, steps: ["streak-7", "streak-30", "streak-100"] },
+  { id: "t-ch", label: "Výzvy", cat: "Návyk", Icon: Star, steps: ["ch-1", "ch-3", "ch-12"] },
+  { id: "t-brag", label: "Chlubírna", cat: "Komunita", Icon: PartyPopper, steps: ["brag-1", "brag-10"] },
+  { id: "t-buddy", label: "Buddies", cat: "Komunita", Icon: Users, steps: ["buddy-1", "buddy-5"] },
+  { id: "t-fav", label: "Oblíbená videa", cat: "Komunita", Icon: Heart, steps: ["fav-1", "fav-10"] },
+  { id: "t-cjoin", label: "Členství v kruzích", cat: "Komunita", Icon: Users, steps: ["circle-join-1", "circle-join-3"] },
+  { id: "t-ccreate", label: "Zakladatel kruhu", cat: "Komunita", Icon: Users, steps: ["circle-1"] },
+  { id: "t-nebojsa", label: "Osobní trénink", cat: "Komunita", Icon: CalendarCheck, steps: ["nebojsa"] },
+  { id: "t-loy", label: "Věrnost", cat: "Věrnost", Icon: Medal, steps: ["loy-90", "loy-365", "loy-730"] },
+];
+
+export type TrackState = { level: number; current: BadgeDef | null; next: BadgeDef | null; now: number; max: number; maxed: boolean };
+
+export function trackState(t: Track, s: Stats): TrackState {
+  let level = 0;
+  let current: BadgeDef | null = null;
+  for (let i = 0; i < t.steps.length; i++) {
+    const b = BADGE_MAP[t.steps[i]];
+    if (b && isEarned(b, s)) { level = i + 1; current = b; }
+  }
+  const next = level < t.steps.length ? BADGE_MAP[t.steps[level]] : null;
+  let now = 0, max = 0;
+  if (next && next.metric && next.threshold != null) { now = s[next.metric]; max = next.threshold; }
+  return { level, current, next, now, max, maxed: next == null };
+}

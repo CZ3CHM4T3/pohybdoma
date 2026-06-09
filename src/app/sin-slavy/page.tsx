@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Trophy, Lock, Pin } from "lucide-react";
+import { Trophy, Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { BADGES, isEarned, TIER_RING, TIER_ICON, TIER_GLOW, TIER_LABEL, type Stats, type BadgeDef } from "@/lib/badges";
+import { TRACKS, trackState, TIER_LABEL, type Stats, type Track } from "@/lib/badges";
+import { BadgeMedal } from "@/components/BadgeMedal";
 import { BadgePins } from "@/components/BadgePins";
 
 const EMPTY: Stats = { lessons: 0, diary: 0, favorites: 0, buddies: 0, brags: 0, challenges: 0, circlesCreated: 0, circlesJoined: 0, membershipDays: 0 };
@@ -26,7 +27,7 @@ export default function SinSlavyPage() {
       const { data: prof } = await supabase
         .from("profiles").select("full_name, tier_since, pinned_badges").eq("id", user.id).maybeSingle();
       setName((prof?.full_name as string) || (user.user_metadata?.full_name as string) || user.email || "");
-      setPinned(((prof?.pinned_badges as string[]) ?? []));
+      setPinned((prof?.pinned_badges as string[]) ?? []);
 
       const [lp, dia, fav, chd, br, cir, bud, cjoin] = await Promise.all([
         supabase.from("lesson_progress").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true),
@@ -38,20 +39,13 @@ export default function SinSlavyPage() {
         supabase.rpc("my_buddies"),
         supabase.from("circle_members").select("*", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
-      const buddies =((bud.data ?? []) as { status: string }[]).filter((b) => b.status === "accepted").length;
+      const buddies = ((bud.data ?? []) as { status: string }[]).filter((b) => b.status === "accepted").length;
       const membershipDays = prof?.tier_since
         ? Math.max(0, Math.floor((Date.now() - new Date(prof.tier_since as string).getTime()) / 86400000))
         : 0;
       setStats({
-        lessons: lp.count ?? 0,
-        diary: dia.count ?? 0,
-        favorites: fav.count ?? 0,
-        challenges: chd.count ?? 0,
-        brags: br.count ?? 0,
-        circlesCreated: cir.count ?? 0,
-        circlesJoined: cjoin.count ?? 0,
-        buddies,
-        membershipDays,
+        lessons: lp.count ?? 0, diary: dia.count ?? 0, favorites: fav.count ?? 0, challenges: chd.count ?? 0,
+        brags: br.count ?? 0, circlesCreated: cir.count ?? 0, circlesJoined: cjoin.count ?? 0, buddies, membershipDays,
       });
       setPhase("ready");
     })();
@@ -80,7 +74,7 @@ export default function SinSlavyPage() {
     );
   }
 
-  const earnedCount = BADGES.filter((b) => isEarned(b, stats)).length;
+  const started = TRACKS.filter((t) => trackState(t, stats).level > 0).length;
 
   return (
     <div className="min-h-screen bg-brand-light py-10">
@@ -92,29 +86,28 @@ export default function SinSlavyPage() {
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold text-brand-dark">Síň slávy</h1>
             <p className="text-sm text-gray-500">
-              Máš {earnedCount} z {BADGES.length} odznaků. Přišpendli si až 3 – objeví se u tvého jména. 📌
+              Rozjel jsi {started} z {TRACKS.length} sbírek. Každý medailon se sám upgraduje na vyšší stupeň. Přišpendli si až 3. 📌
             </p>
           </div>
         </div>
 
-        {/* Moje vizitka s přišpendlenými */}
+        {/* Moje vizitka */}
         <div className="card p-4 mb-6 flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-blue text-sm font-semibold text-white">{(name[0] ?? "U").toUpperCase()}</span>
           <span className="font-semibold text-brand-dark">{name}</span>
-          <BadgePins ids={pinned} size={20} />
+          <BadgePins ids={pinned} size={28} />
           {pinned.length === 0 && <span className="text-xs text-gray-400">— zatím nic přišpendleného</span>}
         </div>
 
-        {/* Vitrína po kategoriích */}
         {CATS.map((cat) => {
-          const list = BADGES.filter((b) => b.cat === cat);
+          const list = TRACKS.filter((t) => t.cat === cat);
           if (list.length === 0) return null;
           return (
             <div key={cat} className="mb-8">
               <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">{cat}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {list.map((b) => (
-                  <BadgeTile key={b.id} b={b} stats={stats} pinned={pinned.includes(b.id)} canPin={pinned.length < 3} onPin={() => togglePin(b.id)} />
+                {list.map((t) => (
+                  <TrackTile key={t.id} t={t} stats={stats} pinned={pinned} canPin={pinned.length < 3} onPin={togglePin} />
                 ))}
               </div>
             </div>
@@ -122,58 +115,63 @@ export default function SinSlavyPage() {
         })}
 
         <p className="text-center text-[11px] text-gray-400">
-          Některé odznaky (série dní, % knihovny, živé lekce, kurzy, kalkulačka) se doplní, až rozjedeme jejich měření.
+          Některé sbírky (série dní, % knihovny, kurzy, osobní trénink) se rozjedou, až spustíme jejich měření.
         </p>
       </div>
     </div>
   );
 }
 
-function BadgeTile({ b, stats, pinned, canPin, onPin }: { b: BadgeDef; stats: Stats; pinned: boolean; canPin: boolean; onPin: () => void }) {
-  const earned = isEarned(b, stats);
-  const Icon = b.Icon;
-  const now = b.metric ? stats[b.metric] : 0;
-  const max = b.threshold ?? 0;
+function TrackTile({ t, stats, pinned, canPin, onPin }: { t: Track; stats: Stats; pinned: string[]; canPin: boolean; onPin: (id: string) => void }) {
+  const ts = trackState(t, stats);
+  const earned = ts.level > 0;
+  const showId = earned ? ts.current!.id : ts.next!.id;
+  const isPinned = earned && pinned.includes(ts.current!.id);
 
   return (
-    <div className={`card p-5 text-center ${earned ? "" : "opacity-95"}`}>
-      <div className="relative mx-auto mb-3 h-20 w-20">
-        <div className={`h-full w-full rounded-full p-[3px] shadow-md bg-gradient-to-br ${earned ? `${TIER_RING[b.tier]} ${TIER_GLOW[b.tier]}` : "from-gray-200 to-gray-300"}`}>
-          <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-            <Icon className={`h-9 w-9 ${earned ? TIER_ICON[b.tier] : "text-gray-300"}`} strokeWidth={1.8} />
-          </div>
-        </div>
-        {earned ? (
-          <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow bg-gradient-to-br ${TIER_RING[b.tier]}`}>
-            {TIER_LABEL[b.tier]}
-          </span>
-        ) : (
-          <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5">
-            <Lock className="h-3 w-3 text-gray-400" />
-          </span>
-        )}
+    <div className="card p-5 text-center">
+      <div className="mx-auto mb-3 transition-transform hover:scale-105" style={{ width: 84 }}>
+        <BadgeMedal id={showId} earned={earned} size={84} />
       </div>
-      <h3 className={`mt-1 text-sm font-semibold ${earned ? "text-brand-dark" : "text-gray-400"}`}>{b.name}</h3>
-      <p className="mt-0.5 text-xs text-gray-400">{b.sub}</p>
+
+      <h3 className={`text-sm font-semibold ${earned ? "text-brand-dark" : "text-gray-500"}`}>
+        {earned ? ts.current!.name : t.label}
+      </h3>
+      {earned && (
+        <span className="mt-0.5 inline-block text-[11px] font-bold uppercase tracking-wide text-amber-600">
+          {TIER_LABEL[ts.current!.tier]} · stupeň {ts.level}/{t.steps.length}
+        </span>
+      )}
+      <p className="mt-0.5 text-xs text-gray-400">{(earned ? ts.current! : ts.next!).sub}</p>
 
       {earned ? (
         <button
-          onClick={onPin}
-          disabled={!pinned && !canPin}
+          onClick={() => onPin(ts.current!.id)}
+          disabled={!isPinned && !canPin}
           className={`mt-3 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-40 ${
-            pinned ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-600 hover:bg-brand-light hover:text-brand-blue"
+            isPinned ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-600 hover:bg-brand-light hover:text-brand-blue"
           }`}
         >
-          <Pin className="h-3.5 w-3.5" /> {pinned ? "Přišpendleno" : "Přišpendlit"}
+          <Pin className="h-3.5 w-3.5" /> {isPinned ? "Přišpendleno" : "Přišpendlit"}
         </button>
-      ) : b.manual ? (
+      ) : ts.next?.manual ? (
         <p className="mt-3 text-[11px] text-gray-400">připravujeme</p>
       ) : (
         <div className="mt-3">
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-            <div className="h-full rounded-full bg-brand-blue" style={{ width: `${Math.min(100, Math.round((now / max) * 100))}%` }} />
+            <div className="h-full rounded-full bg-brand-blue" style={{ width: `${ts.max ? Math.min(100, Math.round((ts.now / ts.max) * 100)) : 0}%` }} />
           </div>
-          <p className="mt-1 text-[11px] text-gray-400">{now}/{max}</p>
+          <p className="mt-1 text-[11px] text-gray-400">{ts.now}/{ts.max}</p>
+        </div>
+      )}
+
+      {/* progress k dalšímu stupni, i když už něco máš */}
+      {earned && !ts.maxed && ts.next && !ts.next.manual && (
+        <div className="mt-2">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${ts.max ? Math.min(100, Math.round((ts.now / ts.max) * 100)) : 0}%` }} />
+          </div>
+          <p className="mt-0.5 text-[10px] text-gray-400">do „{ts.next.name}": {ts.now}/{ts.max}</p>
         </div>
       )}
     </div>
