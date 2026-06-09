@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import {
-  Heart, BookOpen, GraduationCap, CalendarDays,
+  BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
   Lock, LockOpen, X, Check, PartyPopper, UserPlus, Trophy,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { canAccess } from "@/lib/access";
-import { MOCK_COURSES, MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
+import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
@@ -37,11 +37,7 @@ export default function UcetPage() {
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [favVideos, setFavVideos] = useState<{ slug: string; title: string }[]>([]);
   const [bookings, setBookings] = useState<MyBooking[]>([]);
-  const [progress, setProgress] = useState<
-    { slug: string; title: string; done: number; total: number; pct: number }[]
-  >([]);
   const [accMsg, setAccMsg] = useState<string | null>(null);
 
   // Stav členství (modal s hierarchií) + zrušení přes heslo
@@ -97,24 +93,6 @@ export default function UcetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Načti oblíbená videa (slug + název z DB).
-  useEffect(() => {
-    if (!user) { setFavVideos([]); return; }
-    (async () => {
-      const { data: favs } = await supabase
-        .from("video_favorites")
-        .select("video_slug")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      const slugs = (favs ?? []).map((r: { video_slug: string }) => r.video_slug);
-      if (slugs.length === 0) { setFavVideos([]); return; }
-      const { data: vids } = await supabase.from("videos").select("slug, title").in("slug", slugs);
-      const titleBySlug = new Map((vids ?? []).map((v: { slug: string; title: string }) => [v.slug, v.title]));
-      setFavVideos(slugs.filter((s) => titleBySlug.has(s)).map((s) => ({ slug: s, title: titleBySlug.get(s)! })));
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
   // Moje rezervace (všechny – pro měsíční kalendář).
   useEffect(() => {
     if (!user) { setBookings([]); return; }
@@ -125,32 +103,6 @@ export default function UcetPage() {
       .order("date")
       .order("time")
       .then(({ data }) => setBookings((data ?? []) as MyBooking[]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // Postup v kurzech.
-  useEffect(() => {
-    if (!user) { setProgress([]); return; }
-    supabase
-      .from("lesson_progress")
-      .select("course_slug, completed")
-      .eq("user_id", user.id)
-      .eq("completed", true)
-      .then(({ data }) => {
-        const counts: Record<string, number> = {};
-        for (const r of (data ?? []) as { course_slug: string }[]) {
-          counts[r.course_slug] = (counts[r.course_slug] ?? 0) + 1;
-        }
-        const list = Object.entries(counts)
-          .map(([slug, done]) => {
-            const c = MOCK_COURSES.find((x) => x.slug === slug);
-            const total = c?.lessons.length ?? 0;
-            return { slug, title: c?.title ?? slug, done, total, pct: total ? Math.round((done / total) * 100) : 0 };
-          })
-          .filter((x) => x.total > 0)
-          .sort((a, b) => b.pct - a.pct);
-        setProgress(list);
-      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -468,72 +420,6 @@ export default function UcetPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <NovinkyFeed />
             <Leaderboard />
-          </div>
-
-          {/* Dva sloupce */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Levý sloupec */}
-            <div className="space-y-6">
-              {/* Rozjeté kurzy */}
-              <div className="card p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4 text-brand-blue" strokeWidth={2} />
-                  <h2 className="text-sm font-semibold text-brand-dark">Rozjeté kurzy</h2>
-                </div>
-                {progress.length === 0 ? (
-                  <p className="text-xs text-gray-400">
-                    Zatím ses nepustil do žádného kurzu.{" "}
-                    <Link href="/kurzy" className="text-brand-blue hover:underline">Vyber si →</Link>
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {progress.map((p) => (
-                      <Link key={p.slug} href={`/kurzy/${p.slug}`} className="block group">
-                        <div className="mb-1 flex items-center justify-between text-sm">
-                          <span className="font-medium text-brand-dark group-hover:text-brand-blue truncate">{p.title}</span>
-                          <span className="ml-2 shrink-0 text-xs text-gray-400">{p.done}/{p.total}</span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                          <div className="h-full rounded-full bg-brand-blue transition-all" style={{ width: `${p.pct}%` }} />
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </div>
-
-            {/* Pravý sloupec */}
-            <div className="space-y-6">
-              {/* Oblíbená videa */}
-              <div className="card p-6">
-                <div className="mb-3 flex items-center gap-2">
-                  <Heart className="h-4 w-4 fill-rose-500 text-rose-500" strokeWidth={2} />
-                  <h2 className="text-sm font-semibold text-brand-dark">
-                    Oblíbená videa{favVideos.length > 0 ? ` (${favVideos.length})` : ""}
-                  </h2>
-                </div>
-                {favVideos.length === 0 ? (
-                  <p className="text-xs text-gray-400">
-                    Zatím nic uloženého. V knihovně klikni na srdíčko u videa.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {favVideos.map((v) => (
-                      <Link
-                        key={v.slug}
-                        href={`/videoknihovna/${v.slug}`}
-                        className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm text-brand-dark hover:border-brand-blue hover:bg-brand-light/50 transition-colors"
-                      >
-                        <Heart className="h-3.5 w-3.5 shrink-0 fill-rose-500 text-rose-500" />
-                        <span className="truncate">{v.title}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Moje rezervace – měsíční kalendář */}

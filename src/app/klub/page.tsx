@@ -86,6 +86,7 @@ export default function KlubPage() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [channel, setChannel] = useState<Channel>("nastenka");
+  const [nastenkaSeen, setNastenkaSeen] = useState<number>(0);
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [reactions, setReactions] = useState<Record<string, ReactionAgg>>({});
@@ -519,6 +520,26 @@ export default function KlubPage() {
   const topicsLeft = Math.max(0, 2 - myChatThisWeek);
   const chatLimitReached = !isAdmin && channel === "chat" && topicsLeft <= 0;
 
+  // "Ťuplík" na Nástěnce – signalizuje nový vzkaz od lektora
+  const nastenkaLatest = posts
+    .filter((p) => (p.channel ?? "chat") === "nastenka")
+    .reduce((max, p) => Math.max(max, new Date(p.created_at).getTime()), 0);
+  const nastenkaUnread = nastenkaLatest > 0 && nastenkaLatest > nastenkaSeen;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = Number(localStorage.getItem("klub_nastenka_seen") || 0);
+    setNastenkaSeen(v);
+  }, []);
+
+  useEffect(() => {
+    if (channel !== "nastenka" || typeof window === "undefined") return;
+    if (nastenkaLatest > 0) {
+      localStorage.setItem("klub_nastenka_seen", String(nastenkaLatest));
+      setNastenkaSeen(nastenkaLatest);
+    }
+  }, [channel, nastenkaLatest]);
+
   return (
     <div className="min-h-screen bg-brand-light py-10">
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
@@ -527,10 +548,7 @@ export default function KlubPage() {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white shadow-sm">
             <Crown className="h-6 w-6" strokeWidth={2} />
           </span>
-          <div>
-            <h1 className="text-2xl font-semibold text-brand-dark">VIP+ Klub</h1>
-            <p className="text-sm text-gray-500">Tvoje VIP+ zázemí – všechno na jednom místě.</p>
-          </div>
+          <h1 className="text-2xl font-semibold text-brand-dark">VIP+ Klub</h1>
         </div>
 
         {/* Uvítací banner */}
@@ -580,12 +598,15 @@ export default function KlubPage() {
               key={key}
               type="button"
               onClick={() => setChannel(key)}
-              className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-semibold transition-colors ${
+              className={`relative flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs sm:text-sm font-semibold transition-colors ${
                 channel === key ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
               <span className="hidden sm:inline">{label}</span>
+              {key === "nastenka" && nastenkaUnread && (
+                <span className="absolute top-1 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              )}
             </button>
           ))}
         </div>

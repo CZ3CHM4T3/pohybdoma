@@ -33,6 +33,7 @@ export function NovinkyFeed() {
   const supabase = createClient();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasNew, setHasNew] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -78,8 +79,18 @@ export function NovinkyFeed() {
       }
 
       list.sort((a, b) => b.date - a.date);
-      setItems(list.slice(0, 5));
+      const top = list.slice(0, 5);
+      setItems(top);
       setLoading(false);
+
+      // "Ťuplík" – něco nového od poslední návštěvy
+      const newest = top[0]?.date ?? 0;
+      if (typeof window !== "undefined" && newest > 0) {
+        const seen = Number(localStorage.getItem("ucet_novinky_seen") || 0);
+        setHasNew(newest > seen);
+        // po chvíli označ za přečtené (zmizí až při příští návštěvě)
+        setTimeout(() => localStorage.setItem("ucet_novinky_seen", String(newest)), 4000);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -88,11 +99,14 @@ export function NovinkyFeed() {
 
   return (
     <div className="card p-5 mb-6">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
-          <Newspaper className="h-4 w-4" strokeWidth={2} />
+      <div className="mb-4 flex flex-col items-center text-center">
+        <span className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+          <Newspaper className="h-5 w-5" strokeWidth={2} />
+          {hasNew && (
+            <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 ring-2 ring-white" />
+          )}
         </span>
-        <h2 className="font-semibold text-brand-dark">Novinky</h2>
+        <h2 className="mt-2 text-xl font-bold text-brand-dark">Novinky</h2>
         <span className="text-xs text-gray-400">co je nového v POHYB DOMA</span>
       </div>
       <ul className="divide-y divide-gray-100">
