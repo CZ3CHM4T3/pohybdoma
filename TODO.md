@@ -78,6 +78,11 @@ Možnosti (od nejjednodušší):
 
 Doporučení: do spuštění aspoň **B** (občasný ruční export), naostro přejít na **A** nebo **C**.
 
+**STAV:** Varianta C nasazena – `.github/workflows/backup.yml` (týdenní `pg_dump`, artefakt 90 dní).
+- [ ] 🔧 V GitHubu přidat secret `SUPABASE_DB_URL` (Settings → Secrets and variables → Actions) = **Session pooler** connection string ze Supabase (IPv4).
+- [ ] 🔧 Občas stáhnout artefakt zálohy (Actions → běh → Artifacts) pro dlouhodobé uložení.
+- [ ] (Později) Záloha Storage (avatary, obrázky klubu) – pg_dump je neobsahuje.
+
 ---
 
 ## 5) 💡 NÁPADY NA FUNKCE (co může klienty nadchnout)

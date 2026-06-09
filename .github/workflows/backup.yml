@@ -1,0 +1,35 @@
+name: Záloha databáze
+
+# Spouští se každé pondělí ve 02:00 UTC + jde spustit i ručně (tlačítko "Run workflow").
+on:
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalace pg_dump (PostgreSQL client 17)
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Vytvoření zálohy
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p backup
+          STAMP=$(date +%Y-%m-%d)
+          # -Fc = komprimovaný formát (obnova přes pg_restore), bez vlastníků/práv kvůli přenositelnosti
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -Fc -f "backup/pohybdoma-$STAMP.dump"
+          ls -lh backup
+
+      - name: Uložení zálohy jako artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: backup/*.dump
+          retention-days: 90

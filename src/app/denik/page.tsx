@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LineChart, Save } from "lucide-react";
+import { LineChart, Save, Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const MONTHS_CS = [
@@ -69,6 +69,7 @@ export default function DenikPage() {
   const supabase = createClient();
   const [phase, setPhase] = useState<"loading" | "anon" | "ready">("loading");
   const [uid, setUid] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
 
   const [view, setView] = useState<Date>(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<Date>(() => new Date());
@@ -98,6 +99,9 @@ export default function DenikPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { setPhase("anon"); return; }
       setUid(data.user.id);
+      setDisplayName(
+        (data.user.user_metadata?.full_name as string | undefined) || data.user.email || ""
+      );
       setPhase("ready");
       loadMonth(data.user.id, view);
     });
@@ -186,10 +190,28 @@ export default function DenikPage() {
 
   return (
     <div className="min-h-screen bg-brand-light py-10">
+      <style>{`
+        @media screen { #denik-print { display: none; } }
+        @media print {
+          body * { visibility: hidden; }
+          #denik-print, #denik-print * { visibility: visible; }
+          #denik-print { position: absolute; left: 0; top: 0; width: 100%; padding: 16px; }
+          @page { margin: 12mm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center gap-2">
           <LineChart className="h-6 w-6 text-brand-blue" strokeWidth={2} />
           <h1 className="text-3xl lg:text-4xl font-semibold text-brand-dark">Můj deník</h1>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="ml-auto btn-outline text-sm inline-flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" /> Vytisknout měsíc
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -273,7 +295,84 @@ export default function DenikPage() {
             ))}
           </div>
         </div>
+
+        {/* Tisková sestava měsíce (vidět jen při tisku) */}
+        <PrintMonth view={view} entries={entries} displayName={displayName} />
       </div>
+    </div>
+  );
+}
+
+const printCell: React.CSSProperties = { padding: "3px 6px", border: "1px solid #e2e8f0", verticalAlign: "top" };
+
+function PrintMonth({
+  view,
+  entries,
+  displayName,
+}: {
+  view: Date;
+  entries: Record<string, Entry>;
+  displayName: string;
+}) {
+  const daysInMonth = endOfMonth(view).getDate();
+  const rows = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    return { day, e: entries[dateKey(new Date(view.getFullYear(), view.getMonth(), day))] };
+  });
+
+  return (
+    <div id="denik-print">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: "#062A6B", textTransform: "capitalize" }}>
+          Můj deník — {MONTHS_CS[view.getMonth()]} {view.getFullYear()}
+        </h1>
+        {displayName && <span style={{ fontSize: 12, color: "#666" }}>{displayName}</span>}
+      </div>
+
+      <MonthChart view={view} entries={entries} />
+
+      <div style={{ marginTop: 8, display: "flex", gap: 16, flexWrap: "wrap" }}>
+        {CURVES.map((c) => (
+          <span key={c.key} style={{ fontSize: 11, color: "#555", display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 9999, background: c.color, display: "inline-block" }} />
+            {c.label}
+          </span>
+        ))}
+      </div>
+
+      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16, fontSize: 11 }}>
+        <thead>
+          <tr style={{ background: "#062A6B", color: "#fff" }}>
+            {["Den", "Váha", "Spánek", "Energie", "Bolest", "Pohoda", "Trénink", "Poznámka"].map((h) => (
+              <th key={h} style={{ ...printCell, textAlign: "left", border: "1px solid #cbd5e1" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ day, e }) => {
+            const poh = e ? composite(e) : null;
+            const wd = WEEKDAYS_CS[(new Date(view.getFullYear(), view.getMonth(), day).getDay() + 6) % 7];
+            return (
+              <tr key={day} style={{ background: e ? "#ffffff" : "#f8fafc" }}>
+                <td style={{ ...printCell, whiteSpace: "nowrap" }}>{day}. {wd}</td>
+                <td style={printCell}>{e?.weight ?? "—"}</td>
+                <td style={printCell}>{e?.sleep ?? "—"}</td>
+                <td style={printCell}>{e?.energy ?? "—"}</td>
+                <td style={printCell}>{e?.pain ?? "—"}</td>
+                <td style={{ ...printCell, fontWeight: 600, color: poh == null ? "#9ca3af" : poh >= 66 ? "#059669" : poh >= 40 ? "#d97706" : "#e11d48" }}>
+                  {poh ?? "—"}
+                </td>
+                <td style={printCell}>{e?.training ?? ""}</td>
+                <td style={printCell}>{e?.note ?? ""}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <p style={{ marginTop: 12, fontSize: 10, color: "#9ca3af" }}>
+        Pohoda = souhrn z energie, spánku a (obrácené) bolesti. POHYB DOMA
+      </p>
     </div>
   );
 }
