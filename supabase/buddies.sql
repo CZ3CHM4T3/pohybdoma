@@ -57,26 +57,28 @@ create policy "msg send" on public.messages for insert to authenticated
 -- ── Pomocné funkce (kvůli jménům přes RLS profilů) ──────────────────────────
 create or replace function public.find_user_by_email(p_email text)
 returns table (id uuid, name text)
-language sql stable security definer set search_path = public as $$
-  select p.id, coalesce(nullif(btrim(p.full_name), ''), split_part(p.email, '@', 1), 'Člen')
-  from public.profiles p
-  where lower(p.email) = lower(btrim(p_email)) and p.id <> auth.uid()
+language sql stable security definer set search_path = public, auth as $$
+  select u.id, coalesce(nullif(btrim(p.full_name), ''), split_part(u.email, '@', 1), 'Člen')
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where lower(u.email) = lower(btrim(p_email)) and u.id <> auth.uid()
   limit 1;
 $$;
 grant execute on function public.find_user_by_email(text) to authenticated;
 
 create or replace function public.my_buddies()
 returns table (friendship_id uuid, friend_id uuid, name text, status text, direction text)
-language sql stable security definer set search_path = public as $$
+language sql stable security definer set search_path = public, auth as $$
   select
     f.id,
     case when f.requester_id = auth.uid() then f.addressee_id else f.requester_id end,
-    coalesce(nullif(btrim(p.full_name), ''), split_part(p.email, '@', 1), 'Člen'),
+    coalesce(nullif(btrim(p.full_name), ''), split_part(u.email, '@', 1), 'Člen'),
     f.status,
     case when f.requester_id = auth.uid() then 'out' else 'in' end
   from public.friendships f
-  join public.profiles p
-    on p.id = (case when f.requester_id = auth.uid() then f.addressee_id else f.requester_id end)
+  join auth.users u
+    on u.id = (case when f.requester_id = auth.uid() then f.addressee_id else f.requester_id end)
+  left join public.profiles p on p.id = u.id
   where f.requester_id = auth.uid() or f.addressee_id = auth.uid()
   order by f.created_at desc;
 $$;
