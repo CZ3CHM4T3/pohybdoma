@@ -17,6 +17,16 @@ import type { UserTier, AccessLevel } from "@/types";
 
 const ACCESS_OPTS: AccessLevel[] = ["FREE", "MEMBER", "VIP", "VIP_PLUS"];
 const DIFF_OPTS = ["začátečník", "mírně pokročilý", "pokročilý"];
+const ADMIN_TABS: { k: string; label: string }[] = [
+  { k: "videa", label: "Videa" },
+  { k: "live", label: "LIVE" },
+  { k: "vyzva", label: "Výzva" },
+  { k: "rozvrh", label: "Rozvrh" },
+  { k: "rezervace", label: "Rezervace" },
+  { k: "clenove", label: "Členové" },
+  { k: "recenze", label: "Recenze" },
+  { k: "newsletter", label: "Newsletter" },
+];
 function slugifyVideo(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 50);
@@ -101,6 +111,7 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [tab, setTab] = useState<string>("videa");
 
   // Formulář nového videa
   const [viTitle, setViTitle] = useState("");
@@ -509,7 +520,23 @@ export default function AdminPage() {
           </p>
         )}
 
-        {/* ── Videa ── */}
+        {/* Záložky */}
+        <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm sticky top-2 z-10">
+          {ADMIN_TABS.map((t) => (
+            <button
+              key={t.k}
+              type="button"
+              onClick={() => setTab(t.k)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === t.k ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "videa" && (
         <section className="card p-6 mb-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h2 className="text-lg font-semibold text-brand-dark">
@@ -593,8 +620,9 @@ export default function AdminPage() {
             </div>
           </form>
         </section>
+        )}
 
-        {/* ── Měsíční výzva ── */}
+        {tab === "vyzva" && (
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Měsíční výzva</h2>
           <p className="text-sm text-gray-500 mb-4">Krátká hravá výzva pro všechny. Zobrazí se každému v „Moje cesta".</p>
@@ -614,8 +642,9 @@ export default function AdminPage() {
             <div><button type="submit" className="btn-primary text-sm">Zveřejnit výzvu</button></div>
           </form>
         </section>
+        )}
 
-        {/* ── LIVE streamy ── */}
+        {tab === "live" && (
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1 inline-flex items-center gap-2">
             <Radio className="h-5 w-5 text-amber-600" /> LIVE streamy <span className="text-gray-400 font-normal">({streams.length})</span>
@@ -662,7 +691,10 @@ export default function AdminPage() {
             </div>
           </form>
         </section>
+        )}
 
+        {tab === "rozvrh" && (
+        <>
         {/* ── Týdenní rozvrh ── */}
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Týdenní rozvrh</h2>
@@ -846,8 +878,10 @@ export default function AdminPage() {
             <button type="submit" className="btn-primary text-sm">Přidat výjimku</button>
           </form>
         </section>
+        </>
+        )}
 
-        {/* ── Členové ── */}
+        {tab === "clenove" && (
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">
             Členové <span className="text-gray-400 font-normal">({members.length})</span>
@@ -898,8 +932,9 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+        )}
 
-        {/* ── Rezervace ── */}
+        {tab === "rezervace" && (
         <section className="card p-6">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">
             Rezervace <span className="text-gray-400 font-normal">({bookings.length})</span>
@@ -940,8 +975,9 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+        )}
 
-        {/* ── Recenze ── */}
+        {tab === "recenze" && (
         <section className="card p-6 mt-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">
             Recenze <span className="text-gray-400 font-normal">({reviews.length})</span>
@@ -1030,8 +1066,9 @@ export default function AdminPage() {
             </div>
           </form>
         </section>
+        )}
 
-        {/* ── Odběratelé newsletteru ── */}
+        {tab === "newsletter" && (
         <section className="card p-6 mt-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
             <h2 className="text-lg font-semibold text-brand-dark">
@@ -1075,6 +1112,7 @@ export default function AdminPage() {
             </div>
           )}
         </section>
+        )}
       </div>
     </div>
   );
