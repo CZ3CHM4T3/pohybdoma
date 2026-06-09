@@ -34,6 +34,9 @@ export function Reveal({
     const el = ref.current;
     if (!el) return;
 
+    // Pojistka: pokud prohlížeč IntersectionObserver nepodporuje, ukaž rovnou.
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -43,11 +46,18 @@ export function Reveal({
           setVisible(false);
         }
       },
-      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" }
+      // threshold 0 = stačí jediný pixel ve viewportu (důležité pro vysoké
+      // sekce na mobilu, které se nikdy nevejdou z 15 %), spouštíme mírně dřív
+      { threshold: 0, rootMargin: "0px 0px -40px 0px" }
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+
+    // Záchranná síť: kdyby observer z jakéhokoliv důvodu nezareagoval,
+    // po 1,2 s obsah stejně zobrazíme – nikdy nesmí zůstat neviditelný.
+    const fallback = window.setTimeout(() => setVisible(true), 1200);
+
+    return () => { observer.disconnect(); window.clearTimeout(fallback); };
   }, [once]);
 
   return (

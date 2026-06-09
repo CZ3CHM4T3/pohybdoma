@@ -19,12 +19,15 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     scroll-behavior: smooth;
+    /* zamezí vodorovnému posuvníku na úrovni dokumentu */
+    overflow-x: clip;
   }
 
   body {
     color: var(--color-brand-dark);
     background-color: #ffffff;
     /* zamezí vodorovnému posuvníku při nasouvání prvků ze stran */
+    max-width: 100%;
     overflow-x: clip;
   }
 
@@ -183,6 +186,18 @@
   opacity: 1;
   transform: none;
   filter: none;
+}
+
+/* Na mobilu odlehčíme animace: žádné rozostření ani posun do stran
+   (šetří GPU = plynulejší scroll a nehrozí přetékání do šířky). */
+@media (max-width: 640px) {
+  [data-reveal="up"],
+  [data-reveal="left"],
+  [data-reveal="right"],
+  [data-reveal="scale"] {
+    transform: translateY(24px);
+    filter: none;
+  }
 }
 
 /* ── Keyframes ── */
