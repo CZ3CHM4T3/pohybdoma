@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Radio } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -119,6 +119,15 @@ export default function AdminPage() {
   const [importing, setImporting] = useState(false);
   const togArr = (arr: string[], set: (v: string[]) => void, val: string) =>
     set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
+
+  // LIVE streamy
+  type StreamRow = { id: string; title: string; description: string | null; embed_url: string | null; recording_url: string | null; starts_at: string };
+  const [streams, setStreams] = useState<StreamRow[]>([]);
+  const [stTitle, setStTitle] = useState("");
+  const [stDesc, setStDesc] = useState("");
+  const [stWhen, setStWhen] = useState("");
+  const [stEmbed, setStEmbed] = useState("");
+  const [stRec, setStRec] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Formulář nové recenze
@@ -153,7 +162,7 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o, s, m, r, v] = await Promise.all([
+    const [w, b, e, o, s, m, r, v, st] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
@@ -162,6 +171,7 @@ export default function AdminPage() {
       supabase.from("profiles").select("id,email,full_name,tier").order("email"),
       supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("videos").select(VIDEO_COLS).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
+      supabase.from("streams").select("id, title, description, embed_url, recording_url, starts_at").order("starts_at", { ascending: false }),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
@@ -171,6 +181,7 @@ export default function AdminPage() {
     if (m.data) setMembers(m.data as Member[]);
     if (r.data) setReviews(r.data as ReviewRow[]);
     if (v.data) setVideos(v.data as VideoRow[]);
+    if (st.data) setStreams(st.data as StreamRow[]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -361,6 +372,29 @@ export default function AdminPage() {
     loadData();
   }
 
+  // ── LIVE streamy ──
+  async function addStream(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!stTitle.trim() || !stWhen) { setError("Vyplň název a datum/čas streamu."); return; }
+    const { error } = await supabase.from("streams").insert({
+      title: stTitle.trim(),
+      description: stDesc.trim(),
+      starts_at: new Date(stWhen).toISOString(),
+      embed_url: stEmbed.trim() || null,
+      recording_url: stRec.trim() || null,
+    });
+    if (error) { setError("Stream se nepodařilo uložit: " + error.message); return; }
+    setStTitle(""); setStDesc(""); setStWhen(""); setStEmbed(""); setStRec("");
+    loadData();
+  }
+  async function deleteStream(id: string) {
+    setError(null);
+    const { error } = await supabase.from("streams").delete().eq("id", id);
+    if (error) { setError("Smazání streamu selhalo: " + error.message); return; }
+    setStreams((prev) => prev.filter((x) => x.id !== id));
+  }
+
   // ── Odběratelé newsletteru ──
   async function deleteSubscriber(id: string) {
     setError(null);
@@ -531,6 +565,54 @@ export default function AdminPage() {
             </div>
             <div className="sm:col-span-2">
               <button type="submit" className="btn-primary text-sm">Přidat video</button>
+            </div>
+          </form>
+        </section>
+
+        {/* ── LIVE streamy ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1 inline-flex items-center gap-2">
+            <Radio className="h-5 w-5 text-amber-600" /> LIVE streamy <span className="text-gray-400 font-normal">({streams.length})</span>
+          </h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Naplánuj živý přenos. Odkaz z YouTube/Vimeo se vloží jako přehrávač, jiný se otevře odkazem. Záznam je pro VIP+ dostupný týden po streamu.
+          </p>
+
+          {streams.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {streams.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-brand-dark truncate">{s.title}</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(s.starts_at).toLocaleString("cs-CZ")}{s.recording_url ? " · má záznam" : ""}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => deleteStream(s.id)} className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={addStream} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AdminInput label="Název *" value={stTitle} onChange={setStTitle} placeholder="Ranní mobilita živě" required />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Datum a čas *</label>
+              <input
+                type="datetime-local"
+                value={stWhen}
+                onChange={(e) => setStWhen(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+            </div>
+            <AdminInput label="Odkaz na živý přenos" value={stEmbed} onChange={setStEmbed} placeholder="https://youtube.com/live/..." />
+            <AdminInput label="Odkaz na záznam (po skončení)" value={stRec} onChange={setStRec} placeholder="https://youtube.com/watch?v=..." />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+              <textarea value={stDesc} onChange={(e) => setStDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" className="btn-primary text-sm">Přidat stream</button>
             </div>
           </form>
         </section>

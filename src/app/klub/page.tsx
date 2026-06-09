@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
   ImagePlus, X, BarChart3, Star, Plus, Check, ThumbsUp, ThumbsDown, Flame, Laugh,
-  Frown, HeartHandshake, type LucideIcon,
+  Frown, HeartHandshake, Wand2, Radio, Users, Film, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -504,9 +504,34 @@ export default function KlubPage() {
           </span>
           <div>
             <h1 className="text-2xl font-semibold text-brand-dark">VIP+ Klub</h1>
-            <p className="text-sm text-gray-500">Naše uzavřená komunita. Piš, sdílej, ptej se.</p>
+            <p className="text-sm text-gray-500">Tvoje VIP+ zázemí – všechno na jednom místě.</p>
           </div>
         </div>
+
+        {/* Rozcestník VIP+ funkcí */}
+        <div className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { href: "/klub/mixer", label: "Mixér", Icon: Wand2, desc: "Sestav si lekci" },
+            { href: "/klub/live", label: "LIVE", Icon: Radio, desc: "Streamy + záznam" },
+            { href: "/kruhy", label: "Kruhy", Icon: Users, desc: "Komunita" },
+            { href: "/videoknihovna", label: "VIP+ videa", Icon: Film, desc: "Exkluzivní obsah" },
+          ].map(({ href, label, Icon, desc }) => (
+            <Link
+              key={href}
+              href={href}
+              className="card card-3d p-4 flex flex-col items-center justify-center gap-1.5 text-center"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Icon className="h-5 w-5" strokeWidth={2} />
+              </span>
+              <span className="text-sm font-semibold text-brand-dark">{label}</span>
+              <span className="text-[11px] text-gray-400">{desc}</span>
+            </Link>
+          ))}
+        </div>
+
+        {/* Komunitní zeď */}
+        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Komunita</p>
 
         {/* Záložky */}
         <div className="mb-5 flex gap-1 rounded-xl bg-white p-1 shadow-sm">

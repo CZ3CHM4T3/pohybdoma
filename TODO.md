@@ -13,7 +13,7 @@
 ## SQL k spuštění v Supabase (pořadí nehraje roli, ale spusť vše)
 - [ ] membership · progress · community (v1–v5) · favorites · account · journey
 - [ ] reviews · reviews_order · notifications · circles
-- [ ] bookings_extras · content · content_filters
+- [ ] bookings_extras · content · content_filters · streams
 > Tip: po každém Run zkontroluj „Success". Když něco hlásí chybu, pošli mi text.
 
 ---
@@ -56,9 +56,10 @@
 - [ ] Projít a doladit texty (Jeník, vstupní brána, FAQ členství)
 
 ## 2b) FUNKCE SLÍBENÉ V ČLENSTVÍ — dostavět před placením (ať to sedí pravdivě)
-- [ ] **Mixér** – sestav si vlastní lekci (poskládá videa za sebe podle filtrů) → VIP+
+- [x] **Mixér** – sestaví lekci z videoknihovny podle filtrů (VIP+). `/klub/mixer`. *(plynulé přehrávání za sebou až poběží reálná videa)*
 - [ ] **Měsíční výzva** → VIP a VIP+
-- [ ] **Živé streamy + záznam (týden zpětně)** → VIP+ (souvisí s Cloudflare/streamingem)
+- [x] **Živé streamy + záznam (týden zpětně)** → VIP+. `/klub/live` + správa v adminu (streams.sql). *(přidáš stream s odkazem YouTube/Vimeo; záznam dostupný týden)*
+- [x] **VIP+ Klub jako rozcestník** – dlaždice Mixér / LIVE / Kruhy / VIP+ videa
 - [ ] **VIP+ videa** jako samostatná úroveň obsahu (stačí u videí nastavit přístup VIP+)
 - [ ] 🔧 Slevy na kurzy (VIP 10 % / VIP+ 20 %) – uplatníš ručně, dokud nebude Stripe
 > Pozn.: tyto prvky už jsou napsané v kartách i v matici na /clenstvi. Web je zatím soukromý a bez plateb, takže je to OK jako „nabídka"; před spuštěním placení je dostavíme nebo označíme „připravujeme".
