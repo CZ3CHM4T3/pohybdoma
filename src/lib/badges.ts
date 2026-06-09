@@ -14,6 +14,7 @@ export type Stats = {
   brags: number;          // příspěvky v Chlubírně
   challenges: number;     // splněné výzvy
   circlesCreated: number; // založené kruhy
+  circlesJoined: number;  // členství v kruzích
   membershipDays: number; // dní členství (od tier_since)
 };
 
@@ -62,6 +63,8 @@ export const BADGES: BadgeDef[] = [
   { id: "buddy-5", name: "Síťař", sub: "5 buddies", Icon: Users, tier: "silver", cat: "Komunita", metric: "buddies", threshold: 5 },
   { id: "fav-1", name: "Sběratel oblíbených", sub: "1. uložené video", Icon: Heart, tier: "bronze", cat: "Komunita", metric: "favorites", threshold: 1 },
   { id: "fav-10", name: "Kurátor", sub: "10 oblíbených videí", Icon: Heart, tier: "silver", cat: "Komunita", metric: "favorites", threshold: 10 },
+  { id: "circle-join-1", name: "Člen kruhu", sub: "připojíš se do kruhu", Icon: Users, tier: "bronze", cat: "Komunita", metric: "circlesJoined", threshold: 1 },
+  { id: "circle-join-3", name: "Společenství", sub: "3 kruhy", Icon: Users, tier: "silver", cat: "Komunita", metric: "circlesJoined", threshold: 3 },
   { id: "circle-1", name: "Zakladatel", sub: "založíš vlastní kruh", Icon: Users, tier: "gold", cat: "Komunita", metric: "circlesCreated", threshold: 1 },
   { id: "nebojsa", name: "Nebojsa", sub: "1. rezervace osobního tréninku", Icon: CalendarCheck, tier: "silver", cat: "Komunita", manual: true },
 
@@ -87,4 +90,18 @@ export const TIER_ICON: Record<BadgeTier, string> = {
 export function isEarned(b: BadgeDef, s: Stats): boolean {
   if (b.manual || !b.metric || b.threshold == null) return false;
   return s[b.metric] >= b.threshold;
+}
+
+/** Unikátní barva odznaku odvozená z jeho id (každý odznak vypadá jinak). */
+export function badgeHue(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
+  return h;
+}
+export function badgeGradient(id: string): string {
+  const h = badgeHue(id);
+  return `linear-gradient(135deg, hsl(${h} 85% 58%), hsl(${(h + 38) % 360} 85% 42%))`;
+}
+export function badgeIconColor(id: string): string {
+  return `hsl(${badgeHue(id)} 70% 38%)`;
 }

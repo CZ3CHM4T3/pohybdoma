@@ -6,7 +6,7 @@ import { PartyPopper, Lock, Send, ImagePlus, X, Trash2, Hand } from "lucide-reac
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { BadgePins } from "@/components/BadgePins";
+import { AuthorName } from "@/components/AuthorName";
 
 type Brag = { id: string; author_id: string; author_name: string | null; body: string; image_url: string | null; created_at: string };
 
@@ -187,8 +187,7 @@ export default function ChlubirnaPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm">
-                      <span className="font-semibold text-brand-dark">{b.author_name ?? "Člen"}</span>
-                      <BadgePins ids={pins[b.author_id]} />{" "}
+                      <AuthorName id={b.author_id} name={b.author_name} pins={pins[b.author_id]} />{" "}
                       <span className="text-xs text-gray-400">{new Date(b.created_at).toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })}</span>
                     </p>
                     {b.body && <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{b.body}</p>}

@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Users, ArrowLeft, MessagesSquare, Send, ImagePlus, X, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeTier } from "@/lib/tiers";
+import { AuthorName } from "@/components/AuthorName";
 import type { UserTier } from "@/types";
 
 type Circle = { id: string; slug: string; name: string; description: string | null; member_count: number };
@@ -26,6 +27,7 @@ export default function CircleDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [posts, setPosts] = useState<CPost[]>([]);
+  const [pins, setPins] = useState<Record<string, string[]>>({});
   const [pBody, setPBody] = useState("");
   const [pFile, setPFile] = useState<File | null>(null);
   const [pPreview, setPPreview] = useState<string | null>(null);
@@ -45,7 +47,15 @@ export default function CircleDetailPage() {
       .select("id, author_id, author_name, body, image_url, created_at")
       .eq("circle_id", circleId)
       .order("created_at", { ascending: false });
-    setPosts((data ?? []) as CPost[]);
+    const list = (data ?? []) as CPost[];
+    setPosts(list);
+    const ids = Array.from(new Set(list.map((p) => p.author_id)));
+    if (ids.length) {
+      const { data: pinData } = await supabase.rpc("pinned_for", { p_ids: ids });
+      const map: Record<string, string[]> = {};
+      for (const r of (pinData ?? []) as { id: string; pinned_badges: string[] }[]) map[r.id] = r.pinned_badges ?? [];
+      setPins(map);
+    }
   }
 
   useEffect(() => {
@@ -254,7 +264,7 @@ export default function CircleDetailPage() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm">
-                          <span className="font-semibold text-brand-dark">{p.author_name ?? "Člen"}</span>{" "}
+                          <AuthorName id={p.author_id} name={p.author_name} pins={pins[p.author_id]} />{" "}
                           <span className="text-xs text-gray-400">
                             {new Date(p.created_at).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </span>

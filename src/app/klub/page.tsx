@@ -10,6 +10,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+import { BadgePins } from "@/components/BadgePins";
 
 const TABS: { key: Channel; label: string; Icon: LucideIcon }[] = [
   { key: "chat", label: "Chat", Icon: MessageCircle },
@@ -107,6 +108,7 @@ export default function KlubPage() {
   const [error, setError] = useState<string | null>(null);
 
   const uidRef = useRef<string | null>(null);
+  const [pins, setPins] = useState<Record<string, string[]>>({});
 
   const loadAll = useCallback(async () => {
     const uid = uidRef.current;
@@ -159,6 +161,16 @@ export default function KlubPage() {
         if (row.user_id === uid) agg.mine.add(row.emoji);
       }
       setReactions(map);
+    }
+    // přišpendlené odznaky autorů (posty + komentáře)
+    const ids = new Set<string>();
+    for (const x of (p.data ?? []) as unknown as Post[]) ids.add(x.author_id);
+    for (const x of (c.data ?? []) as unknown as Comment[]) ids.add(x.author_id);
+    if (ids.size) {
+      const { data: pinData } = await supabase.rpc("pinned_for", { p_ids: Array.from(ids) });
+      const pmap: Record<string, string[]> = {};
+      for (const rr of (pinData ?? []) as { id: string; pinned_badges: string[] }[]) pmap[rr.id] = rr.pinned_badges ?? [];
+      setPins(pmap);
     }
   }, [supabase]);
 
@@ -349,7 +361,8 @@ export default function KlubPage() {
           cHonza ? "bg-brand-dark text-white" : mine ? "bg-brand-light" : "bg-gray-50"
         }`}>
           <p className={`text-xs font-semibold flex items-center gap-1.5 ${cHonza ? "text-white/90" : "text-brand-dark"}`}>
-            {nameOf(c.author_name)}
+            <Link href={`/profil/${c.author_id}`} className="hover:underline">{nameOf(c.author_name)}</Link>
+            <BadgePins ids={pins[c.author_id]} />
             {cHonza ? (
               <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>
             ) : mine ? (
@@ -732,7 +745,8 @@ export default function KlubPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-brand-dark flex items-center gap-1.5">
-                        {nameOf(post.author_name)}
+                        <Link href={`/profil/${post.author_id}`} className="hover:underline">{nameOf(post.author_name)}</Link>
+                        <BadgePins ids={pins[post.author_id]} />
                         {honza ? (
                           <span className="rounded-full bg-brand-dark px-1.5 py-0.5 text-[10px] font-bold text-white">LEKTOR</span>
                         ) : (

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Users, X, Send, Check, UserPlus, MessageSquare, ArrowLeft, Trash2, Smile, ImagePlus, Ban, Search } from "lucide-react";
+import { BadgePins } from "@/components/BadgePins";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
@@ -21,6 +23,7 @@ export function BuddiesWidget() {
   const [buddies, setBuddies] = useState<Buddy[]>([]);
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
   const [unread, setUnread] = useState<Record<string, number>>({});
+  const [pins, setPins] = useState<Record<string, string[]>>({});
   const [listQuery, setListQuery] = useState("");
   const [email, setEmail] = useState("");
   const [info, setInfo] = useState<string | null>(null);
@@ -58,7 +61,15 @@ export function BuddiesWidget() {
 
   async function loadBuddies() {
     const { data } = await supabase.rpc("my_buddies");
-    setBuddies((data ?? []) as Buddy[]);
+    const list = (data ?? []) as Buddy[];
+    setBuddies(list);
+    const ids = list.filter((b) => b.status === "accepted").map((b) => b.friend_id);
+    if (ids.length) {
+      const { data: pd } = await supabase.rpc("pinned_for", { p_ids: ids });
+      const m: Record<string, string[]> = {};
+      for (const r of (pd ?? []) as { id: string; pinned_badges: string[] }[]) m[r.id] = r.pinned_badges ?? [];
+      setPins(m);
+    }
   }
   async function loadUnread() {
     const { data } = await supabase.rpc("unread_by_buddy");
@@ -250,7 +261,7 @@ export function BuddiesWidget() {
                   {onlineIds.has(chat.id) && <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-brand-dark bg-emerald-400" />}
                 </span>
                 <div className="flex-1 leading-tight">
-                  <p className="text-sm font-semibold">{chat.name}</p>
+                  <Link href={`/profil/${chat.id}`} className="text-sm font-semibold hover:underline">{chat.name}</Link>
                   <p className="text-[11px] text-white/60">{typingFrom === chat.id ? "píše…" : onlineIds.has(chat.id) ? "online" : "offline"}</p>
                 </div>
                 <button onClick={blockBuddy} aria-label="Blokovat" title="Blokovat" className="text-white/60 hover:text-red-300"><Ban className="h-4 w-4" /></button>
@@ -346,8 +357,11 @@ export function BuddiesWidget() {
                             {online && <span className="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-400" />}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium text-brand-dark">{b.name}</span>
-                            <span className={`text-[11px] ${typingFrom === b.friend_id ? "text-brand-blue" : online ? "text-emerald-600" : "text-gray-400"}`}>
+                            <span className="flex items-center gap-0.5">
+                              <span className="truncate text-sm font-medium text-brand-dark">{b.name}</span>
+                              <BadgePins ids={pins[b.friend_id]} size={14} />
+                            </span>
+                            <span className={`block text-[11px] ${typingFrom === b.friend_id ? "text-brand-blue" : online ? "text-emerald-600" : "text-gray-400"}`}>
                               {typingFrom === b.friend_id ? "píše…" : online ? "online" : "offline"}
                             </span>
                           </span>

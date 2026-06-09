@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trophy, Lock, Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { BADGES, BADGE_MAP, TIER_RING, TIER_ICON, isEarned, type Stats, type BadgeDef } from "@/lib/badges";
+import { BADGES, isEarned, badgeGradient, badgeIconColor, type Stats, type BadgeDef } from "@/lib/badges";
 import { BadgePins } from "@/components/BadgePins";
 
-const EMPTY: Stats = { lessons: 0, diary: 0, favorites: 0, buddies: 0, brags: 0, challenges: 0, circlesCreated: 0, membershipDays: 0 };
+const EMPTY: Stats = { lessons: 0, diary: 0, favorites: 0, buddies: 0, brags: 0, challenges: 0, circlesCreated: 0, circlesJoined: 0, membershipDays: 0 };
 const CATS = ["Pohyb", "Návyk", "Komunita", "Věrnost"];
 
 export default function SinSlavyPage() {
@@ -28,7 +28,7 @@ export default function SinSlavyPage() {
       setName((prof?.full_name as string) || (user.user_metadata?.full_name as string) || user.email || "");
       setPinned(((prof?.pinned_badges as string[]) ?? []));
 
-      const [lp, dia, fav, chd, br, cir, bud] = await Promise.all([
+      const [lp, dia, fav, chd, br, cir, bud, cjoin] = await Promise.all([
         supabase.from("lesson_progress").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true),
         supabase.from("diary_entries").select("*", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("video_favorites").select("*", { count: "exact", head: true }).eq("user_id", user.id),
@@ -36,6 +36,7 @@ export default function SinSlavyPage() {
         supabase.from("brags").select("*", { count: "exact", head: true }).eq("author_id", user.id),
         supabase.from("circles").select("*", { count: "exact", head: true }).eq("created_by", user.id),
         supabase.rpc("my_buddies"),
+        supabase.from("circle_members").select("*", { count: "exact", head: true }).eq("user_id", user.id),
       ]);
       const buddies =((bud.data ?? []) as { status: string }[]).filter((b) => b.status === "accepted").length;
       const membershipDays = prof?.tier_since
@@ -48,6 +49,7 @@ export default function SinSlavyPage() {
         challenges: chd.count ?? 0,
         brags: br.count ?? 0,
         circlesCreated: cir.count ?? 0,
+        circlesJoined: cjoin.count ?? 0,
         buddies,
         membershipDays,
       });
@@ -136,9 +138,12 @@ function BadgeTile({ b, stats, pinned, canPin, onPin }: { b: BadgeDef; stats: St
   return (
     <div className={`card p-5 text-center ${earned ? "" : "opacity-95"}`}>
       <div className="relative mx-auto mb-3 h-20 w-20">
-        <div className={`h-full w-full rounded-full bg-gradient-to-br p-[3px] shadow-md ${earned ? TIER_RING[b.tier] : "from-gray-200 to-gray-300"}`}>
+        <div
+          className={`h-full w-full rounded-full p-[3px] shadow-md ${earned ? "" : "bg-gradient-to-br from-gray-200 to-gray-300"}`}
+          style={earned ? { background: badgeGradient(b.id) } : undefined}
+        >
           <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-            <Icon className={`h-9 w-9 ${earned ? TIER_ICON[b.tier] : "text-gray-300"}`} strokeWidth={1.8} />
+            <Icon className="h-9 w-9" strokeWidth={1.8} style={{ color: earned ? badgeIconColor(b.id) : "#d1d5db" }} />
           </div>
         </div>
         {!earned && (

@@ -19,3 +19,17 @@ language sql stable security definer set search_path = public as $$
   select p.id, coalesce(p.pinned_badges, '{}') from public.profiles p where p.id = any(p_ids);
 $$;
 grant execute on function public.pinned_for(uuid[]) to authenticated;
+
+-- Veřejný (sledující) profil: jen jméno, úroveň a přišpendlené odznaky
+create or replace function public.public_profile(p_id uuid)
+returns table (id uuid, name text, tier text, pinned_badges text[])
+language sql stable security definer set search_path = public, auth as $$
+  select u.id,
+    coalesce(nullif(btrim(p.full_name), ''), split_part(u.email, '@', 1), 'Člen'),
+    coalesce(p.tier, 'free'),
+    coalesce(p.pinned_badges, '{}')
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = p_id;
+$$;
+grant execute on function public.public_profile(uuid) to authenticated;

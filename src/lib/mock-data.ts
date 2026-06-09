@@ -34,6 +34,8 @@ export const SERVICE_AREA: string[] = [
   "Radotín",
   "Lipence",
   "Zbraslav",
+  "Svinaře",
+  "Nesvačily",
 ];
 
 /** Je daná obec ve spádové oblasti? (case-insensitive, bez ohledu na diakritiku okolo) */
