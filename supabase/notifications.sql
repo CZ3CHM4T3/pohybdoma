@@ -73,11 +73,16 @@ begin
         'to', rec.email,
         'subject', subj,
         'html',
-          '<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B">' ||
-          '<h2 style="color:#062A6B">' || (case when is_lektor then 'Lektor ti odpověděl 🥇' else 'Nová reakce v klubu' end) || '</h2>' ||
-          '<p style="color:#444">' || who || ' napsal(a) v klubu.</p>' ||
-          '<p><a href="https://pohybdoma.cz/klub" style="background:#1976FF;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:bold">Otevřít diskuzi</a></p>' ||
-          '<p style="color:#999;font-size:12px;margin-top:24px">POHYB DOMA · VIP+ Klub</p></div>'
+          '<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B;max-width:520px">' ||
+          '<h2 style="color:#062A6B;margin:0 0 8px">Ahoj!</h2>' ||
+          '<p style="color:#444;margin:0 0 14px">' ||
+            (case when is_lektor then 'Lektor ti právě odpověděl ve VIP+ Klubu.'
+                  else who || ' reagoval(a) na tvůj příspěvek ve VIP+ Klubu.' end) ||
+          '</p>' ||
+          '<p style="margin:0 0 22px"><a href="https://pohybdoma.cz/klub" style="background:#1976FF;color:#fff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:bold">Otevřít diskuzi</a></p>' ||
+          '<p style="color:#444;margin:0 0 2px">Díky, že jsi součástí komunity. 🙌</p>' ||
+          '<p style="color:#062A6B;font-weight:bold;margin:0">Honza · POHYB DOMA</p>' ||
+          '<p style="color:#999;font-size:12px;margin-top:18px">Tento e-mail ti přišel, protože ti někdo odpověděl v klubu.</p></div>'
       )
     );
   end loop;
