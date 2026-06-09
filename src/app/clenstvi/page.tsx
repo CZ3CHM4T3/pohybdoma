@@ -42,8 +42,35 @@ export default function ClenstviPage() {
 
       {/* Plans */}
       <section className="bg-white py-12 lg:py-20">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+            {/* FREE karta */}
+            <div className={`card-3d relative rounded-2xl overflow-hidden ${TIER_STYLES.FREE.card}`}>
+              <div className="p-7">
+                <h2 className={`text-xl font-semibold tracking-wide ${TIER_STYLES.FREE.accentText}`}>FREE</h2>
+                <p className="text-sm text-gray-500 mb-3">Na vyzkoušení</p>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-4xl font-semibold text-brand-dark">0</span>
+                  <span className="text-sm text-gray-400">Kč / měsíc</span>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {["Ukázková videa zdarma", "Základní přístup k webu", "Bez registrace, bez závazků"].map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-sm">
+                      <Check className={`mt-0.5 h-4 w-4 shrink-0 ${TIER_STYLES.FREE.accentText}`} strokeWidth={2.5} />
+                      <span className="text-gray-600">{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/videoknihovna"
+                  className={`block w-full text-center rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 ${TIER_STYLES.FREE.solid}`}
+                >
+                  Procházet zdarma
+                </Link>
+                <p className="mt-3 text-xs text-center text-gray-400">Žádná platba potřeba.</p>
+              </div>
+            </div>
+
             {MOCK_MEMBERSHIP_PLANS.map((plan) => {
               const t = TIER_STYLES[plan.tier];
               const isHighlighted = plan.highlighted;
@@ -179,7 +206,7 @@ export default function ClenstviPage() {
                 { q: "Mohu zrušit kdykoliv?", a: "Ano. Zrušení je na 2 kliknutí, bez poplatků. Přístup trvá do konce zaplaceného období." },
                 { q: "Jak fungují platby?", a: "Platby probíhají měsíčně přes platební bránu. Napojení bude brzy." },
                 { q: "Co dostanu v MEMBER plánu?", a: "Přístup k video-knihovně s tematickými filtry – videa třídění dle části těla, obtížnosti a problému." },
-                { q: "Jaký je rozdíl VIP a VIP+?", a: "VIP+ přidává chat kanál přímo se mnou a vyšší slevy (15 %) na workshopy, kurzy i online skupinové tréninky." },
+                { q: "Jaký je rozdíl VIP a VIP+?", a: "VIP+ přidává VIP+ Klub (Q&A přímo se mnou), Mixér na sestavení vlastní lekce, živé streamy se záznamem, zakládání kruhů a vyšší slevu na kurzy (20 % vs. 10 %)." },
               ].map((item) => (
                 <div key={item.q} className="card p-5">
                   <h3 className="font-semibold text-brand-dark text-sm mb-2">{item.q}</h3>

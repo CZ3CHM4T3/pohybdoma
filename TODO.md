@@ -55,6 +55,14 @@
 - [ ] Doplnit kontraindikace ke kurzům (záda/koleno/pánev)
 - [ ] Projít a doladit texty (Jeník, vstupní brána, FAQ členství)
 
+## 2b) FUNKCE SLÍBENÉ V ČLENSTVÍ — dostavět před placením (ať to sedí pravdivě)
+- [ ] **Mixér** – sestav si vlastní lekci (poskládá videa za sebe podle filtrů) → VIP+
+- [ ] **Měsíční výzva** → VIP a VIP+
+- [ ] **Živé streamy + záznam (týden zpětně)** → VIP+ (souvisí s Cloudflare/streamingem)
+- [ ] **VIP+ videa** jako samostatná úroveň obsahu (stačí u videí nastavit přístup VIP+)
+- [ ] 🔧 Slevy na kurzy (VIP 10 % / VIP+ 20 %) – uplatníš ručně, dokud nebude Stripe
+> Pozn.: tyto prvky už jsou napsané v kartách i v matici na /clenstvi. Web je zatím soukromý a bez plateb, takže je to OK jako „nabídka"; před spuštěním placení je dostavíme nebo označíme „připravujeme".
+
 ## 3) PŘED SPUŠTĚNÍM
 - [ ] 🔧 **Cloudflare Stream** – účet, nahrát videa, doplnit UID, zapojit přehrávač + podepsané odkazy (zámek dle členství)
 - [ ] 🔧 **Stripe + Fakturoid** – platby členství + faktury (neplátce DPH, vlastní číselné řady)
