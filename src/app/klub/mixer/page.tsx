@@ -2,8 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Wand2, Lock, Shuffle, Clock, ArrowLeft, PlayCircle } from "lucide-react";
+import { Wand2, Lock, Shuffle, Clock, ArrowLeft, PlayCircle, GripVertical, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+
+type StreamPlayer = { addEventListener: (e: string, cb: () => void) => void; removeEventListener: (e: string, cb: () => void) => void };
+type StreamFn = (el: Element) => StreamPlayer;
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
@@ -30,6 +33,10 @@ export default function MixerPage() {
   const [difficulty, setDifficulty] = useState<string>("");
   const [target, setTarget] = useState<number>(1200);
   const [lesson, setLesson] = useState<Video[] | null>(null);
+
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [cur, setCur] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -61,6 +68,45 @@ export default function MixerPage() {
     });
   }, [videos, body, system, goal, difficulty]);
 
+  // Automatické přehrávání za sebou (reálná videa přes Cloudflare Stream)
+  useEffect(() => {
+    if (!playing || !lesson) return;
+    const v = lesson[cur];
+    if (!v?.providerId) return; // bez reálného videa řešíme tlačítkem „Další"
+    let cleanup = () => {};
+    const bind = () => {
+      const w = window as unknown as { Stream?: StreamFn };
+      const iframe = document.getElementById("mixer-iframe");
+      if (!w.Stream || !iframe) return;
+      const player = w.Stream(iframe);
+      const onEnded = () => setCur((c) => (lesson && c + 1 < lesson.length ? c + 1 : c));
+      player.addEventListener("ended", onEnded);
+      cleanup = () => player.removeEventListener("ended", onEnded);
+    };
+    const id = "cf-stream-sdk";
+    const existing = document.getElementById(id) as HTMLScriptElement | null;
+    if ((window as unknown as { Stream?: StreamFn }).Stream) bind();
+    else if (!existing) {
+      const s = document.createElement("script");
+      s.id = id;
+      s.src = "https://embed.cloudflarestream.com/embed/sdk.latest.js";
+      s.onload = bind;
+      document.body.appendChild(s);
+    } else {
+      existing.addEventListener("load", bind);
+    }
+    return () => cleanup();
+  }, [playing, cur, lesson]);
+
+  function dropAt(targetIdx: number) {
+    if (dragIdx === null || dragIdx === targetIdx || !lesson) { setDragIdx(null); return; }
+    const arr = [...lesson];
+    const [moved] = arr.splice(dragIdx, 1);
+    arr.splice(targetIdx, 0, moved);
+    setLesson(arr);
+    setDragIdx(null);
+  }
+
   function toggle(set: Set<string>, setter: (s: Set<string>) => void, val: string) {
     const n = new Set(set);
     if (n.has(val)) n.delete(val); else n.add(val);
@@ -83,6 +129,8 @@ export default function MixerPage() {
       if (target !== Infinity && total >= target) break;
     }
     setLesson(out);
+    setPlaying(false);
+    setCur(0);
   }
 
   if (phase === "loading") return <Centered><p className="text-gray-400">Načítám…</p></Centered>;
@@ -162,10 +210,10 @@ export default function MixerPage() {
           </div>
         </div>
 
-        {/* Výsledná lekce */}
+        {/* Výsledná lekce (fronta) */}
         {lesson && (
           <div className="card p-6 mt-6">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-brand-dark">Tvoje lekce</h2>
               <span className="inline-flex items-center gap-1 text-xs text-gray-500">
                 <Clock className="h-3.5 w-3.5" /> {formatDuration(totalSec)} · {lesson.length} cviků
@@ -176,28 +224,70 @@ export default function MixerPage() {
               <p className="text-sm text-gray-500">Tomuhle výběru nic neodpovídá. Zkus ubrat nějaký filtr. 🙂</p>
             ) : (
               <>
+                <p className="mb-2 text-xs text-gray-400">Pořadí změníš přetažením za úchyt ⋮⋮ . Pak klikni JDEME NA TO.</p>
                 <ol className="space-y-2">
                   {lesson.map((v, i) => (
-                    <li key={v.id}>
-                      <Link
-                        href={`/videoknihovna/${v.slug}`}
-                        className="flex items-center gap-3 rounded-lg border border-gray-100 p-3 hover:border-brand-blue hover:bg-brand-light/40 transition-colors"
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white">{i + 1}</span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-brand-dark">{v.title}</span>
-                          <span className="text-xs text-gray-400">{formatDuration(v.durationSeconds || 0)}</span>
-                        </span>
-                        <PlayCircle className="h-5 w-5 shrink-0 text-brand-blue" />
-                      </Link>
+                    <li
+                      key={v.id}
+                      draggable
+                      onDragStart={() => setDragIdx(i)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={() => dropAt(i)}
+                      onDragEnd={() => setDragIdx(null)}
+                      className={`flex items-center gap-3 rounded-lg border p-3 ${dragIdx === i ? "border-brand-blue bg-brand-light/40" : "border-gray-100"}`}
+                    >
+                      <span className="cursor-grab active:cursor-grabbing text-gray-300" title="Přetáhni"><GripVertical className="h-4 w-4" /></span>
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white">{i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-brand-dark">{v.title}</span>
+                        <span className="text-xs text-gray-400">{formatDuration(v.durationSeconds || 0)}</span>
+                      </span>
+                      <button type="button" onClick={() => { setCur(i); setPlaying(true); }} className="shrink-0 text-brand-blue" aria-label="Přehrát od tohoto">
+                        <PlayCircle className="h-5 w-5" />
+                      </button>
                     </li>
                   ))}
                 </ol>
-                <p className="mt-3 text-[11px] text-gray-400">
-                  Klikni na cvik a pusť ho. Plynulé přehrávání celé lekce za sebou přibude, až poběží reálná videa.
-                </p>
+                <button onClick={() => { setCur(0); setPlaying(true); }} className="btn-primary mt-4 inline-flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5" /> JDEME NA TO
+                </button>
               </>
             )}
+          </div>
+        )}
+
+        {/* Přehrávač fronty */}
+        {playing && lesson && lesson.length > 0 && (
+          <div className="card p-6 mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-brand-dark">Přehrávám {cur + 1}/{lesson.length}</h2>
+              <button onClick={() => setPlaying(false)} aria-label="Zavřít" className="text-gray-400 hover:text-brand-dark"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+              {lesson[cur].providerId ? (
+                <iframe
+                  id="mixer-iframe"
+                  key={lesson[cur].id}
+                  src={`https://iframe.cloudflarestream.com/${lesson[cur].providerId}?autoplay=true`}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center p-6 text-center text-white/70">
+                  <div>
+                    <PlayCircle className="mx-auto mb-2 h-10 w-10" />
+                    <p className="text-sm">„{lesson[cur].title}" – reálné video bude brzy. Klikni „Další →".</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-sm font-medium text-brand-dark">{lesson[cur].title}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0} className="btn-outline text-sm disabled:opacity-40">← Předchozí</button>
+              <button onClick={() => setCur((c) => Math.min(lesson.length - 1, c + 1))} disabled={cur >= lesson.length - 1} className="btn-primary text-sm disabled:opacity-40">Další →</button>
+              <span className="text-xs text-gray-400">Reálná videa se přehrají sama za sebou.</span>
+            </div>
           </div>
         )}
       </div>

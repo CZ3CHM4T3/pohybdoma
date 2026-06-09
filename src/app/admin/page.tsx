@@ -128,6 +128,12 @@ export default function AdminPage() {
   const [stWhen, setStWhen] = useState("");
   const [stEmbed, setStEmbed] = useState("");
   const [stRec, setStRec] = useState("");
+
+  // Měsíční výzva
+  type ChallengeRow = { id: string; title: string; body: string | null };
+  const [challenge, setChallenge] = useState<ChallengeRow | null>(null);
+  const [chTitle, setChTitle] = useState("");
+  const [chBody, setChBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Formulář nové recenze
@@ -162,7 +168,7 @@ export default function AdminPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    const [w, b, e, o, s, m, r, v, st] = await Promise.all([
+    const [w, b, e, o, s, m, r, v, st, ch] = await Promise.all([
       supabase.from("availability_weekly").select("weekday,time,is_free"),
       supabase.from("bookings").select("*").order("date").order("time"),
       supabase.from("events").select("*").order("date"),
@@ -172,6 +178,7 @@ export default function AdminPage() {
       supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("videos").select(VIDEO_COLS).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("streams").select("id, title, description, embed_url, recording_url, starts_at").order("starts_at", { ascending: false }),
+      supabase.from("challenges").select("id, title, body").eq("active", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (w.data) setWeekly(w.data as WeeklyRow[]);
     if (b.data) setBookings(b.data as Booking[]);
@@ -182,6 +189,7 @@ export default function AdminPage() {
     if (r.data) setReviews(r.data as ReviewRow[]);
     if (v.data) setVideos(v.data as VideoRow[]);
     if (st.data) setStreams(st.data as StreamRow[]);
+    setChallenge((ch.data as ChallengeRow | null) ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -395,6 +403,23 @@ export default function AdminPage() {
     setStreams((prev) => prev.filter((x) => x.id !== id));
   }
 
+  // ── Měsíční výzva ──
+  async function publishChallenge(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!chTitle.trim()) { setError("Vyplň název výzvy."); return; }
+    await supabase.from("challenges").update({ active: false }).eq("active", true);
+    const { error } = await supabase.from("challenges").insert({ title: chTitle.trim(), body: chBody.trim(), active: true });
+    if (error) { setError("Výzvu se nepodařilo uložit: " + error.message); return; }
+    setChTitle(""); setChBody("");
+    loadData();
+  }
+  async function clearChallenge() {
+    setError(null);
+    await supabase.from("challenges").update({ active: false }).eq("active", true);
+    setChallenge(null);
+  }
+
   // ── Odběratelé newsletteru ──
   async function deleteSubscriber(id: string) {
     setError(null);
@@ -566,6 +591,27 @@ export default function AdminPage() {
             <div className="sm:col-span-2">
               <button type="submit" className="btn-primary text-sm">Přidat video</button>
             </div>
+          </form>
+        </section>
+
+        {/* ── Měsíční výzva ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Měsíční výzva</h2>
+          <p className="text-sm text-gray-500 mb-4">Krátká hravá výzva pro všechny. Zobrazí se každému v „Moje cesta".</p>
+          {challenge && (
+            <div className="mb-4 rounded-lg border border-amber-100 bg-amber-50 p-3">
+              <p className="text-sm font-semibold text-brand-dark">Aktuální: {challenge.title}</p>
+              {challenge.body && <p className="text-xs text-gray-600 mt-0.5">{challenge.body}</p>}
+              <button type="button" onClick={clearChallenge} className="mt-2 text-xs font-semibold text-red-500 hover:text-red-700">Ukončit výzvu</button>
+            </div>
+          )}
+          <form onSubmit={publishChallenge} className="grid grid-cols-1 gap-3">
+            <AdminInput label="Název výzvy *" value={chTitle} onChange={setChTitle} placeholder="Týden bez výmluv 💪" required />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+              <textarea value={chBody} onChange={(e) => setChBody(e.target.value)} rows={2} placeholder="Každý den 5 minut pohybu. Stačí málo, hlavně pravidelně!" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            </div>
+            <div><button type="submit" className="btn-primary text-sm">Zveřejnit výzvu</button></div>
           </form>
         </section>
 

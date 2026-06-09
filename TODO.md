@@ -13,7 +13,7 @@
 ## SQL k spuštění v Supabase (pořadí nehraje roli, ale spusť vše)
 - [ ] membership · progress · community (v1–v5) · favorites · account · journey
 - [ ] reviews · reviews_order · notifications · circles
-- [ ] bookings_extras · content · content_filters · streams
+- [ ] bookings_extras · content · content_filters · streams · circle_posts · challenges
 > Tip: po každém Run zkontroluj „Success". Když něco hlásí chybu, pošli mi text.
 
 ---
@@ -56,8 +56,10 @@
 - [ ] Projít a doladit texty (Jeník, vstupní brána, FAQ členství)
 
 ## 2b) FUNKCE SLÍBENÉ V ČLENSTVÍ — dostavět před placením (ať to sedí pravdivě)
-- [x] **Mixér** – sestaví lekci z videoknihovny podle filtrů (VIP+). `/klub/mixer`. *(plynulé přehrávání za sebou až poběží reálná videa)*
-- [ ] **Měsíční výzva** → VIP a VIP+
+- [x] **Mixér** – fronta lekce z videoknihovny (VIP+), přetahování pořadí + „JDEME NA TO" + automatické přehrávání za sebou (Cloudflare Stream `ended`). `/klub/mixer`
+- [x] **Měsíční výzva** – pro VŠECHNY, krátká/hravá. Karta v „Moje cesta" + správa v adminu (challenges.sql). „Beru výzvu/Splněno" + počítadlo.
+- [x] **Chytré filtry knihovny** = od VIP (MEMBER už je nemá; FREE/MEMBER vidí jen vyhledávání + upsell)
+- [x] **Diskuse v kruzích** – chat + obrázky pro členy kruhu (circle_posts.sql)
 - [x] **Živé streamy + záznam (týden zpětně)** → VIP+. `/klub/live` + správa v adminu (streams.sql). *(přidáš stream s odkazem YouTube/Vimeo; záznam dostupný týden)*
 - [x] **VIP+ Klub jako rozcestník** – dlaždice Mixér / LIVE / Kruhy / VIP+ videa
 - [ ] **VIP+ videa** jako samostatná úroveň obsahu (stačí u videí nastavit přístup VIP+)

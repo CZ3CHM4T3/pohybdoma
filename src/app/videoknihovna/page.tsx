@@ -7,6 +7,7 @@ import type { UserTier, AccessLevel, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
+import { canAccess } from "@/lib/access";
 import {
   FILTER_DIFFICULTIES, FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
 } from "@/lib/filters";
@@ -48,6 +49,7 @@ export default function VideoknihovnaPage() {
   const [sel, setSel] = useState<Record<string, Set<string>>>(() =>
     Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()]))
   );
+  const canFilter = canAccess(userTier, "VIP"); // chytré filtry jsou od VIP
 
   useEffect(() => {
     const supabase = createClient();
@@ -131,17 +133,32 @@ export default function VideoknihovnaPage() {
           >
             ✨ Novinky
           </button>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="lg:hidden inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-dark"
-          >
-            <SlidersHorizontal className="h-4 w-4" /> Filtry{activeCount > 0 ? ` (${activeCount})` : ""}
-          </button>
+          {canFilter && (
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="lg:hidden inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-dark"
+            >
+              <SlidersHorizontal className="h-4 w-4" /> Filtry{activeCount > 0 ? ` (${activeCount})` : ""}
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8">
-          {/* Sidebar filtrů */}
+          {/* Sidebar filtrů (chytré filtry = od VIP) */}
+          {!canFilter ? (
+            <aside className="hidden lg:block">
+              <div className="card p-5 lg:sticky lg:top-24 text-center">
+                <SlidersHorizontal className="mx-auto mb-2 h-7 w-7 text-brand-blue" strokeWidth={1.8} />
+                <h2 className="text-sm font-semibold text-brand-dark">Chytré filtry</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Třídění podle části těla, systému, délky i toho, co máš doma, odemkne <strong>VIP</strong>.
+                </p>
+                <Link href="/clenstvi" className="btn-primary mt-3 inline-flex text-xs">Zobrazit členství</Link>
+                <p className="mt-3 text-[11px] text-gray-400">Vyhledávání nahoře funguje i bez VIP.</p>
+              </div>
+            </aside>
+          ) : (
           <aside className={`${open ? "block" : "hidden"} lg:block`}>
             <div className="card p-5 lg:sticky lg:top-24 space-y-5">
               <div className="flex items-center justify-between">
@@ -178,6 +195,7 @@ export default function VideoknihovnaPage() {
               ))}
             </div>
           </aside>
+          )}
 
           {/* Výsledky */}
           <div>

@@ -14,6 +14,7 @@ import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { canAccess } from "@/lib/access";
 import { MOCK_COURSES, MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
+import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -382,6 +383,9 @@ export default function UcetPage() {
               )}
             </div>
           </div>
+
+          {/* Měsíční výzva (pro všechny) */}
+          <MonthlyChallenge />
 
           {/* Rychlé dlaždice */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">

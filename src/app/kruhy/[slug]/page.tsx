@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Users, ArrowLeft, MessagesSquare } from "lucide-react";
+import { Users, ArrowLeft, MessagesSquare, Send, ImagePlus, X, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeTier } from "@/lib/tiers";
 import type { UserTier } from "@/types";
 
 type Circle = { id: string; slug: string; name: string; description: string | null; member_count: number };
 type Member = { user_id: string; display_name: string | null };
+type CPost = { id: string; author_id: string; author_name: string | null; body: string; image_url: string | null; created_at: string };
 
 export default function CircleDetailPage() {
   const supabase = createClient();
@@ -24,6 +25,12 @@ export default function CircleDetailPage() {
   const [joined, setJoined] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [posts, setPosts] = useState<CPost[]>([]);
+  const [pBody, setPBody] = useState("");
+  const [pFile, setPFile] = useState<File | null>(null);
+  const [pPreview, setPPreview] = useState<string | null>(null);
+  const [pSending, setPSending] = useState(false);
+
   async function loadMembers(circleId: string) {
     const { data } = await supabase
       .from("circle_members")
@@ -31,6 +38,14 @@ export default function CircleDetailPage() {
       .eq("circle_id", circleId)
       .order("joined_at");
     setMembers((data ?? []) as Member[]);
+  }
+  async function loadPosts(circleId: string) {
+    const { data } = await supabase
+      .from("circle_posts")
+      .select("id, author_id, author_name, body, image_url, created_at")
+      .eq("circle_id", circleId)
+      .order("created_at", { ascending: false });
+    setPosts((data ?? []) as CPost[]);
   }
 
   useEffect(() => {
@@ -57,7 +72,7 @@ export default function CircleDetailPage() {
           .maybeSingle();
         const isIn = !!mine;
         setJoined(isIn);
-        if (isIn) await loadMembers((c as Circle).id);
+        if (isIn) { await loadMembers((c as Circle).id); await loadPosts((c as Circle).id); }
       }
       setPhase("ready");
     })();
@@ -74,6 +89,7 @@ export default function CircleDetailPage() {
     setJoined(true);
     setCircle({ ...circle, member_count: circle.member_count + 1 });
     await loadMembers(circle.id);
+    await loadPosts(circle.id);
   }
   async function leave() {
     if (!userId || !circle) return;
@@ -83,6 +99,43 @@ export default function CircleDetailPage() {
     setJoined(false);
     setMembers([]);
     setCircle({ ...circle, member_count: Math.max(0, circle.member_count - 1) });
+  }
+
+  function pickImage(file: File) {
+    setPFile(file);
+    setPPreview(URL.createObjectURL(file));
+  }
+  function clearImage() {
+    setPFile(null);
+    if (pPreview) URL.revokeObjectURL(pPreview);
+    setPPreview(null);
+  }
+  async function sendPost() {
+    if (!userId || !circle || pSending) return;
+    if (!pBody.trim() && !pFile) return;
+    setPSending(true);
+    setError(null);
+    let imageUrl: string | null = null;
+    if (pFile) {
+      const ext = (pFile.name.split(".").pop() || "jpg").toLowerCase();
+      const path = `circles/${userId}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("community").upload(path, pFile, { upsert: true });
+      if (upErr) { setPSending(false); setError("Nahrání obrázku selhalo: " + upErr.message); return; }
+      imageUrl = supabase.storage.from("community").getPublicUrl(path).data.publicUrl;
+    }
+    const { error } = await supabase.from("circle_posts").insert({
+      circle_id: circle.id, author_id: userId, body: pBody.trim(), image_url: imageUrl,
+    });
+    setPSending(false);
+    if (error) { setError("Odeslání selhalo: " + error.message); return; }
+    setPBody("");
+    clearImage();
+    await loadPosts(circle.id);
+  }
+  async function deletePost(id: string) {
+    const { error } = await supabase.from("circle_posts").delete().eq("id", id);
+    if (error) { setError("Smazání selhalo: " + error.message); return; }
+    setPosts((arr) => arr.filter((p) => p.id !== id));
   }
 
   if (phase === "loading") {
@@ -150,9 +203,77 @@ export default function CircleDetailPage() {
               </div>
             </div>
 
-            <div className="card p-6 text-center text-gray-500">
-              <MessagesSquare className="mx-auto mb-2 h-7 w-7 text-brand-blue" strokeWidth={1.8} />
-              <p className="text-sm">Diskuze v kruhu se připravuje. Zatím se tu poznáváte s ostatními členy. 🙂</p>
+            {/* Diskuse */}
+            <div className="card p-6">
+              <h2 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-brand-dark">
+                <MessagesSquare className="h-4 w-4 text-brand-blue" /> Diskuse
+              </h2>
+
+              {/* Composer */}
+              <div className="mb-5 rounded-xl border border-gray-100 p-3">
+                <textarea
+                  value={pBody}
+                  onChange={(e) => setPBody(e.target.value)}
+                  rows={2}
+                  placeholder="Napiš něco do kruhu…"
+                  className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                />
+                {pPreview && (
+                  <div className="relative mt-2 inline-block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={pPreview} alt="" className="max-h-40 rounded-lg" />
+                    <button onClick={clearImage} className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow ring-1 ring-black/10" aria-label="Odebrat obrázek">
+                      <X className="h-3.5 w-3.5 text-gray-500" />
+                    </button>
+                  </div>
+                )}
+                <div className="mt-2 flex items-center justify-between">
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-brand-blue hover:underline">
+                    <ImagePlus className="h-4 w-4" /> Obrázek
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) pickImage(f); e.target.value = ""; }} />
+                  </label>
+                  <button
+                    onClick={sendPost}
+                    disabled={pSending || (!pBody.trim() && !pFile)}
+                    className="btn-primary text-sm inline-flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Send className="h-4 w-4" /> {pSending ? "Odesílám…" : "Odeslat"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Feed */}
+              {posts.length === 0 ? (
+                <p className="text-sm text-gray-400">Zatím tu nic není – buď první, kdo napíše. 🙂</p>
+              ) : (
+                <div className="space-y-4">
+                  {posts.map((p) => (
+                    <div key={p.id} className="flex gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-semibold text-white">
+                        {(p.author_name?.[0] ?? "Č").toUpperCase()}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm">
+                          <span className="font-semibold text-brand-dark">{p.author_name ?? "Člen"}</span>{" "}
+                          <span className="text-xs text-gray-400">
+                            {new Date(p.created_at).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </p>
+                        {p.body && <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{p.body}</p>}
+                        {p.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.image_url} alt="" className="mt-2 max-h-72 rounded-lg" />
+                        )}
+                      </div>
+                      {p.author_id === userId && (
+                        <button onClick={() => deletePost(p.id)} className="shrink-0 text-gray-300 hover:text-red-500" aria-label="Smazat">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         ) : (
