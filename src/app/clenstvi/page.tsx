@@ -214,7 +214,7 @@ export default function ClenstviPage() {
                 { q: "Mohu zrušit kdykoliv?", a: "Ano. Zrušení je na 2 kliknutí, bez poplatků. Přístup trvá do konce zaplaceného období." },
                 { q: "Jak fungují platby?", a: "Platby probíhají měsíčně přes platební bránu. Napojení bude brzy." },
                 { q: "Potřebuju doma nějaké vybavení?", a: "Většinou stačí vlastní váha a kousek místa. U videí navíc vidíš, co se hodí (třeba židle, guma nebo válec) – filtr Co dům dá ti poradí, co zvládneš jen s tím, co máš doma." },
-                { q: "Zvládnu to i jako úplný začátečník?", a: "Ano. Videa mají úrovně obtížnosti, takže začneš v klidu a přidáváš postupně, vlastním tempem. Když tě něco bolí, nepřemáhej se a poradí se s odborníkem (viz Zdravotní upozornění)." },
+                { q: "Zvládnu to i jako úplný začátečník?", a: "Ano. Videa mají úrovně obtížnosti, takže začneš v klidu a přidáváš postupně, vlastním tempem. Když tě něco bolí, nepřemáhej se a poraď se s odborníkem (viz Zdravotní upozornění)." },
               ].map((item) => (
                 <div key={item.q} className="card p-5">
                   <h3 className="font-semibold text-brand-dark text-sm mb-2">{item.q}</h3>
