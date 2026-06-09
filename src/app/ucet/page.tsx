@@ -16,6 +16,7 @@ import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
+import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
 import { Leaderboard } from "@/components/Leaderboard";
@@ -420,6 +421,16 @@ export default function UcetPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <NovinkyFeed />
             <Leaderboard />
+          </div>
+
+          {/* Můj kalendář – osobní poznámky a události */}
+          <div className="card p-6 mt-6">
+            <div className="mb-4 flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-fuchsia-500" strokeWidth={2} />
+              <h2 className="text-sm font-semibold text-brand-dark">Můj kalendář</h2>
+              <span className="text-xs text-gray-400">poznámky, cíle, plány</span>
+            </div>
+            <PersonalCalendar />
           </div>
 
           {/* Moje rezervace – měsíční kalendář */}

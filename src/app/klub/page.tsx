@@ -11,7 +11,6 @@ import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 import { BadgePins } from "@/components/BadgePins";
-import { TINT } from "@/lib/feature-tints";
 
 const TABS: { key: Channel; label: string; Icon: LucideIcon }[] = [
   { key: "nastenka", label: "Nástěnka", Icon: Megaphone },
@@ -571,18 +570,18 @@ export default function KlubPage() {
         {/* Rozcestník VIP+ funkcí */}
         <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            { href: "/klub/mixer", label: "Mixér", Icon: Wand2, desc: "Sestav si lekci", tint: TINT.mixer },
-            { href: "/klub/live", label: "LIVE", Icon: Radio, desc: "Streamy + záznam", tint: TINT.live },
-            { href: "/klub/kalkulacka", label: "Kalorie", Icon: Calculator, desc: "Kalkulačka jídla", tint: TINT.kalkulacka },
-            { href: "/kruhy", label: "Kruhy", Icon: Users, desc: "Komunita", tint: TINT.kruhy },
-            { href: "/videoknihovna", label: "VIP+ videa", Icon: Film, desc: "Exkluzivní obsah", tint: TINT.videa },
-          ].map(({ href, label, Icon, desc, tint }) => (
+            { href: "/klub/mixer", label: "Mixér", Icon: Wand2, desc: "Sestav si lekci" },
+            { href: "/klub/live", label: "LIVE", Icon: Radio, desc: "Streamy + záznam" },
+            { href: "/klub/kalkulacka", label: "Kalorie", Icon: Calculator, desc: "Kalkulačka jídla" },
+            { href: "/kruhy", label: "Kruhy", Icon: Users, desc: "Komunita" },
+            { href: "/videoknihovna", label: "VIP+ videa", Icon: Film, desc: "Exkluzivní obsah" },
+          ].map(({ href, label, Icon, desc }) => (
             <Link
               key={href}
               href={href}
               className="card card-3d p-4 flex flex-col items-center justify-center gap-1.5 text-center"
             >
-              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tint}`}>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white shadow-sm">
                 <Icon className="h-5 w-5" strokeWidth={2} />
               </span>
               <span className="text-sm font-semibold text-brand-dark">{label}</span>
