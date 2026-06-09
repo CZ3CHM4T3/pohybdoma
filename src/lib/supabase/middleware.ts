@@ -32,16 +32,42 @@ export async function updateSession(request: NextRequest) {
 
   // Obnoví token, pokud vypršel. Když je Supabase nedostupný (nebo pomalý),
   // nesmí to blokovat web – proto časový strop 1,5 s (pak prostě pokračujeme).
+  let user: { id: string } | null = null;
   try {
     const userPromise = supabase.auth.getUser();
-    // potlačí případné pozdější odmítnutí (auth-js zkouší opakovaně)
     userPromise.catch(() => {});
-    await Promise.race([
+    const res = await Promise.race([
       userPromise,
-      new Promise((resolve) => setTimeout(resolve, 1500)),
+      new Promise<{ data: { user: null } }>((resolve) =>
+        setTimeout(() => resolve({ data: { user: null } }), 1500)
+      ),
     ]);
+    user = (res as { data: { user: { id: string } | null } }).data.user;
   } catch {
     // ignorujeme – session se obnoví při dalším požadavku
+  }
+
+  // Přihlašovací zeď: jen v „soukromém režimu" (když je nastaven SITE_ACCESS_CODE).
+  // Nepřihlášeného pošleme na /ucet (registrace/přihlášení), kromě veřejných stránek.
+  if (process.env.SITE_ACCESS_CODE && !user) {
+    const { pathname } = request.nextUrl;
+    const isPublic =
+      pathname === "/ucet" ||
+      pathname === "/vstup" ||
+      pathname === "/obnova-hesla" ||
+      pathname.startsWith("/auth") ||
+      pathname.startsWith("/api") ||
+      pathname.startsWith("/_next") ||
+      pathname === "/gdpr" ||
+      pathname === "/obchodni-podminky" ||
+      pathname === "/zdravotni-upozorneni" ||
+      /\.[a-zA-Z0-9]+$/.test(pathname);
+    if (!isPublic) {
+      const u = request.nextUrl.clone();
+      u.pathname = "/ucet";
+      u.search = "";
+      return NextResponse.redirect(u);
+    }
   }
 
   return supabaseResponse;
