@@ -21,7 +21,7 @@ function MatrixValue({ v }: { v: MatrixCell }) {
 
 export const metadata: Metadata = {
   title: "Členství",
-  description: "Tři úrovně členství – MEMBER, VIP, VIP+. Přístup k video-knihovně, živé streamy, slevy a chat přímo se mnou.",
+  description: "Úrovně členství FREE, MEMBER, VIP a VIP+. Video-knihovna, kurzy, Můj deník, Mixér, živé streamy, kalorická kalkulačka a VIP+ Klub.",
 };
 
 export default function ClenstviPage() {
@@ -213,8 +213,8 @@ export default function ClenstviPage() {
               {[
                 { q: "Mohu zrušit kdykoliv?", a: "Ano. Zrušení je na 2 kliknutí, bez poplatků. Přístup trvá do konce zaplaceného období." },
                 { q: "Jak fungují platby?", a: "Platby probíhají měsíčně přes platební bránu. Napojení bude brzy." },
-                { q: "Co dostanu v MEMBER plánu?", a: "Přístup k video-knihovně s tematickými filtry – videa třídění dle části těla, obtížnosti a problému." },
-                { q: "Jaký je rozdíl VIP a VIP+?", a: "VIP+ přidává VIP+ Klub (Q&A přímo se mnou), Mixér na sestavení vlastní lekce, živé streamy se záznamem, zakládání kruhů a vyšší slevu na kurzy (20 % vs. 10 %)." },
+                { q: "Co dostanu v MEMBER plánu?", a: "Celou video-knihovnu pro členy, kurzy krok za krokem, oblíbená videa a komunitu Kruhů. Chytré filtry knihovny jsou od úrovně VIP." },
+                { q: "Jaký je rozdíl VIP a VIP+?", a: "VIP přidává VIP videa, chytré filtry knihovny, Můj deník a slevu 10 % na kurzy. VIP+ navíc VIP+ Klub (Q&A přímo se mnou), Mixér na sestavení vlastní lekce, živé streamy se záznamem, kalorickou kalkulačku, zakládání kruhů a vyšší slevu (20 %)." },
               ].map((item) => (
                 <div key={item.q} className="card p-5">
                   <h3 className="font-semibold text-brand-dark text-sm mb-2">{item.q}</h3>
