@@ -107,9 +107,19 @@ export default function KlubPage() {
   const [replyOpen, setReplyOpen] = useState<string | null>(null);
   const [pendingImage, setPendingImage] = useState<Record<string, File | null>>({});
   const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState(0);
 
   const uidRef = useRef<string | null>(null);
   const [pins, setPins] = useState<Record<string, string[]>>({});
+
+  // Kolik VIP+ je právě online (na /klub se dostanou jen VIP+)
+  useEffect(() => {
+    if (phase !== "ready" || !userId) return;
+    const ch = supabase.channel("klub-presence", { config: { presence: { key: userId } } });
+    ch.on("presence", { event: "sync" }, () => setOnline(Object.keys(ch.presenceState()).length))
+      .subscribe(async (s) => { if (s === "SUBSCRIBED") await ch.track({ at: Date.now() }); });
+    return () => { supabase.removeChannel(ch); };
+  }, [phase, userId, supabase]);
 
   const loadAll = useCallback(async () => {
     const uid = uidRef.current;
@@ -519,6 +529,20 @@ export default function KlubPage() {
           <div>
             <h1 className="text-2xl font-semibold text-brand-dark">VIP+ Klub</h1>
             <p className="text-sm text-gray-500">Tvoje VIP+ zázemí – všechno na jednom místě.</p>
+          </div>
+        </div>
+
+        {/* Uvítací banner */}
+        <div className="mb-6 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 p-5 text-white shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-lg font-semibold">Vítej! Užij si všechny výhody VIP+ 👑</p>
+              <p className="text-sm text-white/85">Tvoje prémiové zázemí na jednom místě.</p>
+            </div>
+            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-sm font-semibold">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
+              {online} online
+            </span>
           </div>
         </div>
 
