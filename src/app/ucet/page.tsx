@@ -426,8 +426,11 @@ export default function UcetPage() {
 
           {/* Můj kalendář – osobní poznámky a události */}
           <div className="card p-6 mt-6">
-            <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-brand-dark">Můj kalendář</h2>
+            <div className="mb-4 flex flex-col items-center text-center">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-fuchsia-50 text-fuchsia-600">
+                <CalendarDays className="h-5 w-5" strokeWidth={2} />
+              </span>
+              <h2 className="mt-2 text-xl font-bold text-brand-dark">Můj kalendář</h2>
               <span className="text-xs text-gray-400">poznámky, cíle, plány</span>
             </div>
             <PersonalCalendar />
