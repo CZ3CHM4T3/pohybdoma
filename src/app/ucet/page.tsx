@@ -290,7 +290,7 @@ export default function UcetPage() {
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: TINT.kruhy },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER", tint: TINT.chlubirna },
       { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER", tint: TINT.buddies },
-      { href: "/sin-slavy", label: "Odznaky", Icon: Award, tint: TINT.sinslavy },
+      { href: "/odznaky", label: "Odznaky", Icon: Award, tint: TINT.sinslavy },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: TINT.denik },
     ];
 
