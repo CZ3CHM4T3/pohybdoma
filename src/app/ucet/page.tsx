@@ -7,12 +7,13 @@ import type { User } from "@supabase/supabase-js";
 import {
   Heart, BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
-  Lock, LockOpen, X, Check, PartyPopper, UserPlus,
+  Lock, LockOpen, X, Check, PartyPopper, UserPlus, Trophy,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { canAccess } from "@/lib/access";
 import { MOCK_COURSES, MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
+import { BadgePins } from "@/components/BadgePins";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import type { UserTier, AccessLevel } from "@/types";
@@ -29,6 +30,7 @@ export default function UcetPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [tierSince, setTierSince] = useState<string | null>(null);
   const [tierUntil, setTierUntil] = useState<string | null>(null);
+  const [pinnedBadges, setPinnedBadges] = useState<string[]>([]);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -74,7 +76,7 @@ export default function UcetPage() {
     }
     supabase
       .from("profiles")
-      .select("tier, avatar_url, tier_since, tier_until, full_name")
+      .select("tier, avatar_url, tier_since, tier_until, full_name, pinned_badges")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -82,6 +84,7 @@ export default function UcetPage() {
         setAvatarUrl((data?.avatar_url as string | null) ?? null);
         setTierSince((data?.tier_since as string | null) ?? null);
         setTierUntil((data?.tier_until as string | null) ?? null);
+        setPinnedBadges((data?.pinned_badges as string[] | null) ?? []);
         setNameInput(
           (data?.full_name as string | undefined) ||
             (user.user_metadata?.full_name as string | undefined) ||
@@ -329,6 +332,7 @@ export default function UcetPage() {
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER" },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER" },
       { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER" },
+      { href: "/sin-slavy", label: "Síň slávy", Icon: Trophy },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP" },
     ];
 
@@ -363,7 +367,10 @@ export default function UcetPage() {
               </div>
             )}
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-brand-dark truncate">{displayName}</h2>
+              <h2 className="text-lg font-semibold text-brand-dark truncate">
+                {displayName}
+                <BadgePins ids={pinnedBadges} />
+              </h2>
               <p className="text-sm text-gray-500 truncate">{user.email}</p>
             </div>
             <div className="ml-auto flex flex-col items-end gap-1">
