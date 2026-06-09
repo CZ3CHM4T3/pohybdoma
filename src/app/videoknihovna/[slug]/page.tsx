@@ -6,6 +6,7 @@ import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
 import { FavoriteHeart } from "@/components/FavoriteHeart";
+import { WatchLogger } from "@/components/WatchLogger";
 import { SafetyNote } from "@/components/SafetyNote";
 import { TIER_STYLES } from "@/lib/tiers";
 import { getUserTier } from "@/lib/supabase/user";
@@ -45,6 +46,7 @@ export default async function VideoDetailPage({ params }: Props) {
         <div className="card overflow-hidden mb-8">
           {accessible ? (
             <div className="aspect-video bg-brand-dark flex items-center justify-center">
+              <WatchLogger slug={video.slug} />
               <div className="text-center text-white/50">
                 <div className="text-6xl mb-4">▶</div>
                 <p className="font-semibold">Video přehrávač</p>

@@ -18,6 +18,7 @@ import { TINT } from "@/lib/feature-tints";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
+import { Leaderboard } from "@/components/Leaderboard";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -463,8 +464,11 @@ export default function UcetPage() {
             })}
           </div>
 
-          {/* Novinky – co je nového */}
-          <NovinkyFeed />
+          {/* Novinky + Žebříček */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <NovinkyFeed />
+            <Leaderboard />
+          </div>
 
           {/* Dva sloupce */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
