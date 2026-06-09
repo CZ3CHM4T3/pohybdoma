@@ -7,7 +7,7 @@ import type { User } from "@supabase/supabase-js";
 import {
   Heart, BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
-  Lock, LockOpen, X, Check, PartyPopper,
+  Lock, LockOpen, X, Check, PartyPopper, UserPlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -328,6 +328,7 @@ export default function UcetPage() {
       { label: "Stav členství", Icon: ShieldCheck, action: "membership" },
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER" },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER" },
+      { href: "/buddies", label: "Parťáci", Icon: UserPlus, req: "MEMBER" },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP" },
     ];
 
