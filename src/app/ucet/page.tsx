@@ -43,6 +43,7 @@ export default function UcetPage() {
 
   // Stav členství (modal s hierarchií) + zrušení přes heslo
   const [showMembership, setShowMembership] = useState(false);
+  const [showReservations, setShowReservations] = useState(false);
   const [cancelStep, setCancelStep] = useState(false);
   const [cancelPwd, setCancelPwd] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -280,11 +281,11 @@ export default function UcetPage() {
       tint: string;
       href?: string;
       req?: AccessLevel;
-      action?: "membership";
+      action?: "membership" | "rezervace";
     }[] = [
       { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen, tint: TINT.videa },
       { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap, tint: TINT.kurzy },
-      { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays, tint: TINT.rezervace },
+      { label: "Moje rezervace", Icon: CalendarDays, action: "rezervace", tint: TINT.rezervace },
       { label: "Stav členství", Icon: ShieldCheck, action: "membership", tint: TINT.clenstvi },
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: TINT.kruhy },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER", tint: TINT.chlubirna },
@@ -359,13 +360,13 @@ export default function UcetPage() {
               const Icon = t.Icon;
               const locked = !!t.req && !canAccess(tier, t.req);
 
-              // Dlaždice „Stav členství" – otevře hierarchii členství
-              if (t.action === "membership") {
+              // Dlaždice s akcí (Stav členství / Moje rezervace) – otevřou modal
+              if (t.action) {
                 return (
                   <button
-                    key="membership"
+                    key={t.action}
                     type="button"
-                    onClick={() => setShowMembership(true)}
+                    onClick={() => t.action === "membership" ? setShowMembership(true) : setShowReservations(true)}
                     className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
                   >
                     <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint}`}>
@@ -426,23 +427,10 @@ export default function UcetPage() {
           {/* Můj kalendář – osobní poznámky a události */}
           <div className="card p-6 mt-6">
             <div className="mb-4 flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-fuchsia-500" strokeWidth={2} />
               <h2 className="text-sm font-semibold text-brand-dark">Můj kalendář</h2>
               <span className="text-xs text-gray-400">poznámky, cíle, plány</span>
             </div>
             <PersonalCalendar />
-          </div>
-
-          {/* Moje rezervace – měsíční kalendář */}
-          <div id="moje-rezervace" className="card p-6 mt-6 scroll-mt-24">
-            <div className="mb-4 flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-brand-blue" strokeWidth={2} />
-              <h2 className="text-sm font-semibold text-brand-dark">Moje rezervace</h2>
-              <Link href="/rezervace" className="ml-auto text-xs font-semibold text-brand-blue hover:underline">
-                Rezervovat →
-              </Link>
-            </div>
-            <MyBookingsCalendar bookings={bookings} onCancel={cancelBooking} />
           </div>
 
           {/* Nastavení */}
@@ -520,6 +508,35 @@ export default function UcetPage() {
             </div>
           </div>
         </div>
+
+        {/* Modal: Moje rezervace */}
+        {showReservations && (
+          <div
+            className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+            onClick={() => setShowReservations(false)}
+          >
+            <div
+              className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowReservations(false)}
+                aria-label="Zavřít"
+                className="absolute right-4 top-4 text-gray-400 hover:text-brand-dark"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="mb-4 flex items-center gap-2 pr-8">
+                <CalendarDays className="h-5 w-5 text-brand-blue" strokeWidth={2} />
+                <h2 className="text-xl font-semibold text-brand-dark">Moje rezervace</h2>
+                <Link href="/rezervace" className="ml-auto text-xs font-semibold text-brand-blue hover:underline whitespace-nowrap">
+                  Rezervovat →
+                </Link>
+              </div>
+              <MyBookingsCalendar bookings={bookings} onCancel={cancelBooking} />
+            </div>
+          </div>
+        )}
 
         {/* Modal: hierarchie členství */}
         {showMembership && (
