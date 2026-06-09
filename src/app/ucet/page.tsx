@@ -321,19 +321,20 @@ export default function UcetPage() {
     const tiles: {
       label: string;
       Icon: typeof BookOpen;
+      tint: string;
       href?: string;
       req?: AccessLevel;
       action?: "membership";
     }[] = [
-      { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen },
-      { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap },
-      { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays },
-      { label: "Stav členství", Icon: ShieldCheck, action: "membership" },
-      { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER" },
-      { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER" },
-      { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER" },
-      { href: "/sin-slavy", label: "Síň slávy", Icon: Trophy },
-      { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP" },
+      { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen, tint: "bg-blue-50 text-blue-600" },
+      { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap, tint: "bg-indigo-50 text-indigo-600" },
+      { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays, tint: "bg-sky-50 text-sky-600" },
+      { label: "Stav členství", Icon: ShieldCheck, action: "membership", tint: "bg-emerald-50 text-emerald-600" },
+      { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: "bg-violet-50 text-violet-600" },
+      { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER", tint: "bg-rose-50 text-rose-600" },
+      { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER", tint: "bg-teal-50 text-teal-600" },
+      { href: "/sin-slavy", label: "Síň slávy", Icon: Trophy, tint: "bg-amber-50 text-amber-600" },
+      { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: "bg-cyan-50 text-cyan-600" },
     ];
 
     // Hierarchie členství (pro dlaždici „Stav členství")
@@ -411,7 +412,7 @@ export default function UcetPage() {
                     onClick={() => setShowMembership(true)}
                     className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint}`}>
                       <Icon className="h-5 w-5" strokeWidth={2} />
                     </span>
                     <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
@@ -427,7 +428,7 @@ export default function UcetPage() {
                     href="/clenstvi"
                     className="group relative card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center overflow-hidden"
                   >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue opacity-30">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint} opacity-40`}>
                       <Icon className="h-5 w-5" strokeWidth={2} />
                     </span>
                     <span className="text-xs font-semibold text-brand-dark opacity-30">{t.label}</span>
@@ -451,7 +452,7 @@ export default function UcetPage() {
                   href={t.href!}
                   className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-blue">
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint}`}>
                     <Icon className="h-5 w-5" strokeWidth={2} />
                   </span>
                   <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
