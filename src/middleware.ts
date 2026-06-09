@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { SITE_GATE_CODE } from "@/lib/gate";
 
 // ── Soukromá brána ───────────────────────────────────────────────────────────
 // Aktivní jen když je nastavená proměnná SITE_ACCESS_CODE (jinak je web veřejný).
@@ -8,7 +9,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 const COOKIE = "pd_access";
 
 function gate(req: NextRequest): NextResponse | null {
-  const code = process.env.SITE_ACCESS_CODE;
+  const code = SITE_GATE_CODE;
   if (!code) return null; // brána vypnutá → web veřejný
 
   const { pathname, searchParams } = req.nextUrl;
