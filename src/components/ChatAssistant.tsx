@@ -227,7 +227,7 @@ export function ChatAssistant() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={`Zeptej se – ${NAME}`}
-          className="group fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full bg-white py-2 pl-2 pr-4 shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105"
+          className="group fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full bg-white py-2 pl-2 pr-4 shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105"
         >
           <span className="pd-float relative flex h-11 w-11 overflow-hidden rounded-full ring-2 ring-brand-blue/30">
             <Avatar className="h-full w-full" />
@@ -237,7 +237,7 @@ export function ChatAssistant() {
       )}
 
       {open && (
-        <div className="fixed bottom-4 right-4 z-50 flex h-[70vh] max-h-[560px] w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+        <div className="fixed bottom-4 left-4 z-50 flex h-[70vh] max-h-[560px] w-[92vw] max-w-sm flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
           {/* Hlavička */}
           <div className="flex items-center gap-3 bg-brand-dark px-4 py-3 text-white">
             <span className="pd-float flex h-9 w-9 overflow-hidden rounded-full ring-2 ring-white/30">

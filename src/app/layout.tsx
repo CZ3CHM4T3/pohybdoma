@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CookieBanner } from "@/components/CookieBanner";
 import { ChatAssistant } from "@/components/ChatAssistant";
+import { BuddiesWidget } from "@/components/BuddiesWidget";
 
 const montserrat = Montserrat({
   subsets: ["latin", "latin-ext"],
@@ -41,6 +42,7 @@ export default function RootLayout({
         <Footer />
         <CookieBanner />
         <ChatAssistant />
+        <BuddiesWidget />
       </body>
     </html>
   );
