@@ -790,6 +790,7 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
       "Mixér – sestav si vlastní lekci na míru",
       "VIP+ Klub – Q&A přímo s Honzou",
       "Živé streamy + záznam (týden zpětně)",
+      "Kalorická kalkulačka",
       "Zakládej vlastní Kruhy",
       "Sleva 20 % na kurzy",
     ],
@@ -820,6 +821,7 @@ export const MEMBERSHIP_MATRIX: {
   { label: "Můj deník", desc: "Sleduješ váhu, bolest, energii i spánek a v grafu vidíš, že to funguje.", free: false, member: false, vip: true, vipPlus: true },
   { label: "Měsíční výzva", desc: "Krátká hravá výzva na každý měsíc – pro všechny, pro radost a motivaci.", free: true, member: true, vip: true, vipPlus: true },
   { label: "Členská sleva na kurzy", desc: "Placené kurzy koupíš levněji – VIP 10 %, VIP+ 20 %.", free: false, member: false, vip: "10 %", vipPlus: "20 %" },
+  { label: "Kalorická kalkulačka", desc: "Naklikáš, co jsi snědl, a spočítá ti kalorie i makra na den.", free: false, member: false, vip: false, vipPlus: true },
   { label: "VIP+ Klub – Q&A s Honzou", desc: "Zeptáš se mě přímo na svůj pohyb a dostaneš osobní odpověď.", free: false, member: false, vip: false, vipPlus: true },
   { label: "Živé streamy + záznam (týden)", desc: "Cvičíš se mnou naživo, a když nestihneš, týden zpětně si pustíš záznam.", free: false, member: false, vip: false, vipPlus: true },
 ];

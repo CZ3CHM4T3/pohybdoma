@@ -60,6 +60,8 @@
 - [x] **Měsíční výzva** – pro VŠECHNY, krátká/hravá. Karta v „Moje cesta" + správa v adminu (challenges.sql). „Beru výzvu/Splněno" + počítadlo.
 - [x] **Chytré filtry knihovny** = od VIP (MEMBER už je nemá; FREE/MEMBER vidí jen vyhledávání + upsell)
 - [x] **Diskuse v kruzích** – chat + obrázky pro členy kruhu (circle_posts.sql)
+- [x] **Kalorická kalkulačka** (VIP+) – `/klub/kalkulacka`, ~85 českých jídel, kcal+makra, cíl, ukládá den (localStorage). 💡 později placená DB potravin z cashflow
+- [ ] 💡 Kalorická kalkulačka – napojit placenou/větší databázi potravin (až bude cashflow); volitelně ukládat do Deníku
 - [x] **Živé streamy + záznam (týden zpětně)** → VIP+. `/klub/live` + správa v adminu (streams.sql). *(přidáš stream s odkazem YouTube/Vimeo; záznam dostupný týden)*
 - [x] **VIP+ Klub jako rozcestník** – dlaždice Mixér / LIVE / Kruhy / VIP+ videa
 - [ ] **VIP+ videa** jako samostatná úroveň obsahu (stačí u videí nastavit přístup VIP+)
