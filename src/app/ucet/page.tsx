@@ -326,15 +326,15 @@ export default function UcetPage() {
       req?: AccessLevel;
       action?: "membership";
     }[] = [
-      { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen, tint: "bg-blue-50 text-blue-600" },
+      { href: "/videoknihovna", label: "Moje videa", Icon: BookOpen, tint: "bg-violet-50 text-violet-600" },
       { href: "/kurzy", label: "Moje kurzy", Icon: GraduationCap, tint: "bg-indigo-50 text-indigo-600" },
       { href: "#moje-rezervace", label: "Moje rezervace", Icon: CalendarDays, tint: "bg-sky-50 text-sky-600" },
       { label: "Stav členství", Icon: ShieldCheck, action: "membership", tint: "bg-emerald-50 text-emerald-600" },
-      { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: "bg-violet-50 text-violet-600" },
+      { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER", tint: "bg-orange-50 text-orange-600" },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER", tint: "bg-rose-50 text-rose-600" },
-      { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER", tint: "bg-teal-50 text-teal-600" },
+      { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER", tint: "bg-brand-light text-brand-blue" },
       { href: "/sin-slavy", label: "Síň slávy", Icon: Trophy, tint: "bg-amber-50 text-amber-600" },
-      { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: "bg-cyan-50 text-cyan-600" },
+      { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: "bg-fuchsia-50 text-fuchsia-600" },
     ];
 
     // Hierarchie členství (pro dlaždici „Stav členství")
