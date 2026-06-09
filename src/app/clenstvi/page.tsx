@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, X, Gift } from "lucide-react";
+import { Check, X, Gift, Info } from "lucide-react";
 import { MOCK_MEMBERSHIP_PLANS, MEMBERSHIP_MATRIX, type MatrixCell } from "@/lib/mock-data";
 import { TIER_STYLES } from "@/lib/tiers";
 import type { AccessLevel } from "@/types";
@@ -131,7 +131,7 @@ export default function ClenstviPage() {
           {/* Srovnávací tabulka */}
           <div className="mt-16">
             <SectionHeading label="Srovnání" title="Co je v které úrovni" centered />
-            <div className="mt-8 overflow-x-auto">
+            <div className="mt-8 overflow-x-auto md:overflow-visible">
               <table className="w-full min-w-[640px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
@@ -148,7 +148,15 @@ export default function ClenstviPage() {
                 <tbody>
                   {MEMBERSHIP_MATRIX.map((row, i) => (
                     <tr key={row.label} className={i % 2 === 1 ? "bg-brand-light/40" : ""}>
-                      <td className="p-3 text-gray-700">{row.label}</td>
+                      <td className="p-3 text-gray-700">
+                        <span className="group relative inline-flex items-center gap-1.5 cursor-help">
+                          <span className="border-b border-dotted border-gray-300">{row.label}</span>
+                          <Info className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                          <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 w-64 rounded-lg bg-brand-dark px-3 py-2 text-xs leading-snug text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                            {row.desc}
+                          </span>
+                        </span>
+                      </td>
                       {MATRIX_COLS.map((c) => (
                         <td key={c.key} className={`p-3 text-center ${c.tier === "VIP_PLUS" ? "bg-amber-50" : ""}`}>
                           <MatrixValue v={row[c.key]} />

@@ -797,29 +797,30 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
   },
 ];
 
-// Srovnávací matice členství – co je v které úrovni (✓/✗ nebo hodnota).
+// Srovnávací matice členství – co je v které úrovni (✓/✗ nebo hodnota) + popisek do tooltipu.
 export type MatrixCell = boolean | string;
 export const MEMBERSHIP_MATRIX: {
   label: string;
+  desc: string;
   free: MatrixCell;
   member: MatrixCell;
   vip: MatrixCell;
   vipPlus: MatrixCell;
 }[] = [
-  { label: "Ukázková videa zdarma", free: true, member: true, vip: true, vipPlus: true },
-  { label: "Video-knihovna pro členy", free: false, member: true, vip: true, vipPlus: true },
-  { label: "VIP videa", free: false, member: false, vip: true, vipPlus: true },
-  { label: "VIP+ videa", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Chytré filtry video-knihovny", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Kurzy pro členy", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Oblíbená videa", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Mixér – sestav si vlastní lekci", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Kruhy – propojení uživatelů", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Založení vlastního kruhu", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Napsat recenzi", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Můj deník", free: false, member: false, vip: true, vipPlus: true },
-  { label: "Měsíční výzva", free: false, member: false, vip: true, vipPlus: true },
-  { label: "Členská sleva na kurzy", free: false, member: false, vip: "10 %", vipPlus: "20 %" },
-  { label: "VIP+ Klub – Q&A s Honzou", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Živé streamy + záznam (týden)", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Ukázková videa zdarma", desc: "Vyzkoušíš si cvičení i bez placení – hned uvidíš, jestli ti styl sedí.", free: true, member: true, vip: true, vipPlus: true },
+  { label: "Video-knihovna pro členy", desc: "Spousta lekcí na konkrétní potíže. Cvičíš přesně na to, co tě trápí.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "VIP videa", desc: "Pokročilejší a hlubší lekce navíc, které posunou tvůj pohyb dál.", free: false, member: false, vip: true, vipPlus: true },
+  { label: "VIP+ videa", desc: "To úplně nejlepší a nejnovější – dostupné jen pro VIP+.", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Chytré filtry video-knihovny", desc: "Rychle najdeš přesně to svoje podle části těla, systému i toho, co máš doma.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Kurzy pro členy", desc: "Ucelené série krok za krokem – víš, čím začít a kam pokračovat.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Oblíbená videa", desc: "Uložíš si srdíčkem, k čemu se vracíš, a máš to vždy po ruce.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Mixér – sestav si vlastní lekci", desc: "Zadáš, na co chceš cvičit, a Mixér ti poskládá videa za sebe do jedné plynulé lekce.", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Kruhy – propojení uživatelů", desc: "Najdeš lidi se stejným cílem a budete se navzájem hecovat.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Založení vlastního kruhu", desc: "Vytvoříš si vlastní skupinu a povedeš parťáky k pohybu.", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Napsat recenzi", desc: "Podělíš se o zkušenost a pomůžeš ostatním s rozhodnutím.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Můj deník", desc: "Sleduješ váhu, bolest, energii i spánek a v grafu vidíš, že to funguje.", free: false, member: false, vip: true, vipPlus: true },
+  { label: "Měsíční výzva", desc: "Jasný cíl na měsíc, který tě udrží v rytmu a motivaci.", free: false, member: false, vip: true, vipPlus: true },
+  { label: "Členská sleva na kurzy", desc: "Placené kurzy koupíš levněji – VIP 10 %, VIP+ 20 %.", free: false, member: false, vip: "10 %", vipPlus: "20 %" },
+  { label: "VIP+ Klub – Q&A s Honzou", desc: "Zeptáš se mě přímo na svůj pohyb a dostaneš osobní odpověď.", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Živé streamy + záznam (týden)", desc: "Cvičíš se mnou naživo, a když nestihneš, týden zpětně si pustíš záznam.", free: false, member: false, vip: false, vipPlus: true },
 ];
