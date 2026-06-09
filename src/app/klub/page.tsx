@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
   ImagePlus, X, BarChart3, Star, Plus, Check, ThumbsUp, ThumbsDown, Flame, Laugh,
-  Frown, HeartHandshake, Wand2, Radio, Users, Film, Calculator, type LucideIcon,
+  Frown, HeartHandshake, Wand2, Radio, Users, Film, Calculator, Megaphone, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -14,6 +14,7 @@ import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 
 const TABS: { key: Channel; label: string; Icon: LucideIcon }[] = [
+  { key: "nastenka", label: "Nástěnka", Icon: Megaphone },
   { key: "chat", label: "Chat", Icon: MessageCircle },
   { key: "qa", label: "Q&A", Icon: HelpCircle },
   { key: "poll", label: "Ankety", Icon: BarChart3 },
@@ -30,7 +31,7 @@ const REACTIONS: { key: string; Icon: LucideIcon; title: string }[] = [
   { key: "thanks", Icon: HeartHandshake, title: "Děkuju" },
 ];
 
-type Channel = "chat" | "qa" | "poll" | "feedback";
+type Channel = "nastenka" | "chat" | "qa" | "poll" | "feedback";
 type Post = {
   id: string;
   author_id: string;
@@ -84,7 +85,7 @@ export default function KlubPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [channel, setChannel] = useState<Channel>("chat");
+  const [channel, setChannel] = useState<Channel>("nastenka");
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [reactions, setReactions] = useState<Record<string, ReactionAgg>>({});
@@ -689,6 +690,37 @@ export default function KlubPage() {
               </button>
             </div>
           </div>
+        ) : channel === "nastenka" ? (
+          isAdmin ? (
+            <div className="card p-4 mb-6">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={3}
+                placeholder="Napiš vzkaz, citát nebo myšlenku dne… (můžeš přidat i fotku)"
+                className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue"
+              />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                {attach("topic")}
+                <button
+                  type="button"
+                  onClick={addPost}
+                  disabled={posting || (!draft.trim() && !pendingImage["topic"])}
+                  className="btn-primary text-sm disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  <Megaphone className="h-4 w-4" strokeWidth={2} />
+                  {posting ? "Vyvěšuji…" : "Vyvěsit na nástěnku"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="card p-4 mb-6 flex items-center gap-3 text-sm text-gray-500">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                <Megaphone className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span>Sem píše vzkazy, citáty a osobní zprávy lektor. Můžeš reagovat a komentovat níže. 🙂</span>
+            </div>
+          )
         ) : chatLimitReached ? (
           <div className="card p-4 mb-6 text-center text-sm text-gray-500">
             Tento týden jsi založil <strong>2 topicy</strong> (limit kvůli přehlednosti).
@@ -739,13 +771,15 @@ export default function KlubPage() {
               return <Icon className="mx-auto mb-2 h-8 w-8" strokeWidth={1.5} />;
             })()}
             <p className="text-sm">
-              {channel === "qa"
-                ? "Zatím žádné otázky. Zeptej se jako první!"
-                : channel === "poll"
-                  ? "Zatím žádné ankety."
-                  : channel === "feedback"
-                    ? "Zatím žádný feedback. Napiš první!"
-                    : "Zatím tu nic není. Buď první, kdo napíše!"}
+              {channel === "nastenka"
+                ? "Na nástěnce zatím nic nevisí. Brzy sem Honza něco napíše. 😉"
+                : channel === "qa"
+                  ? "Zatím žádné otázky. Zeptej se jako první!"
+                  : channel === "poll"
+                    ? "Zatím žádné ankety."
+                    : channel === "feedback"
+                      ? "Zatím žádný feedback. Napiš první!"
+                      : "Zatím tu nic není. Buď první, kdo napíše!"}
             </p>
           </div>
         ) : (
