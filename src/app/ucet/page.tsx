@@ -17,6 +17,7 @@ import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
+import { NovinkyFeed } from "@/components/NovinkyFeed";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -461,6 +462,9 @@ export default function UcetPage() {
               );
             })}
           </div>
+
+          {/* Novinky – co je nového */}
+          <NovinkyFeed />
 
           {/* Dva sloupce */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
