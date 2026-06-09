@@ -127,8 +127,8 @@ export default function BuddiesPage() {
     return (
       <Centered>
         <UserPlus className="mx-auto mb-3 h-10 w-10 text-brand-blue" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">Parťáci</h1>
-        <p className="text-sm text-gray-500 mb-5">Najdi si parťáky na cvičení – přihlas se.</p>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">Buddies</h1>
+        <p className="text-sm text-gray-500 mb-5">Najdi si buddies na cvičení – přihlas se.</p>
         <Link href="/ucet" className="btn-primary">Přihlásit se</Link>
       </Centered>
     );
@@ -137,7 +137,7 @@ export default function BuddiesPage() {
     return (
       <Centered>
         <Lock className="mx-auto mb-3 h-10 w-10 text-brand-blue" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">Parťáci jsou pro členy</h1>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">Buddies jsou pro členy</h1>
         <p className="text-sm text-gray-500 mb-5">Přidávání přátel a chat je od úrovně MEMBER.</p>
         <Link href="/clenstvi" className="btn-primary">Zobrazit členství</Link>
       </Centered>
@@ -154,7 +154,7 @@ export default function BuddiesPage() {
       <div className="min-h-screen bg-brand-light py-10">
         <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
           <button onClick={() => { setOpen(null); openIdRef.current = null; }} className="inline-flex items-center gap-2 text-sm text-brand-blue font-semibold mb-6 hover:underline">
-            <ArrowLeft className="h-4 w-4" /> Zpět na parťáky
+            <ArrowLeft className="h-4 w-4" /> Zpět na buddies
           </button>
           <div className="card flex h-[70vh] max-h-[600px] flex-col overflow-hidden">
             <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3">
@@ -201,14 +201,14 @@ export default function BuddiesPage() {
             <UserPlus className="h-6 w-6" strokeWidth={2} />
           </span>
           <div>
-            <h1 className="text-2xl font-semibold text-brand-dark">Parťáci</h1>
-            <p className="text-sm text-gray-500">Přidej si parťáky a pište si. Společně to jde líp! 💪</p>
+            <h1 className="text-2xl font-semibold text-brand-dark">Buddies</h1>
+            <p className="text-sm text-gray-500">Přidej si buddies a pište si. Společně to jde líp! 💪</p>
           </div>
         </div>
 
         {/* Přidat */}
         <div className="card p-5 mb-6">
-          <label className="block text-xs font-semibold text-brand-dark mb-1">Přidat parťáka podle e-mailu</label>
+          <label className="block text-xs font-semibold text-brand-dark mb-1">Přidat buddyho podle e-mailu</label>
           <div className="flex gap-2">
             <input
               value={email}
@@ -238,11 +238,11 @@ export default function BuddiesPage() {
           </div>
         )}
 
-        {/* Parťáci */}
+        {/* Buddies */}
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-brand-dark mb-3">Moji parťáci ({accepted.length})</h2>
+          <h2 className="text-sm font-semibold text-brand-dark mb-3">Moji buddies ({accepted.length})</h2>
           {accepted.length === 0 ? (
-            <p className="text-sm text-gray-400">Zatím nikdo. Přidej si parťáka podle e-mailu výše. 🙂</p>
+            <p className="text-sm text-gray-400">Zatím nikdo. Přidej si buddyho podle e-mailu výše. 🙂</p>
           ) : (
             <div className="space-y-2">
               {accepted.map((b) => (

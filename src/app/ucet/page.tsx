@@ -328,7 +328,7 @@ export default function UcetPage() {
       { label: "Stav členství", Icon: ShieldCheck, action: "membership" },
       { href: "/kruhy", label: "Mé kruhy", Icon: Users, req: "MEMBER" },
       { href: "/chlubirna", label: "Chlubírna", Icon: PartyPopper, req: "MEMBER" },
-      { href: "/buddies", label: "Parťáci", Icon: UserPlus, req: "MEMBER" },
+      { href: "/buddies", label: "Buddies", Icon: UserPlus, req: "MEMBER" },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP" },
     ];
 

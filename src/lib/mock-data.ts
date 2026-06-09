@@ -818,7 +818,7 @@ export const MEMBERSHIP_MATRIX: {
   { label: "Mixér – sestav si vlastní lekci", desc: "Zadáš, na co chceš cvičit, a Mixér ti poskládá videa za sebe do jedné plynulé lekce.", free: false, member: false, vip: false, vipPlus: true },
   { label: "Kruhy – propojení uživatelů", desc: "Najdeš lidi se stejným cílem a budete se navzájem hecovat.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Chlubírna (nástěnka pokroku)", desc: "Pochlub se pokrokem, sdílej fotku a povzbuď ostatní – komunitní nástěnka.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Parťáci + soukromý chat", desc: "Přidej si parťáky podle e-mailu a pište si naživo. Společně to jde líp.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Buddies + soukromý chat", desc: "Přidej si buddies podle e-mailu a pište si naživo. Společně to jde líp.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Založení vlastního kruhu", desc: "Vytvoříš si vlastní skupinu a povedeš parťáky k pohybu.", free: false, member: false, vip: false, vipPlus: true },
   { label: "Napsat recenzi", desc: "Podělíš se o zkušenost a pomůžeš ostatním s rozhodnutím.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Můj deník", desc: "Sleduješ váhu, bolest, energii i spánek a v grafu vidíš, že to funguje.", free: false, member: false, vip: true, vipPlus: true },

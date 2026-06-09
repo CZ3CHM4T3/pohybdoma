@@ -120,7 +120,7 @@ export function BuddiesWidget() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Parťáci"
+          aria-label="Buddies"
           className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-white shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105"
         >
           <Users className="h-6 w-6" />
@@ -139,7 +139,7 @@ export function BuddiesWidget() {
             ) : (
               <Users className="h-5 w-5" />
             )}
-            <p className="flex-1 text-sm font-semibold">{chat ? chat.name : "Parťáci"}</p>
+            <p className="flex-1 text-sm font-semibold">{chat ? chat.name : "Buddies"}</p>
             <button onClick={() => setOpen(false)} aria-label="Zavřít" className="text-white/80 hover:text-white"><X className="h-5 w-5" /></button>
           </div>
 
@@ -184,9 +184,9 @@ export function BuddiesWidget() {
                 </div>
               )}
 
-              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Parťáci ({accepted.length})</p>
+              <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Buddies ({accepted.length})</p>
               {accepted.length === 0 ? (
-                <p className="text-xs text-gray-400">Zatím nikdo. Přidej si parťáka podle e-mailu výše. 🙂</p>
+                <p className="text-xs text-gray-400">Zatím nikdo. Přidej si buddyho podle e-mailu výše. 🙂</p>
               ) : (
                 <div className="space-y-1">
                   {accepted.map((b) => (
