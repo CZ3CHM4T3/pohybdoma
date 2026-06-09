@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
-import { BADGE_MAP, badgeGradient, badgeIconColor } from "@/lib/badges";
+import { BADGE_MAP, TIER_RING, TIER_ICON, TIER_GLOW } from "@/lib/badges";
 
 type Pub = { id: string; name: string; tier: string; pinned_badges: string[] };
 
@@ -73,9 +73,9 @@ export default function ProfilPage() {
                   const Icon = b.Icon;
                   return (
                     <div key={bid} className="w-20 text-center">
-                      <div className="mx-auto h-16 w-16 rounded-full p-[3px] shadow-md" style={{ background: badgeGradient(bid) }}>
+                      <div className={`mx-auto h-16 w-16 rounded-full p-[3px] shadow-md bg-gradient-to-br ${TIER_RING[b.tier]} ${TIER_GLOW[b.tier]}`}>
                         <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-                          <Icon className="h-7 w-7" strokeWidth={1.8} style={{ color: badgeIconColor(bid) }} />
+                          <Icon className={`h-7 w-7 ${TIER_ICON[b.tier]}`} strokeWidth={1.8} />
                         </div>
                       </div>
                       <p className="mt-1 text-xs font-semibold text-brand-dark">{b.name}</p>

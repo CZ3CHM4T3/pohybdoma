@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Trophy, Lock, Pin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { BADGES, isEarned, badgeGradient, badgeIconColor, type Stats, type BadgeDef } from "@/lib/badges";
+import { BADGES, isEarned, TIER_RING, TIER_ICON, TIER_GLOW, TIER_LABEL, type Stats, type BadgeDef } from "@/lib/badges";
 import { BadgePins } from "@/components/BadgePins";
 
 const EMPTY: Stats = { lessons: 0, diary: 0, favorites: 0, buddies: 0, brags: 0, challenges: 0, circlesCreated: 0, circlesJoined: 0, membershipDays: 0 };
@@ -138,21 +138,22 @@ function BadgeTile({ b, stats, pinned, canPin, onPin }: { b: BadgeDef; stats: St
   return (
     <div className={`card p-5 text-center ${earned ? "" : "opacity-95"}`}>
       <div className="relative mx-auto mb-3 h-20 w-20">
-        <div
-          className={`h-full w-full rounded-full p-[3px] shadow-md ${earned ? "" : "bg-gradient-to-br from-gray-200 to-gray-300"}`}
-          style={earned ? { background: badgeGradient(b.id) } : undefined}
-        >
+        <div className={`h-full w-full rounded-full p-[3px] shadow-md bg-gradient-to-br ${earned ? `${TIER_RING[b.tier]} ${TIER_GLOW[b.tier]}` : "from-gray-200 to-gray-300"}`}>
           <div className="flex h-full w-full items-center justify-center rounded-full bg-white">
-            <Icon className="h-9 w-9" strokeWidth={1.8} style={{ color: earned ? badgeIconColor(b.id) : "#d1d5db" }} />
+            <Icon className={`h-9 w-9 ${earned ? TIER_ICON[b.tier] : "text-gray-300"}`} strokeWidth={1.8} />
           </div>
         </div>
-        {!earned && (
+        {earned ? (
+          <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow bg-gradient-to-br ${TIER_RING[b.tier]}`}>
+            {TIER_LABEL[b.tier]}
+          </span>
+        ) : (
           <span className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5">
             <Lock className="h-3 w-3 text-gray-400" />
           </span>
         )}
       </div>
-      <h3 className={`text-sm font-semibold ${earned ? "text-brand-dark" : "text-gray-400"}`}>{b.name}</h3>
+      <h3 className={`mt-1 text-sm font-semibold ${earned ? "text-brand-dark" : "text-gray-400"}`}>{b.name}</h3>
       <p className="mt-0.5 text-xs text-gray-400">{b.sub}</p>
 
       {earned ? (

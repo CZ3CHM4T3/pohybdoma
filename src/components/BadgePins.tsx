@@ -1,4 +1,4 @@
-import { BADGE_MAP, badgeGradient, badgeIconColor } from "@/lib/badges";
+import { BADGE_MAP, TIER_RING, TIER_ICON, TIER_GLOW } from "@/lib/badges";
 
 /** Malé odznaky-medailony u jména (přišpendlené v Síni slávy). */
 export function BadgePins({ ids, size = 16 }: { ids?: string[] | null; size?: number }) {
@@ -9,15 +9,16 @@ export function BadgePins({ ids, size = 16 }: { ids?: string[] | null; size?: nu
         const b = BADGE_MAP[id];
         if (!b) return null;
         const Icon = b.Icon;
+        const glow = b.tier === "gold" || b.tier === "legend" ? TIER_GLOW[b.tier] : "";
         return (
           <span
             key={id}
             title={b.name}
-            className="inline-flex items-center justify-center rounded-full p-[1.5px] shadow-sm"
-            style={{ width: size, height: size, background: badgeGradient(id) }}
+            className={`inline-flex items-center justify-center rounded-full p-[1.5px] bg-gradient-to-br ${TIER_RING[b.tier]} ${glow}`}
+            style={{ width: size, height: size }}
           >
             <span className="flex h-full w-full items-center justify-center rounded-full bg-white">
-              <Icon className="h-[58%] w-[58%]" strokeWidth={2.2} style={{ color: badgeIconColor(id) }} />
+              <Icon className={`h-[58%] w-[58%] ${TIER_ICON[b.tier]}`} strokeWidth={2.2} />
             </span>
           </span>
         );
