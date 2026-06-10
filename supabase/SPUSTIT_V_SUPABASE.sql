@@ -1,12 +1,13 @@
--- ============================================================
---  SPUSTIT V SUPABASE  →  SQL Editor  →  vlož celé  →  RUN
---  Pořadí je důležité (část 2 používá tabulku z části 1).
+-- ════════════════════════════════════════════════════════════════════════════
+--  SPUSTIT V SUPABASE  →  SQL Editor  →  vlož CELÉ  →  RUN
+--  Obsahuje VŠECHNY novější funkce webu. Pořadí je důležité.
 --  Vše je bezpečné spustit i opakovaně (if not exists / or replace).
--- ============================================================
+--  Předpokládá, že základ (profiles, bookings, reviews…) už běží.
+-- ════════════════════════════════════════════════════════════════════════════
 
 
 -- ============================================================
---  ČÁST 1 — Měření odcvičených minut + žebříček (dříč měsíce)
+--  1) Měření odcvičených minut + žebříček (dříč měsíce)
 -- ============================================================
 
 create table if not exists public.video_watch (
@@ -83,8 +84,7 @@ grant execute on function public.video_leaderboard(text, int) to authenticated;
 
 
 -- ============================================================
---  ČÁST 2 — Customizace profilu (vzhled karty) + statistiky
---  (nahrazuje dřívější profile_life.sql – ten už nespouštěj)
+--  2) Customizace profilu (vzhled karty) + statistiky
 -- ============================================================
 
 alter table public.profiles add column if not exists profile_theme text;
@@ -123,6 +123,117 @@ language sql stable security definer set search_path = public, auth as $$
 $$;
 grant execute on function public.public_profile(uuid) to authenticated;
 
+
 -- ============================================================
---  HOTOVO ✅
+--  3) Můj kalendář – základ (poznámky/události)
 -- ============================================================
+
+create table if not exists public.calendar_notes (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  day        date not null,
+  category   text not null default 'jine',
+  body       text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists calendar_notes_user_day_idx on public.calendar_notes (user_id, day);
+
+alter table public.calendar_notes enable row level security;
+drop policy if exists "cn select own" on public.calendar_notes;
+create policy "cn select own" on public.calendar_notes
+  for select to authenticated using (user_id = auth.uid());
+drop policy if exists "cn insert own" on public.calendar_notes;
+create policy "cn insert own" on public.calendar_notes
+  for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "cn update own" on public.calendar_notes;
+create policy "cn update own" on public.calendar_notes
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "cn delete own" on public.calendar_notes;
+create policy "cn delete own" on public.calendar_notes
+  for delete to authenticated using (user_id = auth.uid());
+grant select, insert, update, delete on public.calendar_notes to authenticated;
+
+
+-- ============================================================
+--  4) Můj kalendář v2 – vlastní kategorie (až 8) + události s časem
+-- ============================================================
+
+create table if not exists public.calendar_categories (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  label      text not null default 'Kategorie',
+  color      text not null default 'sky',
+  position   int  not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists calendar_categories_user_idx on public.calendar_categories (user_id, position);
+
+alter table public.calendar_categories enable row level security;
+drop policy if exists "cc select own" on public.calendar_categories;
+create policy "cc select own" on public.calendar_categories
+  for select to authenticated using (user_id = auth.uid());
+drop policy if exists "cc insert own" on public.calendar_categories;
+create policy "cc insert own" on public.calendar_categories
+  for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "cc update own" on public.calendar_categories;
+create policy "cc update own" on public.calendar_categories
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists "cc delete own" on public.calendar_categories;
+create policy "cc delete own" on public.calendar_categories
+  for delete to authenticated using (user_id = auth.uid());
+grant select, insert, update, delete on public.calendar_categories to authenticated;
+
+alter table public.calendar_notes add column if not exists category_id bigint references public.calendar_categories(id) on delete set null;
+alter table public.calendar_notes add column if not exists at_time time;
+alter table public.calendar_notes add column if not exists note text;
+
+
+-- ============================================================
+--  5) Osobní rekord v žebříčku (nejlepší umístění ≤ 10. + měsíc)
+-- ============================================================
+
+create or replace function public.personal_best_rank(p_id uuid)
+returns table (rank int, month date)
+language sql stable security definer set search_path = public as $$
+  with monthly as (
+    select date_trunc('month', watched_at)::date as m, user_id, sum(seconds) as secs
+    from public.video_watch
+    group by 1, 2
+  ),
+  ranked as (
+    select m, user_id, row_number() over (partition by m order by secs desc)::int as rnk
+    from monthly
+  )
+  select rnk, m
+  from ranked
+  where user_id = p_id and rnk <= 10
+  order by rnk asc, m asc
+  limit 1;
+$$;
+grant execute on function public.personal_best_rank(uuid) to authenticated;
+
+
+-- ============================================================
+--  6) Smazání vlastního účtu (GDPR – smaže VŠECHNO, nenávratně)
+-- ============================================================
+
+create or replace function public.delete_my_account()
+returns void
+language plpgsql security definer set search_path = public, auth, storage as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'Nepřihlášený uživatel.'; end if;
+  delete from storage.objects where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid::text;
+  delete from storage.objects where bucket_id = 'community' and owner = uid;
+  delete from public.bookings where user_id = uid;
+  delete from public.reviews  where user_id = uid;
+  delete from auth.users where id = uid;
+end;
+$$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;
+
+-- ════════════════════════════════════════════════════════════════════════════
+--  HOTOVO. Když to proběhlo bez červené chyby, vše nové je nasazené. ✅
+-- ════════════════════════════════════════════════════════════════════════════

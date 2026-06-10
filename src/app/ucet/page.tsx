@@ -540,42 +540,41 @@ export default function UcetPage() {
                 </button>
               </div>
 
-              {/* Nebezpečná zóna – smazání účtu */}
-              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" strokeWidth={2} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-red-700">Smazat účet</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      Trvale a nevratně smaže tvůj účet i všechna data (rezervace, deník, odznaky, kalendář, zprávy…).
-                      Tohle nejde vrátit zpět.
-                    </p>
-
-                    {!delStep ? (
-                      <button
-                        onClick={() => { setDelStep(true); setDelErr(null); }}
-                        className="mt-3 inline-flex items-center gap-2 rounded-lg border-2 border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-100"
-                      >
-                        <Trash2 className="h-4 w-4" /> Smazat účet
-                      </button>
-                    ) : (
-                      <div className="mt-3 space-y-2">
-                        {delErr && <p className="text-xs font-medium text-red-700">{delErr}</p>}
+              {/* Smazat účet – nenápadný odkaz, rozbalí se až po kliknutí */}
+              <div className="border-t border-gray-100 pt-4">
+                {!delStep ? (
+                  <button
+                    onClick={() => { setDelStep(true); setDelErr(null); }}
+                    className="text-xs text-gray-400 transition-colors hover:text-red-600"
+                  >
+                    Smazat účet
+                  </button>
+                ) : (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" strokeWidth={2} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-brand-dark">Smazat účet</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          Trvale a nevratně smaže tvůj účet i všechna data (rezervace, deník, odznaky,
+                          kalendář, fotky, zprávy…). Tohle nejde vrátit zpět.
+                        </p>
+                        {delErr && <p className="mt-2 text-xs font-medium text-red-700">{delErr}</p>}
                         <input
                           type="password"
                           value={delPwd}
                           onChange={(e) => setDelPwd(e.target.value)}
                           placeholder="Tvoje heslo"
-                          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                          className="mt-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
                         />
                         <input
                           type="text"
                           value={delConfirm}
                           onChange={(e) => setDelConfirm(e.target.value)}
-                          placeholder='Napiš slovo SMAZAT'
-                          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                          placeholder="Napiš slovo SMAZAT"
+                          className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
                         />
-                        <div className="flex flex-wrap gap-2">
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
                           <button
                             onClick={deleteAccount}
                             disabled={delBusy || !delPwd || delConfirm.trim().toUpperCase() !== "SMAZAT"}
@@ -585,15 +584,15 @@ export default function UcetPage() {
                           </button>
                           <button
                             onClick={() => { setDelStep(false); setDelPwd(""); setDelConfirm(""); setDelErr(null); }}
-                            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-dark"
+                            className="text-sm font-semibold text-gray-500 hover:text-brand-dark"
                           >
                             Zrušit
                           </button>
                         </div>
                       </div>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
