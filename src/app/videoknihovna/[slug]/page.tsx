@@ -45,14 +45,26 @@ export default async function VideoDetailPage({ params }: Props) {
         {/* Player area */}
         <div className="card overflow-hidden mb-8">
           {accessible ? (
-            <div className="aspect-video bg-brand-dark flex items-center justify-center">
+            <div className="relative aspect-video bg-brand-dark">
               <WatchLogger slug={video.slug} />
-              <div className="text-center text-white/50">
-                <div className="text-6xl mb-4">▶</div>
-                <p className="font-semibold">Video přehrávač</p>
-                <p className="text-sm opacity-60">Bude napojeno na Mux / Cloudflare Stream</p>
-                <p className="text-xs opacity-40 mt-1">providerId: {video.providerId}</p>
-              </div>
+              {video.providerId ? (
+                <iframe
+                  src={`https://iframe.videodelivery.net/${video.providerId}`}
+                  className="absolute inset-0 h-full w-full"
+                  style={{ border: "none" }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen
+                  title={video.title}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-center text-white/50">
+                  <div>
+                    <div className="text-6xl mb-4">▶</div>
+                    <p className="font-semibold">Video se připravuje</p>
+                    <p className="text-sm opacity-60">Brzy se tu objeví.</p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="aspect-video bg-brand-dark relative flex items-center justify-center">
