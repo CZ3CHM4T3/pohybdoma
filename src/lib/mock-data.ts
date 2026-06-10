@@ -817,6 +817,7 @@ export const MEMBERSHIP_MATRIX: {
   { label: "Chytré filtry video-knihovny", desc: "Rychle najdeš přesně to svoje podle části těla, systému i toho, co máš doma.", free: false, member: false, vip: true, vipPlus: true },
   { label: "Kurzy pro členy", desc: "Ucelené série krok za krokem – víš, čím začít a kam pokračovat.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Oblíbená videa", desc: "Uložíš si srdíčkem, k čemu se vracíš, a máš to vždy po ruce.", free: false, member: true, vip: true, vipPlus: true },
+  { label: "Náhodné přehrávání", desc: "Jedním klikem ti pustím náhodné video – ideální, když nevíš, do čeho se pustit.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Mixér – sestav si vlastní lekci", desc: "Zadáš, na co chceš cvičit, a Mixér ti poskládá videa za sebe do jedné plynulé lekce.", free: false, member: false, vip: false, vipPlus: true },
   { label: "Kruhy – propojení uživatelů", desc: "Najdeš lidi se stejným cílem a budete se navzájem hecovat.", free: false, member: true, vip: true, vipPlus: true },
   { label: "Chlubírna (nástěnka pokroku)", desc: "Pochlub se pokrokem, sdílej fotku a povzbuď ostatní – komunitní nástěnka.", free: false, member: true, vip: true, vipPlus: true },

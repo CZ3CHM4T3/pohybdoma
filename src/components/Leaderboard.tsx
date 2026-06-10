@@ -39,7 +39,6 @@ export function Leaderboard() {
   if (loading) return null;
 
   const top3 = rows.slice(0, 3);
-  const rest = rows.slice(3, 10);
   const first = top3[0];
   const second = top3[1];
   const third = top3[2];
@@ -72,54 +71,52 @@ export function Leaderboard() {
         </Link>
       )}
 
-      {rows.length === 0 ? (
-        <p className="flex items-center gap-2 py-3 text-sm text-gray-400">
-          <Flame className="h-4 w-4 text-amber-400" /> Tento měsíc ještě nikdo nezačal — buď první v žebříčku!
+      {rows.length === 0 && (
+        <p className="mb-3 flex items-center gap-2 text-xs text-gray-400">
+          <Flame className="h-4 w-4 text-amber-400" /> Tento měsíc zatím nikdo necvičil — buď první!
         </p>
-      ) : (
-        <>
-          {/* Pódium */}
-          {first && (
-            <div className="mb-2">
-              {/* 1. místo – na zlaté karimatce */}
-              <Podium row={first} place={1} meId={meId} />
-              {/* 2. a 3. místo */}
-              {(second || third) && (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {second ? <Podium row={second} place={2} meId={meId} /> : <div />}
-                  {third ? <Podium row={third} place={3} meId={meId} /> : <div />}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 4.–10. místo */}
-          {rest.length > 0 && (
-            <ul className="mt-3 space-y-1">
-              {rest.map((r) => {
-                const isMe = meId === r.user_id;
-                return (
-                  <li key={r.user_id}>
-                    <Link
-                      href={`/profil/${r.user_id}`}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-1.5 ring-1 transition hover:bg-gray-50 ${
-                        isMe ? "ring-brand-blue bg-brand-light/40" : "ring-transparent"
-                      }`}
-                    >
-                      <span className="w-5 shrink-0 text-center text-sm font-bold text-gray-400">{r.rank}.</span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-brand-dark">
-                        {r.name}
-                        {isMe && <span className="ml-1.5 text-xs font-bold text-brand-blue">(ty)</span>}
-                      </span>
-                      <span className="shrink-0 text-sm font-semibold text-gray-500">{fmtMin(r.minutes)}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </>
       )}
+
+      {/* Pódium – vždy 1.–3. (i prázdné) */}
+      <div className="mb-2">
+        <Podium row={first ?? null} place={1} meId={meId} />
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Podium row={second ?? null} place={2} meId={meId} />
+          <Podium row={third ?? null} place={3} meId={meId} />
+        </div>
+      </div>
+
+      {/* 4.–10. místo – vždy 7 řádků */}
+      <ul className="mt-3 space-y-1">
+        {Array.from({ length: 7 }).map((_, i) => {
+          const rank = i + 4;
+          const r = rows.find((x) => x.rank === rank) ?? null;
+          const isMe = !!r && meId === r.user_id;
+          const inner = (
+            <div
+              className={`flex items-center gap-3 rounded-lg px-3 py-1.5 ring-1 transition ${
+                r ? "hover:bg-gray-50" : ""
+              } ${isMe ? "ring-brand-blue bg-brand-light/40" : "ring-transparent"}`}
+            >
+              <span className="w-5 shrink-0 text-center text-sm font-bold text-gray-400">{rank}.</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {r ? (
+                  <span className="text-brand-dark">{r.name}</span>
+                ) : (
+                  <span className="text-gray-300">zatím nikdo</span>
+                )}
+                {isMe && <span className="ml-1.5 text-xs font-bold text-brand-blue">(ty)</span>}
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-gray-500">{r ? fmtMin(r.minutes) : "—"}</span>
+            </div>
+          );
+          return (
+            <li key={rank}>
+              {r ? <Link href={`/profil/${r.user_id}`} className="block">{inner}</Link> : inner}
+            </li>
+          );
+        })}
+      </ul>
 
       <p className="mt-3 text-center text-xs text-gray-400">
         Na konci měsíce vyhlásíme nového <strong className="text-amber-600">dříče měsíce</strong> 💪
@@ -134,43 +131,42 @@ const MAT = {
   3: { from: "from-orange-200", via: "via-orange-300", to: "to-orange-200", ring: "ring-orange-300", text: "text-orange-500", joke: "bronzová žíněnka" },
 } as const;
 
-function Podium({ row, place, meId }: { row: Row; place: 1 | 2 | 3; meId: string | null }) {
+function Podium({ row, place, meId }: { row: Row | null; place: 1 | 2 | 3; meId: string | null }) {
   const m = MAT[place];
-  const isMe = meId === row.user_id;
   const big = place === 1;
-  return (
-    <Link href={`/profil/${row.user_id}`} className="block">
-      <div
-        className={`flex flex-col items-center rounded-xl px-2 ${big ? "pt-3 pb-2" : "pt-2 pb-1.5"} ring-1 transition hover:bg-gray-50 ${
-          isMe ? "ring-brand-blue bg-brand-light/40" : "ring-transparent"
-        }`}
-      >
-        <div className="relative">
-          <span
-            className={`flex items-center justify-center rounded-full font-semibold text-white ring-2 ${m.ring} ${
-              big ? "h-14 w-14 text-xl bg-amber-400" : "h-10 w-10 text-base bg-gray-400"
-            }`}
-          >
-            {(row.name[0] ?? "Č").toUpperCase()}
-          </span>
-          {big && <Crown className="absolute -top-3 left-1/2 h-5 w-5 -translate-x-1/2 text-amber-500 drop-shadow" strokeWidth={2.5} />}
-          <span
-            className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-extrabold text-white ring-2 ring-white ${
-              place === 1 ? "bg-amber-500" : place === 2 ? "bg-gray-400" : "bg-orange-400"
-            }`}
-          >
-            {place}
-          </span>
-        </div>
-        <p className={`mt-1.5 max-w-full truncate font-semibold text-brand-dark ${big ? "text-sm" : "text-xs"}`}>
-          {row.name}
-          {isMe && <span className="ml-1 text-[11px] font-bold text-brand-blue">(ty)</span>}
-        </p>
-        <p className={`font-bold ${m.text} ${big ? "text-sm" : "text-xs"}`}>{fmtMin(row.minutes)}</p>
-        {/* karimatka */}
-        <div className={`mt-1 ${big ? "h-2.5 w-24" : "h-2 w-16"} rounded-full bg-gradient-to-r ${m.from} ${m.via} ${m.to} shadow`} />
-        {big && <p className="mt-1 text-[10px] italic text-amber-500">{m.joke}</p>}
+  const isMe = !!row && meId === row.user_id;
+  const inner = (
+    <div
+      className={`flex flex-col items-center rounded-xl px-2 ${big ? "pt-3 pb-2" : "pt-2 pb-1.5"} ring-1 transition ${
+        row ? "hover:bg-gray-50" : ""
+      } ${isMe ? "ring-brand-blue bg-brand-light/40" : "ring-transparent"}`}
+    >
+      <div className="relative">
+        <span
+          className={`flex items-center justify-center rounded-full font-semibold ring-2 ${m.ring} ${
+            big ? "h-14 w-14 text-xl" : "h-10 w-10 text-base"
+          } ${row ? (big ? "bg-amber-400 text-white" : "bg-gray-400 text-white") : "bg-gray-100 text-gray-300"}`}
+        >
+          {row ? (row.name[0] ?? "Č").toUpperCase() : "–"}
+        </span>
+        {big && row && <Crown className="absolute -top-3 left-1/2 h-5 w-5 -translate-x-1/2 text-amber-500 drop-shadow" strokeWidth={2.5} />}
+        <span
+          className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-extrabold text-white ring-2 ring-white ${
+            place === 1 ? "bg-amber-500" : place === 2 ? "bg-gray-400" : "bg-orange-400"
+          }`}
+        >
+          {place}
+        </span>
       </div>
-    </Link>
+      <p className={`mt-1.5 max-w-full truncate font-semibold ${big ? "text-sm" : "text-xs"} ${row ? "text-brand-dark" : "text-gray-300"}`}>
+        {row ? row.name : "zatím nikdo"}
+        {isMe && <span className="ml-1 text-[11px] font-bold text-brand-blue">(ty)</span>}
+      </p>
+      <p className={`font-bold ${big ? "text-sm" : "text-xs"} ${row ? m.text : "text-gray-300"}`}>{row ? fmtMin(row.minutes) : "—"}</p>
+      {/* karimatka */}
+      <div className={`mt-1 ${big ? "h-2.5 w-24" : "h-2 w-16"} rounded-full bg-gradient-to-r ${m.from} ${m.via} ${m.to} ${row ? "shadow" : "opacity-50"}`} />
+      {big && <p className="mt-1 text-[10px] italic text-amber-500">{row ? m.joke : "tady bude jednička"}</p>}
+    </div>
   );
+  return row ? <Link href={`/profil/${row.user_id}`} className="block">{inner}</Link> : inner;
 }

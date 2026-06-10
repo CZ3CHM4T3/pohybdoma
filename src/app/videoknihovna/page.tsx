@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, X, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, X, SlidersHorizontal, Shuffle, Lock } from "lucide-react";
 import type { UserTier, AccessLevel, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -50,6 +51,8 @@ export default function VideoknihovnaPage() {
     Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()]))
   );
   const canFilter = canAccess(userTier, "VIP"); // chytré filtry jsou od VIP
+  const canRandom = canAccess(userTier, "MEMBER"); // náhodné přehrání je od MEMBER
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -109,6 +112,15 @@ export default function VideoknihovnaPage() {
     });
   }, [videos, sel, onlyNew, search]);
 
+  function playRandom() {
+    // náhodně z aktuálně vyfiltrovaných (a přístupných) videí; když nic, ze všech přístupných
+    const inFilter = filtered.filter((v) => canAccess(userTier, v.accessLevel));
+    const pool = inFilter.length ? inFilter : videos.filter((v) => canAccess(userTier, v.accessLevel));
+    if (!pool.length) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    router.push(`/videoknihovna/${pick.slug}`);
+  }
+
   return (
     <section className="bg-brand-light min-h-screen py-10 lg:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -133,6 +145,24 @@ export default function VideoknihovnaPage() {
           >
             ✨ Novinky
           </button>
+          {canRandom ? (
+            <button
+              type="button"
+              onClick={playRandom}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand-dark transition-colors hover:bg-brand-light"
+              title="Přehraj náhodné video"
+            >
+              <Shuffle className="h-4 w-4 text-brand-blue" strokeWidth={2} /> Náhodně
+            </button>
+          ) : (
+            <Link
+              href="/clenstvi"
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-gray-400 transition-colors hover:bg-brand-light"
+              title="Náhodné přehrávání je od úrovně MEMBER"
+            >
+              <Lock className="h-4 w-4" strokeWidth={2} /> Náhodně
+            </Link>
+          )}
           {canFilter && (
             <button
               type="button"
