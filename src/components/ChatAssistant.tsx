@@ -227,12 +227,12 @@ export function ChatAssistant() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={`Zeptej se – ${NAME}`}
-          className="group fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full bg-white py-2 pl-2 pr-4 shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105"
+          className="group fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full bg-white p-2 sm:pr-4 shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105"
         >
           <span className="pd-float relative flex h-11 w-11 overflow-hidden rounded-full ring-2 ring-brand-blue/30">
             <Avatar className="h-full w-full" />
           </span>
-          <span className="text-sm font-semibold text-brand-dark">Poradím ti 👋</span>
+          <span className="hidden sm:inline text-sm font-semibold text-brand-dark">Poradím ti 👋</span>
         </button>
       )}
 
