@@ -36,6 +36,8 @@ export function BuddiesWidget() {
   const [openChats, setOpenChats] = useState<OpenChat[]>([]);
   const [minimized, setMinimized] = useState<Set<string>>(new Set());
   const [typingFrom, setTypingFrom] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(null); // mobil: jedno aktivní okno
+  const [isMobile, setIsMobile] = useState(false);
 
   const uidRef = useRef<string | null>(null);
   const minimizedRef = useRef<Set<string>>(new Set());
@@ -46,6 +48,14 @@ export function BuddiesWidget() {
   const audioRef = useRef<AudioContext | null>(null);
 
   useEffect(() => { minimizedRef.current = minimized; }, [minimized]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const on = () => setIsMobile(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
 
   function beep() {
     try {
@@ -199,11 +209,13 @@ export function BuddiesWidget() {
       const next = [...arr, { id: b.friend_id, name: b.name }];
       return next.slice(-MAX_WINDOWS);
     });
+    setActive(b.friend_id);
     markRead(b.friend_id);
   }
   function closeChat(id: string) {
     setOpenChats((arr) => arr.filter((c) => c.id !== id));
     setMinimized((s) => { const n = new Set(s); n.delete(id); return n; });
+    setActive((a) => (a === id ? null : a));
     registry.current.delete(id);
   }
   function toggleMin(id: string) {
@@ -224,38 +236,27 @@ export function BuddiesWidget() {
   const totalUnread = Object.values(unread).reduce((s, n) => s + n, 0);
   const badge = incoming.length + totalUnread;
 
-  return (
-    <>
-      {!open && (
-        <button type="button" onClick={() => setOpen(true)} aria-label="Buddies"
-          className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-white shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105">
-          <Users className="h-6 w-6" />
-          {badge > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">{badge}</span>}
-        </button>
-      )}
+  const activeChat = openChats.find((c) => c.id === active) ?? null;
 
-      {open && (
-        <div className="fixed bottom-4 right-4 z-50 flex max-w-[calc(100vw-1rem)] items-end gap-3 overflow-x-auto">
-          {/* Otevřené chaty (vedle sebe) */}
-          {openChats.map((c) => (
-            <ChatWindow
-              key={c.id}
-              uid={uid!}
-              friend={c}
-              online={onlineIds.has(c.id)}
-              typing={typingFrom === c.id}
-              minimized={minimized.has(c.id)}
-              unread={unread[c.id] ?? 0}
-              onClose={() => closeChat(c.id)}
-              onToggleMin={() => toggleMin(c.id)}
-              onBlock={() => blockBuddy(c.id, c.name)}
-              sendTyping={() => sendTyping(c.id)}
-              register={(api) => { if (api) registry.current.set(c.id, api); else registry.current.delete(c.id); }}
-            />
-          ))}
+  const chatWindow = (c: OpenChat, mobileActive: boolean) => (
+    <ChatWindow
+      key={c.id}
+      uid={uid!}
+      friend={c}
+      online={onlineIds.has(c.id)}
+      typing={typingFrom === c.id}
+      minimized={mobileActive ? false : minimized.has(c.id)}
+      unread={unread[c.id] ?? 0}
+      onClose={() => closeChat(c.id)}
+      onToggleMin={() => (mobileActive ? setActive(null) : toggleMin(c.id))}
+      onBlock={() => blockBuddy(c.id, c.name)}
+      sendTyping={() => sendTyping(c.id)}
+      register={(api) => { if (api) registry.current.set(c.id, api); else registry.current.delete(c.id); }}
+    />
+  );
 
-          {/* LIST */}
-          <div className="flex h-[70vh] max-h-[520px] w-[92vw] max-w-xs flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
+  const listPanel = (
+    <div className="flex h-[70vh] max-h-[520px] w-[92vw] max-w-xs flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/10">
             <div className="flex items-center gap-2 bg-brand-dark px-4 py-3 text-white">
               <Users className="h-5 w-5" />
               <p className="flex-1 text-sm font-semibold">Buddies</p>
@@ -325,8 +326,47 @@ export function BuddiesWidget() {
               )}
             </div>
           </div>
-        </div>
+  );
+
+  return (
+    <>
+      {!open && (
+        <button type="button" onClick={() => setOpen(true)} aria-label="Buddies"
+          className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-white shadow-xl ring-1 ring-black/5 transition-transform hover:scale-105">
+          <Users className="h-6 w-6" />
+          {badge > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">{badge}</span>}
+        </button>
       )}
+
+      {open && (isMobile ? (
+        <div className="fixed bottom-4 right-4 z-50 flex w-[92vw] max-w-sm flex-col items-stretch gap-2">
+          {activeChat ? chatWindow(activeChat, true) : listPanel}
+          {openChats.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl bg-white p-2 shadow-2xl ring-1 ring-black/10">
+              <button onClick={() => setActive(null)} aria-label="Seznam buddies"
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${active === null ? "bg-brand-blue text-white" : "bg-gray-100 text-gray-500"}`}>
+                <Users className="h-5 w-5" />
+              </button>
+              {openChats.map((c) => {
+                const u = unread[c.id] ?? 0;
+                return (
+                  <button key={c.id} onClick={() => { setActive(c.id); markRead(c.id); }} aria-label={c.name}
+                    className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-2 ${active === c.id ? "bg-brand-blue text-white ring-brand-blue" : "bg-gray-100 text-brand-dark ring-transparent"}`}>
+                    {(c.name[0] ?? "B").toUpperCase()}
+                    {onlineIds.has(c.id) && <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-400" />}
+                    {u > 0 && active !== c.id && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">{u}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-[calc(100vw-1rem)] items-end gap-3 overflow-x-auto">
+          {openChats.map((c) => chatWindow(c, false))}
+          {listPanel}
+        </div>
+      ))}
     </>
   );
 }
