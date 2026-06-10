@@ -77,13 +77,11 @@ export function Leaderboard() {
         </p>
       )}
 
-      {/* Pódium – vždy 1.–3. (i prázdné) */}
-      <div className="mb-2">
+      {/* Pódium – hierarchicky: 1. nahoře, 3. dole */}
+      <div className="mb-2 space-y-2">
         <Podium row={first ?? null} place={1} meId={meId} />
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <Podium row={second ?? null} place={2} meId={meId} />
-          <Podium row={third ?? null} place={3} meId={meId} />
-        </div>
+        <Podium row={second ?? null} place={2} meId={meId} />
+        <Podium row={third ?? null} place={3} meId={meId} />
       </div>
 
       {/* 4.–10. místo – vždy 7 řádků */}

@@ -9,10 +9,11 @@ import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { BADGE_MAP } from "@/lib/badges";
 import { BadgeMedal } from "@/components/BadgeMedal";
 import { PROFILE_THEMES, themeCard } from "@/lib/profile-themes";
+import { frameClass } from "@/lib/avatar-frames";
 
 type Pub = {
   id: string; name: string; tier: string; pinned_badges: string[]; theme: string | null;
-  minutes_month: number; minutes_total: number; member_since: string | null;
+  minutes_month: number; minutes_total: number; member_since: string | null; avatar_frame: string | null;
 };
 
 function fmtMin(m: number): string {
@@ -89,7 +90,7 @@ export default function ProfilPage() {
         </button>
 
         <div className={`card p-8 text-center transition-colors ${themeCard(theme)}`}>
-          <span className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue text-3xl font-semibold text-white shadow">
+          <span className={`mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue text-3xl font-semibold text-white shadow ${frameClass(p.avatar_frame)}`}>
             {(p.name[0] ?? "Č").toUpperCase()}
           </span>
           <h1 className="text-2xl font-semibold text-brand-dark">{p.name}</h1>

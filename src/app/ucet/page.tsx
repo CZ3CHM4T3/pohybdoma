@@ -15,6 +15,7 @@ import { canAccess } from "@/lib/access";
 import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
+import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
@@ -32,6 +33,8 @@ export default function UcetPage() {
   const [checking, setChecking] = useState(true);
   const [tier, setTier] = useState<UserTier>("FREE");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  const [bestRank, setBestRank] = useState<number | null>(null);
   const [tierSince, setTierSince] = useState<string | null>(null);
   const [tierUntil, setTierUntil] = useState<string | null>(null);
   const [pinnedBadges, setPinnedBadges] = useState<string[]>([]);
@@ -84,12 +87,13 @@ export default function UcetPage() {
     }
     supabase
       .from("profiles")
-      .select("tier, avatar_url, tier_since, tier_until, full_name, pinned_badges")
+      .select("tier, avatar_url, avatar_frame, tier_since, tier_until, full_name, pinned_badges")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setTier(normalizeTier(data?.tier as string | undefined));
         setAvatarUrl((data?.avatar_url as string | null) ?? null);
+        setAvatarFrame((data?.avatar_frame as string | null) ?? null);
         setTierSince((data?.tier_since as string | null) ?? null);
         setTierUntil((data?.tier_until as string | null) ?? null);
         setPinnedBadges((data?.pinned_badges as string[] | null) ?? []);
@@ -99,6 +103,11 @@ export default function UcetPage() {
             ""
         );
       });
+    // nejlepší umístění v žebříčku (odemyká rámečky)
+    supabase.rpc("personal_best_rank", { p_id: user.id }).then(({ data }) => {
+      const r = (data ?? [])[0] as { rank: number } | undefined;
+      setBestRank(r?.rank ?? null);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -207,6 +216,11 @@ export default function UcetPage() {
     }
     await supabase.auth.signOut();
     window.location.href = "/";
+  }
+
+  async function setFrame(f: FrameKey | null) {
+    const { data } = await supabase.rpc("set_avatar_frame", { p_frame: f });
+    setAvatarFrame((data as string | null) ?? null);
   }
 
   async function saveName() {
@@ -347,14 +361,16 @@ export default function UcetPage() {
 
           {/* Hlavička */}
           <div className="card p-6 mb-6 flex flex-wrap items-center gap-4">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-2xl font-semibold text-white">
-                {(displayName?.[0] ?? "U").toUpperCase()}
-              </div>
-            )}
+            <span className={`flex h-14 w-14 shrink-0 rounded-full ${frameClass(avatarFrame)}`}>
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
+              ) : (
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-blue text-2xl font-semibold text-white">
+                  {(displayName?.[0] ?? "U").toUpperCase()}
+                </span>
+              )}
+            </span>
             <div className="min-w-0">
               <h2 className="text-lg font-semibold text-brand-dark truncate">
                 {displayName}
@@ -505,6 +521,30 @@ export default function UcetPage() {
                   </label>
                 </div>
               </div>
+
+              {/* Rámeček fotky – odměna za umístění v žebříčku */}
+              {unlockedFrames(bestRank).length > 0 && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4">
+                  <p className="text-sm font-semibold text-brand-dark">Rámeček fotky</p>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Odměna za umístění v žebříčku — tvé nejlepší místo bylo <strong className="text-amber-600">{bestRank}.</strong> Vyber si barvu rámečku.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-end gap-4">
+                    <button onClick={() => setFrame(null)} className="flex flex-col items-center gap-1">
+                      <span className={`flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400 ${!avatarFrame ? "outline outline-2 outline-brand-blue outline-offset-2" : ""}`}>
+                        <X className="h-4 w-4" />
+                      </span>
+                      <span className="text-[11px] text-gray-500">Bez</span>
+                    </button>
+                    {unlockedFrames(bestRank).map((f) => (
+                      <button key={f} onClick={() => setFrame(f)} className="flex flex-col items-center gap-1" title={FRAMES[f].label}>
+                        <span className={`h-11 w-11 rounded-full ${FRAMES[f].swatch} ring-4 ${FRAMES[f].ring} ${FRAMES[f].glow} ${avatarFrame === f ? "outline outline-2 outline-brand-blue outline-offset-2" : ""}`} />
+                        <span className="text-[11px] font-medium text-gray-600">{FRAMES[f].label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Jméno */}
               <div>

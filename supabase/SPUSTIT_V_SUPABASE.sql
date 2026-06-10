@@ -234,6 +234,71 @@ $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
+
+-- ============================================================
+--  7) Prémiový rámeček fotky podle umístění (bronz/stříbro/zlato)
+--     (přepisuje public_profile z bodu 2 – přidává avatar_frame)
+-- ============================================================
+
+alter table public.profiles add column if not exists avatar_frame text;
+
+create or replace function public.set_avatar_frame(p_frame text)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  best int;
+  allowed boolean;
+begin
+  if auth.uid() is null then return null; end if;
+  if p_frame is null or btrim(p_frame) = '' then
+    update public.profiles set avatar_frame = null where id = auth.uid();
+    return null;
+  end if;
+  select min(rnk) into best from (
+    select row_number() over (partition by m order by secs desc)::int as rnk, uid
+    from (
+      select date_trunc('month', watched_at) as m, user_id as uid, sum(seconds) as secs
+      from public.video_watch group by 1, 2
+    ) t
+  ) r where r.uid = auth.uid();
+  allowed :=
+    (p_frame = 'gold'   and best is not null and best <= 1) or
+    (p_frame = 'silver' and best is not null and best <= 2) or
+    (p_frame = 'bronze' and best is not null and best <= 3);
+  if not allowed then return null; end if;
+  update public.profiles set avatar_frame = p_frame where id = auth.uid();
+  return p_frame;
+end;
+$$;
+grant execute on function public.set_avatar_frame(text) to authenticated;
+
+drop function if exists public.public_profile(uuid);
+create or replace function public.public_profile(p_id uuid)
+returns table (
+  id uuid, name text, tier text, pinned_badges text[], theme text,
+  minutes_month int, minutes_total int, member_since timestamptz, avatar_frame text
+)
+language sql stable security definer set search_path = public, auth as $$
+  select u.id,
+    coalesce(nullif(btrim(p.full_name), ''), split_part(u.email, '@', 1), 'Člen'),
+    coalesce(p.tier, 'free'),
+    coalesce(p.pinned_badges, '{}'),
+    p.profile_theme,
+    coalesce((
+      select sum(w.seconds) from public.video_watch w
+      where w.user_id = u.id and w.watched_at >= date_trunc('month', now())
+    ), 0)::int / 60,
+    coalesce((
+      select sum(w.seconds) from public.video_watch w where w.user_id = u.id
+    ), 0)::int / 60,
+    u.created_at,
+    p.avatar_frame
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = p_id;
+$$;
+grant execute on function public.public_profile(uuid) to authenticated;
+
 -- ════════════════════════════════════════════════════════════════════════════
 --  HOTOVO. Když to proběhlo bez červené chyby, vše nové je nasazené. ✅
 -- ════════════════════════════════════════════════════════════════════════════
