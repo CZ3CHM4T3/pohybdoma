@@ -7,7 +7,7 @@ import type { User } from "@supabase/supabase-js";
 import {
   BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
-  Lock, LockOpen, X, Check, PartyPopper, UserPlus, Award,
+  Lock, LockOpen, X, Check, PartyPopper, UserPlus, Award, Trash2, AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -48,6 +48,13 @@ export default function UcetPage() {
   const [cancelPwd, setCancelPwd] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelErr, setCancelErr] = useState<string | null>(null);
+
+  // Smazání účtu (GDPR)
+  const [delStep, setDelStep] = useState(false);
+  const [delPwd, setDelPwd] = useState("");
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState<string | null>(null);
 
   const [tab, setTab] = useState<Tab>("prihlaseni");
   const [email, setEmail] = useState("");
@@ -176,6 +183,30 @@ export default function UcetPage() {
     setCancelPwd("");
     setShowMembership(false);
     setAccMsg("Členství zrušeno – jsi na úrovni FREE.");
+  }
+
+  async function deleteAccount() {
+    if (!user?.email) return;
+    setDelBusy(true);
+    setDelErr(null);
+    // Potvrzení heslem (ověření re-přihlášením)
+    const { error: authErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: delPwd,
+    });
+    if (authErr) {
+      setDelBusy(false);
+      setDelErr("Nesprávné heslo. Zkus to prosím znovu.");
+      return;
+    }
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) {
+      setDelBusy(false);
+      setDelErr("Smazání účtu selhalo: " + error.message);
+      return;
+    }
+    await supabase.auth.signOut();
+    window.location.href = "/";
   }
 
   async function saveName() {
@@ -507,6 +538,62 @@ export default function UcetPage() {
                 >
                   <LogOut className="h-4 w-4" /> Odhlásit se
                 </button>
+              </div>
+
+              {/* Nebezpečná zóna – smazání účtu */}
+              <div className="rounded-xl border border-red-200 bg-red-50/50 p-4">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" strokeWidth={2} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-red-700">Smazat účet</p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Trvale a nevratně smaže tvůj účet i všechna data (rezervace, deník, odznaky, kalendář, zprávy…).
+                      Tohle nejde vrátit zpět.
+                    </p>
+
+                    {!delStep ? (
+                      <button
+                        onClick={() => { setDelStep(true); setDelErr(null); }}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg border-2 border-red-300 px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-100"
+                      >
+                        <Trash2 className="h-4 w-4" /> Smazat účet
+                      </button>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {delErr && <p className="text-xs font-medium text-red-700">{delErr}</p>}
+                        <input
+                          type="password"
+                          value={delPwd}
+                          onChange={(e) => setDelPwd(e.target.value)}
+                          placeholder="Tvoje heslo"
+                          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                        />
+                        <input
+                          type="text"
+                          value={delConfirm}
+                          onChange={(e) => setDelConfirm(e.target.value)}
+                          placeholder='Napiš slovo SMAZAT'
+                          className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={deleteAccount}
+                            disabled={delBusy || !delPwd || delConfirm.trim().toUpperCase() !== "SMAZAT"}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="h-4 w-4" /> {delBusy ? "Mažu…" : "Trvale smazat účet"}
+                          </button>
+                          <button
+                            onClick={() => { setDelStep(false); setDelPwd(""); setDelConfirm(""); setDelErr(null); }}
+                            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-dark"
+                          >
+                            Zrušit
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
