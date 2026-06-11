@@ -17,6 +17,7 @@ import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
 import { isAdminEmail } from "@/lib/admin";
+import { FILTER_SYSTEMS } from "@/lib/filters";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
@@ -35,6 +36,7 @@ export default function UcetPage() {
   const [tier, setTier] = useState<UserTier>("FREE");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
+  const [favActivity, setFavActivity] = useState<string>("");
   const [bestRank, setBestRank] = useState<number | null>(null);
   const [tierSince, setTierSince] = useState<string | null>(null);
   const [tierUntil, setTierUntil] = useState<string | null>(null);
@@ -88,13 +90,14 @@ export default function UcetPage() {
     }
     supabase
       .from("profiles")
-      .select("tier, avatar_url, avatar_frame, tier_since, tier_until, full_name, pinned_badges")
+      .select("tier, avatar_url, avatar_frame, fav_activity, tier_since, tier_until, full_name, pinned_badges")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setTier(normalizeTier(data?.tier as string | undefined));
         setAvatarUrl((data?.avatar_url as string | null) ?? null);
         setAvatarFrame((data?.avatar_frame as string | null) ?? null);
+        setFavActivity((data?.fav_activity as string | null) ?? "");
         setTierSince((data?.tier_since as string | null) ?? null);
         setTierUntil((data?.tier_until as string | null) ?? null);
         setPinnedBadges((data?.pinned_badges as string[] | null) ?? []);
@@ -222,6 +225,11 @@ export default function UcetPage() {
   async function setFrame(f: FrameKey | null) {
     const { data } = await supabase.rpc("set_avatar_frame", { p_frame: f });
     setAvatarFrame((data as string | null) ?? null);
+  }
+
+  async function saveFavActivity(val: string) {
+    setFavActivity(val);
+    await supabase.rpc("set_fav_activity", { p_val: val || null });
   }
 
   async function saveName() {
@@ -579,6 +587,22 @@ export default function UcetPage() {
                     <Save className="h-4 w-4" /> Uložit
                   </button>
                 </div>
+              </div>
+
+              {/* Oblíbená aktivita (ukáže se na profilu) */}
+              <div>
+                <label className="block text-sm font-semibold text-brand-dark mb-1.5">Oblíbená aktivita</label>
+                <select
+                  value={favActivity}
+                  onChange={(e) => saveFavActivity(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                >
+                  <option value="">— žádná —</option>
+                  {FILTER_SYSTEMS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400">Zobrazí se na tvém profilu jako štítek.</p>
               </div>
 
               {/* Heslo + odhlášení */}

@@ -19,11 +19,6 @@ const FOOTER_LINKS = {
   ],
 };
 
-const SOCIAL_LINKS = [
-  { href: "#", label: "Instagram", icon: "IG" },
-  { href: "#", label: "YouTube", icon: "YT" },
-  { href: "#", label: "Facebook", icon: "FB" },
-];
 
 export function Footer() {
   return (
@@ -49,16 +44,20 @@ export function Footer() {
               Cvič doma. Naprav si tělo.<br />Rostu na pohybové cestě.
             </p>
             <div className="mt-6 flex gap-3">
-              {SOCIAL_LINKS.map((s) => (
-                <a
-                  key={s.label}
-                  href={s.href}
-                  aria-label={s.label}
-                  className="w-9 h-9 rounded-lg bg-white/10 hover:bg-brand-blue flex items-center justify-center text-xs font-bold transition-colors"
-                >
-                  {s.icon}
-                </a>
-              ))}
+              <a
+                href="https://www.instagram.com/pohybdoma/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram @pohybdoma"
+                className="inline-flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 hover:bg-brand-blue transition-colors"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="2" y="2" width="20" height="20" rx="5" />
+                  <circle cx="12" cy="12" r="4" />
+                  <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" />
+                </svg>
+                <span className="text-xs font-semibold">@pohybdoma</span>
+              </a>
             </div>
           </div>
 

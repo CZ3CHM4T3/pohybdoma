@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame, Award, Users } from "lucide-react";
+import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame, Award, Users, Activity, BookOpen, Star, PartyPopper, Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { BADGE_MAP } from "@/lib/badges";
@@ -11,11 +11,16 @@ import { BadgeMedal } from "@/components/BadgeMedal";
 import { PROFILE_THEMES, themeCard } from "@/lib/profile-themes";
 import { frameClass } from "@/lib/avatar-frames";
 import { FounderBadge } from "@/components/FounderBadge";
+import { BADGES, type Stats } from "@/lib/badges";
 
 type Pub = {
   id: string; name: string; tier: string; pinned_badges: string[]; theme: string | null;
   minutes_month: number; minutes_total: number; member_since: string | null; avatar_frame: string | null; is_admin: boolean;
-  avatar_url: string | null; circles_count: number;
+  avatar_url: string | null; circles_count: number; fav_activity: string | null;
+};
+type ProfStats = {
+  lessons: number; diary: number; favorites: number; brags: number; challenges: number;
+  buddies: number; last_active: string | null; streak: number;
 };
 
 function fmtMin(m: number): string {
@@ -29,6 +34,13 @@ function fmtMonth(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
 }
+function fmtAgo(iso: string): string {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (d <= 0) return "dnes";
+  if (d === 1) return "včera";
+  if (d < 7) return `před ${d} dny`;
+  return new Date(iso).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
+}
 
 export default function ProfilPage() {
   const supabase = createClient();
@@ -38,6 +50,7 @@ export default function ProfilPage() {
   const [p, setP] = useState<Pub | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
   const [best, setBest] = useState<{ rank: number; month: string } | null>(null);
+  const [stats, setStats] = useState<ProfStats | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [theme, setTheme] = useState<string>("default");
@@ -47,9 +60,10 @@ export default function ProfilPage() {
     (async () => {
       const { data: au } = await supabase.auth.getUser();
       setMeId(au.user?.id ?? null);
-      const [{ data }, { data: br }] = await Promise.all([
+      const [{ data }, { data: br }, { data: st }] = await Promise.all([
         supabase.rpc("public_profile", { p_id: id }),
         supabase.rpc("personal_best_rank", { p_id: id }),
+        supabase.rpc("profile_stats", { p_id: id }),
       ]);
       const row = (data ?? [])[0] as Pub | undefined;
       if (!row) { setPhase("notfound"); return; }
@@ -57,6 +71,7 @@ export default function ProfilPage() {
       setTheme(row.theme ?? "default");
       const b = (br ?? [])[0] as { rank: number; month: string } | undefined;
       setBest(b ?? null);
+      setStats(((st ?? [])[0] as ProfStats) ?? null);
       setPhase("ready");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,6 +99,16 @@ export default function ProfilPage() {
   const pins = p.pinned_badges ?? [];
   const isOwner = meId != null && meId === p.id;
 
+  const memberDays = p.member_since
+    ? Math.max(0, Math.floor((Date.now() - new Date(p.member_since).getTime()) / 86400000))
+    : 0;
+  const statObj: Stats = {
+    lessons: stats?.lessons ?? 0, diary: stats?.diary ?? 0, favorites: stats?.favorites ?? 0,
+    buddies: stats?.buddies ?? 0, brags: stats?.brags ?? 0, challenges: stats?.challenges ?? 0,
+    circlesCreated: 0, circlesJoined: p.circles_count, membershipDays: memberDays,
+  };
+  const earnedBadges = BADGES.filter((b) => b.metric && (statObj[b.metric] ?? 0) >= (b.threshold ?? Infinity)).length;
+
   return (
     <div className="min-h-screen bg-brand-light py-10">
       <div className="mx-auto max-w-lg px-4 sm:px-6 lg:px-8">
@@ -109,6 +134,14 @@ export default function ProfilPage() {
             </span>
           )}
 
+          {p.fav_activity && (
+            <div className="mt-2 flex justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs font-semibold text-brand-blue">
+                <Heart className="h-3.5 w-3.5" /> {p.fav_activity}
+              </span>
+            </div>
+          )}
+
           <p className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs text-gray-400">
             <Eye className="h-3.5 w-3.5" /> {isOwner ? "Takhle tě vidí ostatní členové" : "Sleduješ profil (jen pro zobrazení)"}
           </p>
@@ -120,6 +153,25 @@ export default function ProfilPage() {
             <Stat Icon={Users} value={String(p.circles_count)} label="kruhů" tint="text-orange-600" />
             <Stat Icon={CalendarDays} value={fmtMonth(p.member_since)} label="člen od" tint="text-emerald-600" small />
           </div>
+
+          {/* Aktivita člena */}
+          {stats && (
+            <>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <Stat Icon={Activity} value={String(stats.lessons)} label="lekcí" tint="text-violet-600" />
+                <Stat Icon={Star} value={String(stats.challenges)} label="výzev" tint="text-amber-600" />
+                <Stat Icon={PartyPopper} value={String(stats.brags)} label="v chlubírně" tint="text-rose-600" />
+                <Stat Icon={Users} value={String(stats.buddies)} label="buddies" tint="text-brand-blue" />
+                <Stat Icon={BookOpen} value={String(stats.diary)} label="v deníku" tint="text-fuchsia-600" />
+                <Stat Icon={Heart} value={String(stats.favorites)} label="oblíbených" tint="text-red-500" />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                <span className="inline-flex items-center gap-1"><Flame className="h-3.5 w-3.5 text-amber-500" /> série {stats.streak} {stats.streak === 1 ? "den" : stats.streak >= 2 && stats.streak <= 4 ? "dny" : "dní"}</span>
+                <span className="inline-flex items-center gap-1"><Award className="h-3.5 w-3.5 text-amber-500" /> {earnedBadges} odznaků</span>
+                {stats.last_active && <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> naposledy {fmtAgo(stats.last_active)}</span>}
+              </div>
+            </>
+          )}
 
           {/* Osobní rekord v žebříčku (jen pokud se dostal do TOP 10) */}
           {best && (

@@ -272,12 +272,14 @@ end;
 $$;
 grant execute on function public.set_avatar_frame(text) to authenticated;
 
+alter table public.profiles add column if not exists fav_activity text;
+
 drop function if exists public.public_profile(uuid);
 create or replace function public.public_profile(p_id uuid)
 returns table (
   id uuid, name text, tier text, pinned_badges text[], theme text,
   minutes_month int, minutes_total int, member_since timestamptz, avatar_frame text, is_admin boolean,
-  avatar_url text, circles_count int
+  avatar_url text, circles_count int, fav_activity text
 )
 language sql stable security definer set search_path = public, auth as $$
   select u.id,
@@ -296,12 +298,54 @@ language sql stable security definer set search_path = public, auth as $$
     p.avatar_frame,
     (lower(u.email) = 'schroffelh@seznam.cz'),
     p.avatar_url,
-    coalesce((select count(*) from public.circle_members cm where cm.user_id = u.id), 0)::int
+    coalesce((select count(*) from public.circle_members cm where cm.user_id = u.id), 0)::int,
+    p.fav_activity
   from auth.users u
   left join public.profiles p on p.id = u.id
   where u.id = p_id;
 $$;
 grant execute on function public.public_profile(uuid) to authenticated;
+
+-- Uložení oblíbené aktivity (vlastní volba člena)
+create or replace function public.set_fav_activity(p_val text)
+returns void language sql security definer set search_path = public as $$
+  update public.profiles set fav_activity = nullif(btrim(left(coalesce(p_val, ''), 40)), '')
+  where id = auth.uid();
+$$;
+grant execute on function public.set_fav_activity(text) to authenticated;
+
+
+-- ============================================================
+--  8) Bohatší profil – statistiky (lekce, deník, výzvy, buddies, série…)
+-- ============================================================
+
+create or replace function public.profile_stats(p_id uuid)
+returns table (
+  lessons int, diary int, favorites int, brags int, challenges int,
+  buddies int, last_active timestamptz, streak int
+)
+language sql stable security definer set search_path = public as $$
+  with days as (
+    select distinct (watched_at)::date as d from public.video_watch where user_id = p_id
+  )
+  select
+    coalesce((select count(*) from public.lesson_progress where user_id = p_id and completed), 0)::int,
+    coalesce((select count(*) from public.diary_entries where user_id = p_id), 0)::int,
+    coalesce((select count(*) from public.video_favorites where user_id = p_id), 0)::int,
+    coalesce((select count(*) from public.brags where author_id = p_id), 0)::int,
+    coalesce((select count(*) from public.challenge_done where user_id = p_id), 0)::int,
+    coalesce((select count(*) from public.friendships
+              where status = 'accepted' and (requester_id = p_id or addressee_id = p_id)), 0)::int,
+    (select max(watched_at) from public.video_watch where user_id = p_id),
+    coalesce((
+      select case when (select max(d) from days) >= current_date - 1 then (
+        select count(*) from (
+          select d + (row_number() over (order by d desc)) * interval '1 day' as anchor from days
+        ) t where anchor = (select max(d) from days) + interval '1 day'
+      ) else 0 end
+    ), 0)::int;
+$$;
+grant execute on function public.profile_stats(uuid) to authenticated;
 
 -- ════════════════════════════════════════════════════════════════════════════
 --  HOTOVO. Když to proběhlo bez červené chyby, vše nové je nasazené. ✅
