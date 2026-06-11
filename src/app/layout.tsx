@@ -7,6 +7,7 @@ import { CookieBanner } from "@/components/CookieBanner";
 import { ChatAssistant } from "@/components/ChatAssistant";
 import { BuddiesWidget } from "@/components/BuddiesWidget";
 import { MembershipExpiryBanner } from "@/components/MembershipExpiryBanner";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 const montserrat = Montserrat({
   subsets: ["latin", "latin-ext"],
@@ -57,6 +58,7 @@ export default function RootLayout({
         <CookieBanner />
         <ChatAssistant />
         <BuddiesWidget />
+        <OnboardingTour />
       </body>
     </html>
   );

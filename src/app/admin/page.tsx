@@ -26,6 +26,7 @@ const ADMIN_TABS: { k: string; label: string }[] = [
   { k: "clenove", label: "Členové" },
   { k: "recenze", label: "Recenze" },
   { k: "newsletter", label: "Newsletter" },
+  { k: "pruvodce", label: "Průvodce" },
 ];
 function slugifyVideo(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -115,6 +116,18 @@ export default function AdminPage() {
   const [kickCode, setKickCode] = useState("");
   const [kickInput, setKickInput] = useState("");
   const [kickBusy, setKickBusy] = useState(false);
+
+  // Onboarding průvodce
+  type OnbStep = { id: number; position: number; title: string; body: string; image_url: string | null; cx: number; cy: number; radius: number };
+  const [onbSteps, setOnbSteps] = useState<OnbStep[]>([]);
+  const [obTitle, setObTitle] = useState("");
+  const [obBody, setObBody] = useState("");
+  const [obImage, setObImage] = useState<string | null>(null);
+  const [obCx, setObCx] = useState(50);
+  const [obCy, setObCy] = useState(50);
+  const [obRadius, setObRadius] = useState(10);
+  const [obEditId, setObEditId] = useState<number | null>(null);
+  const [obUploading, setObUploading] = useState(false);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -224,6 +237,9 @@ export default function AdminPage() {
     });
     supabase.from("challenges").select("id, video_uid").eq("active", true).limit(1).maybeSingle().then(({ data }) => {
       if (data) setChallenge((c) => (c ? { ...c, video_uid: (data as { video_uid: string | null }).video_uid } : c));
+    });
+    supabase.from("onboarding_steps").select("*").order("position").then(({ data }) => {
+      if (data) setOnbSteps(data as OnbStep[]);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -356,6 +372,47 @@ export default function AdminPage() {
     }
     setMembers((m) => m.filter((x) => x.id !== id));
     cancelKick();
+  }
+
+  // ── Onboarding průvodce ──
+  async function loadOnb() {
+    const { data } = await supabase.from("onboarding_steps").select("*").order("position");
+    if (data) setOnbSteps(data as OnbStep[]);
+  }
+  function resetOb() { setObEditId(null); setObTitle(""); setObBody(""); setObImage(null); setObCx(50); setObCy(50); setObRadius(10); }
+  async function uploadObImage(file: File) {
+    setObUploading(true); setError(null);
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `onboarding/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const { error } = await supabase.storage.from("community").upload(path, file, { upsert: true });
+    setObUploading(false);
+    if (error) { setError("Nahrání obrázku selhalo: " + error.message); return; }
+    setObImage(supabase.storage.from("community").getPublicUrl(path).data.publicUrl);
+  }
+  async function saveStep() {
+    if (!obTitle.trim()) { setError("Vyplň nadpis kroku."); return; }
+    setError(null);
+    const payload = { title: obTitle.trim(), body: obBody.trim(), image_url: obImage, cx: obCx, cy: obCy, radius: obRadius };
+    if (obEditId) {
+      const { error } = await supabase.from("onboarding_steps").update(payload).eq("id", obEditId);
+      if (error) { setError("Uložení selhalo (spustil jsi onboarding.sql?): " + error.message); return; }
+    } else {
+      const pos = (onbSteps[onbSteps.length - 1]?.position ?? 0) + 1;
+      const { error } = await supabase.from("onboarding_steps").insert({ ...payload, position: pos });
+      if (error) { setError("Uložení selhalo (spustil jsi onboarding.sql?): " + error.message); return; }
+    }
+    resetOb(); loadOnb();
+  }
+  function editStep(s: OnbStep) { setObEditId(s.id); setObTitle(s.title); setObBody(s.body); setObImage(s.image_url); setObCx(s.cx); setObCy(s.cy); setObRadius(s.radius); }
+  async function deleteStep(id: number) { await supabase.from("onboarding_steps").delete().eq("id", id); if (obEditId === id) resetOb(); loadOnb(); }
+  async function moveStep(id: number, dir: -1 | 1) {
+    const idx = onbSteps.findIndex((s) => s.id === id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= onbSteps.length) return;
+    const a = onbSteps[idx], b = onbSteps[j];
+    await supabase.from("onboarding_steps").update({ position: b.position }).eq("id", a.id);
+    await supabase.from("onboarding_steps").update({ position: a.position }).eq("id", b.id);
+    loadOnb();
   }
 
   // ── Recenze ──
@@ -1264,6 +1321,96 @@ export default function AdminPage() {
               ))}
             </div>
           )}
+        </section>
+        )}
+
+        {tab === "pruvodce" && (
+        <section className="card p-6 mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold text-brand-dark">
+              Onboarding průvodce <span className="text-gray-400 font-normal">({onbSteps.length} kroků)</span>
+            </h2>
+            <button type="button" onClick={() => window.dispatchEvent(new Event("pd-onboarding-start"))} className="text-xs font-semibold text-brand-blue hover:underline">
+              Spustit náhled
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">
+            Kroky, kterými projde nový člen po prvním přihlášení. U každého nahraj obrázek (screenshot stránky) a klikni do něj, kde se má objevit kroužek.
+          </p>
+
+          {/* Seznam kroků */}
+          {onbSteps.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {onbSteps.map((s, idx) => (
+                <div key={s.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-2.5">
+                  <span className="w-5 shrink-0 text-center text-sm font-bold text-gray-400">{idx + 1}.</span>
+                  {s.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.image_url} alt="" className="h-10 w-16 shrink-0 rounded object-cover ring-1 ring-gray-200" />
+                  ) : (
+                    <span className="h-10 w-16 shrink-0 rounded bg-gray-100" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-brand-dark">{s.title}</span>
+                  <div className="flex shrink-0 items-center gap-1.5 text-xs">
+                    <button onClick={() => moveStep(s.id, -1)} className="rounded border border-gray-200 px-1.5 py-0.5 text-gray-500 hover:bg-gray-50" title="Nahoru">↑</button>
+                    <button onClick={() => moveStep(s.id, 1)} className="rounded border border-gray-200 px-1.5 py-0.5 text-gray-500 hover:bg-gray-50" title="Dolů">↓</button>
+                    <button onClick={() => editStep(s)} className="font-semibold text-brand-blue hover:underline">Upravit</button>
+                    <button onClick={() => deleteStep(s.id)} className="font-semibold text-red-500 hover:text-red-700">Smazat</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formulář kroku */}
+          <div className="rounded-xl border border-gray-100 p-4">
+            <p className="mb-3 text-sm font-semibold text-brand-dark">{obEditId ? "Upravit krok" : "Přidat krok"}</p>
+            <div className="grid grid-cols-1 gap-3">
+              <AdminInput label="Nadpis kroku *" value={obTitle} onChange={setObTitle} placeholder="Tady najdeš svoje videa" />
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+                <textarea value={obBody} onChange={(e) => setObBody(e.target.value)} rows={2} placeholder="Krátce vysvětli, k čemu to je a kde to najde." className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark mb-1">Obrázek (screenshot stránky)</label>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-light">
+                  {obUploading ? "Nahrávám…" : obImage ? "Změnit obrázek" : "Nahrát obrázek"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadObImage(f); e.target.value = ""; }} />
+                </label>
+              </div>
+
+              {obImage && (
+                <div>
+                  <p className="mb-1 text-xs text-gray-500">Klikni do obrázku, kam dát kroužek. Velikost nastav posuvníkem.</p>
+                  <div
+                    className="relative inline-block max-w-full cursor-crosshair overflow-hidden rounded-lg ring-1 ring-gray-200"
+                    onClick={(e) => {
+                      const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                      setObCx(Math.round(((e.clientX - r.left) / r.width) * 100));
+                      setObCy(Math.round(((e.clientY - r.top) / r.height) * 100));
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={obImage} alt="" className="block max-h-72 w-auto" />
+                    <span
+                      className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-brand-blue shadow-[0_0_0_3px_rgba(255,255,255,0.6)]"
+                      style={{ left: `${obCx}%`, top: `${obCy}%`, width: `${obRadius * 2}%`, paddingBottom: `${obRadius * 2}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                    <span>Velikost kroužku</span>
+                    <input type="range" min={4} max={30} value={obRadius} onChange={(e) => setObRadius(Number(e.target.value))} className="flex-1" />
+                    <span className="w-8 text-right">{obRadius}%</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={saveStep} className="btn-primary text-sm">{obEditId ? "Uložit změny" : "Přidat krok"}</button>
+                {obEditId && <button type="button" onClick={resetOb} className="text-sm font-semibold text-gray-500 hover:text-brand-dark">Zrušit úpravu</button>}
+              </div>
+            </div>
+          </div>
         </section>
         )}
       </div>
