@@ -217,7 +217,7 @@
   border-radius: 9999px;
   background: conic-gradient(
     from 0deg,
-    #fde68a, #f59e0b, #a855f7, #ffffff, #d8b4fe, #f59e0b, #fcd34d, #ffffff, #fde68a
+    #f59e0b, #c77dff, #7c3aed, #a855f7, #fbbf24, #9333ea, #c084fc, #f59e0b
   );
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 6px));
           mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 6px));

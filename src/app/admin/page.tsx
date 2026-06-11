@@ -69,6 +69,9 @@ type Member = {
   email: string | null;
   full_name: string | null;
   tier: string;
+  tier_since: string | null;
+  tier_until: string | null;
+  bonus_days: number | null;
 };
 type Booking = {
   id: string;
@@ -185,7 +188,7 @@ export default function AdminPage() {
       supabase.from("events").select("*").order("date"),
       supabase.from("availability_overrides").select("*").order("date"),
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id,email,full_name,tier").order("email"),
+      supabase.from("profiles").select("id,email,full_name,tier,tier_since,tier_until,bonus_days").order("email"),
       supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("videos").select(VIDEO_COLS).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("streams").select("id, title, description, embed_url, recording_url, starts_at").order("starts_at", { ascending: false }),
@@ -282,7 +285,28 @@ export default function AdminPage() {
       setError(
         "Změna úrovně selhala. Spustil jsi v Supabase membership.sql? (" + error.message + ")"
       );
+      return;
     }
+    refreshMember(id); // dotáhne nově orazítkovaná data (od/do)
+  }
+
+  async function refreshMember(id: string) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id,email,full_name,tier,tier_since,tier_until,bonus_days")
+      .eq("id", id)
+      .maybeSingle();
+    if (data) setMembers((m) => m.map((x) => (x.id === id ? (data as Member) : x)));
+  }
+
+  async function grantBonus(id: string, days: number) {
+    setError(null);
+    const { error } = await supabase.rpc("grant_bonus_days", { target_id: id, days });
+    if (error) {
+      setError("Přidání bonusových dní selhalo (spustil jsi membership_dates.sql?): " + error.message);
+      return;
+    }
+    refreshMember(id);
   }
 
   // ── Recenze ──
@@ -896,6 +920,12 @@ export default function AdminPage() {
             <div className="space-y-2">
               {members.map((m) => {
                 const t = normalizeTier(m.tier);
+                const fmtD = (s: string | null) =>
+                  s ? new Date(s).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" }) : "—";
+                const daysLeft = m.tier_until
+                  ? Math.ceil((new Date(m.tier_until).getTime() - Date.now()) / 86400000)
+                  : null;
+                const paid = t !== "FREE";
                 return (
                   <div
                     key={m.id}
@@ -908,23 +938,53 @@ export default function AdminPage() {
                       {m.full_name && m.email && (
                         <p className="text-xs text-gray-500 truncate">{m.email}</p>
                       )}
+                      {paid && (
+                        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-gray-500">
+                          <span>Získáno: <strong className="text-brand-dark">{fmtD(m.tier_since)}</strong></span>
+                          <span>
+                            Končí: <strong className="text-brand-dark">{fmtD(m.tier_until)}</strong>
+                            {daysLeft != null && (
+                              <span className={daysLeft < 0 ? "text-red-500" : "text-gray-400"}>
+                                {" "}({daysLeft >= 0 ? `zbývá ${daysLeft} dní` : "vypršelo"})
+                              </span>
+                            )}
+                          </span>
+                          {(m.bonus_days ?? 0) > 0 && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 font-bold text-amber-700">
+                              bonus +{m.bonus_days} dní
+                            </span>
+                          )}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${TIER_STYLES[t].badge}`}
-                      >
-                        {TIER_STYLES[t].label}
-                      </span>
-                      <select
-                        value={t}
-                        onChange={(e) => setMemberTier(m.id, e.target.value as UserTier)}
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
-                      >
-                        <option value="FREE">FREE</option>
-                        <option value="MEMBER">MEMBER</option>
-                        <option value="VIP">VIP</option>
-                        <option value="VIP_PLUS">VIP+</option>
-                      </select>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${TIER_STYLES[t].badge}`}
+                        >
+                          {TIER_STYLES[t].label}
+                        </span>
+                        <select
+                          value={t}
+                          onChange={(e) => setMemberTier(m.id, e.target.value as UserTier)}
+                          className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                        >
+                          <option value="FREE">FREE</option>
+                          <option value="MEMBER">MEMBER</option>
+                          <option value="VIP">VIP</option>
+                          <option value="VIP_PLUS">VIP+</option>
+                        </select>
+                      </div>
+                      {paid && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                          <span>Bonus:</span>
+                          <button onClick={() => grantBonus(m.id, 7)} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-brand-blue hover:bg-brand-light">+7</button>
+                          <button onClick={() => grantBonus(m.id, 30)} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-brand-blue hover:bg-brand-light">+30</button>
+                          {(m.bonus_days ?? 0) > 0 && (
+                            <button onClick={() => grantBonus(m.id, -(m.bonus_days ?? 0))} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-gray-400 hover:bg-gray-50" title="Vynulovat bonus">vynulovat</button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

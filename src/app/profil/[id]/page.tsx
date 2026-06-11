@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame, Award } from "lucide-react";
+import { ArrowLeft, Eye, Palette, Check, Clock, CalendarDays, Flame, Award, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
 import { BADGE_MAP } from "@/lib/badges";
@@ -15,6 +15,7 @@ import { FounderBadge } from "@/components/FounderBadge";
 type Pub = {
   id: string; name: string; tier: string; pinned_badges: string[]; theme: string | null;
   minutes_month: number; minutes_total: number; member_since: string | null; avatar_frame: string | null; is_admin: boolean;
+  avatar_url: string | null; circles_count: number;
 };
 
 function fmtMin(m: number): string {
@@ -92,7 +93,12 @@ export default function ProfilPage() {
 
         <div className={`card p-8 text-center transition-colors ${themeCard(theme)}`}>
           <span className={`mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue text-3xl font-semibold text-white shadow ${frameClass(p.is_admin ? "lektor" : p.avatar_frame)}`}>
-            {(p.name[0] ?? "Č").toUpperCase()}
+            {p.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.avatar_url} alt="" className="h-20 w-20 rounded-full object-cover" />
+            ) : (
+              (p.name[0] ?? "Č").toUpperCase()
+            )}
           </span>
           <h1 className="text-2xl font-semibold text-brand-dark">{p.name}</h1>
           {p.is_admin ? (
@@ -108,9 +114,10 @@ export default function ProfilPage() {
           </p>
 
           {/* Statistiky – automaticky, vystihují člena */}
-          <div className="mt-5 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Stat Icon={Flame} value={fmtMin(p.minutes_month)} label="tento měsíc" tint="text-amber-600" />
             <Stat Icon={Clock} value={fmtMin(p.minutes_total)} label="celkem" tint="text-sky-600" />
+            <Stat Icon={Users} value={String(p.circles_count)} label="kruhů" tint="text-orange-600" />
             <Stat Icon={CalendarDays} value={fmtMonth(p.member_since)} label="člen od" tint="text-emerald-600" small />
           </div>
 
