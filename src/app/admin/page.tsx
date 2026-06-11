@@ -118,10 +118,11 @@ export default function AdminPage() {
   const [kickBusy, setKickBusy] = useState(false);
 
   // Onboarding průvodce
-  type OnbStep = { id: number; position: number; title: string; body: string; image_url: string | null; cx: number; cy: number; radius: number };
+  type OnbStep = { id: number; position: number; title: string; body: string; image_url: string | null; cx: number; cy: number; radius: number; href: string | null };
   const [onbSteps, setOnbSteps] = useState<OnbStep[]>([]);
   const [obTitle, setObTitle] = useState("");
   const [obBody, setObBody] = useState("");
+  const [obHref, setObHref] = useState("");
   const [obImage, setObImage] = useState<string | null>(null);
   const [obCx, setObCx] = useState(50);
   const [obCy, setObCy] = useState(50);
@@ -379,7 +380,7 @@ export default function AdminPage() {
     const { data } = await supabase.from("onboarding_steps").select("*").order("position");
     if (data) setOnbSteps(data as OnbStep[]);
   }
-  function resetOb() { setObEditId(null); setObTitle(""); setObBody(""); setObImage(null); setObCx(50); setObCy(50); setObRadius(10); }
+  function resetOb() { setObEditId(null); setObTitle(""); setObBody(""); setObHref(""); setObImage(null); setObCx(50); setObCy(50); setObRadius(10); }
   async function uploadObImage(file: File) {
     setObUploading(true); setError(null);
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -392,7 +393,7 @@ export default function AdminPage() {
   async function saveStep() {
     if (!obTitle.trim()) { setError("Vyplň nadpis kroku."); return; }
     setError(null);
-    const payload = { title: obTitle.trim(), body: obBody.trim(), image_url: obImage, cx: obCx, cy: obCy, radius: obRadius };
+    const payload = { title: obTitle.trim(), body: obBody.trim(), href: obHref.trim() || null, image_url: obImage, cx: obCx, cy: obCy, radius: obRadius };
     if (obEditId) {
       const { error } = await supabase.from("onboarding_steps").update(payload).eq("id", obEditId);
       if (error) { setError("Uložení selhalo (spustil jsi onboarding.sql?): " + error.message); return; }
@@ -403,7 +404,7 @@ export default function AdminPage() {
     }
     resetOb(); loadOnb();
   }
-  function editStep(s: OnbStep) { setObEditId(s.id); setObTitle(s.title); setObBody(s.body); setObImage(s.image_url); setObCx(s.cx); setObCy(s.cy); setObRadius(s.radius); }
+  function editStep(s: OnbStep) { setObEditId(s.id); setObTitle(s.title); setObBody(s.body); setObHref(s.href ?? ""); setObImage(s.image_url); setObCx(s.cx); setObCy(s.cy); setObRadius(s.radius); }
   async function deleteStep(id: number) { await supabase.from("onboarding_steps").delete().eq("id", id); if (obEditId === id) resetOb(); loadOnb(); }
   async function moveStep(id: number, dir: -1 | 1) {
     const idx = onbSteps.findIndex((s) => s.id === id);
@@ -1371,6 +1372,7 @@ export default function AdminPage() {
                 <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
                 <textarea value={obBody} onChange={(e) => setObBody(e.target.value)} rows={2} placeholder="Krátce vysvětli, k čemu to je a kde to najde." className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
               </div>
+              <AdminInput label={'Tlačítko „Ukázat" vede na (nepovinné)'} value={obHref} onChange={setObHref} placeholder="např. /videoknihovna nebo /ucet (prázdné = bez tlačítka)" />
               <div>
                 <label className="block text-xs font-semibold text-brand-dark mb-1">Obrázek (screenshot stránky)</label>
                 <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-light">

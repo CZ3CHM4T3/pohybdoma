@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { X, ArrowLeft, ArrowRight, Check, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Step = {
   id: number; position: number; title: string; body: string;
-  image_url: string | null; cx: number; cy: number; radius: number;
+  image_url: string | null; cx: number; cy: number; radius: number; href: string | null;
 };
 
 const DONE_KEY = "pd-onboarding-done";
 
 export function OnboardingTour() {
+  const router = useRouter();
   const [steps, setSteps] = useState<Step[]>([]);
   const [i, setI] = useState(0);
   const [show, setShow] = useState(false);
@@ -39,6 +41,10 @@ export function OnboardingTour() {
   function finish() {
     setShow(false);
     try { localStorage.setItem(DONE_KEY, "1"); } catch {}
+  }
+  function goThere() {
+    if (step.href) router.push(step.href);
+    finish();
   }
 
   return (
@@ -68,6 +74,12 @@ export function OnboardingTour() {
           <p className="text-[11px] font-bold uppercase tracking-wide text-brand-blue">Krok {i + 1} z {steps.length}</p>
           <h2 className="mt-1 text-lg font-semibold text-brand-dark">{step.title}</h2>
           {step.body && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-600">{step.body}</p>}
+
+          {step.href && (
+            <button onClick={goThere} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand-light px-3 py-1.5 text-sm font-semibold text-brand-blue hover:bg-brand-blue/10">
+              <MapPin className="h-4 w-4" /> Ukázat mi to →
+            </button>
+          )}
 
           <div className="mt-4 flex items-center justify-between">
             <button onClick={finish} className="text-xs font-semibold text-gray-400 hover:text-brand-dark">Přeskočit</button>
