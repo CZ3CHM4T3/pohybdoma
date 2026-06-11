@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Trash2 } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -162,6 +162,15 @@ export default function AdminPage() {
   const [giftMonths, setGiftMonths] = useState(1);
   const [lastGift, setLastGift] = useState<string | null>(null);
   const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
+
+  // Finance
+  type FinEntry = { id: number; kind: string; category: string; amount_kc: number; note: string | null; at: string };
+  const [finEntries, setFinEntries] = useState<FinEntry[]>([]);
+  const [finKind, setFinKind] = useState<"income" | "expense">("income");
+  const [finCat, setFinCat] = useState("MEMBER");
+  const [finAmount, setFinAmount] = useState("");
+  const [finNote, setFinNote] = useState("");
+  const [finDate, setFinDate] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -281,8 +290,29 @@ export default function AdminPage() {
     supabase.rpc("list_gift_codes").then(({ data }) => {
       if (data) setGiftCodes(data as GiftCode[]);
     });
+    supabase.from("finance_entries").select("*").order("at", { ascending: false }).then(({ data }) => {
+      if (data) setFinEntries(data as FinEntry[]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function addFinance() {
+    const amt = Number(finAmount.replace(",", "."));
+    if (!amt || amt <= 0) { setError("Zadej částku v Kč."); return; }
+    setError(null);
+    const { error } = await supabase.from("finance_entries").insert({
+      kind: finKind, category: finCat, amount_kc: amt, note: finNote.trim() || null,
+      at: finDate || new Date().toISOString().slice(0, 10),
+    });
+    if (error) { setError("Uložení selhalo (spustil jsi finance.sql?): " + error.message); return; }
+    setFinAmount(""); setFinNote("");
+    const { data } = await supabase.from("finance_entries").select("*").order("at", { ascending: false });
+    if (data) setFinEntries(data as FinEntry[]);
+  }
+  async function delFinance(id: number) {
+    setFinEntries((e) => e.filter((x) => x.id !== id));
+    await supabase.from("finance_entries").delete().eq("id", id);
+  }
 
   async function genGift() {
     setError(null);
@@ -691,6 +721,26 @@ export default function AdminPage() {
       </Centered>
     );
   }
+
+  // ── Finance (z deníku + tržby z rezervací) ──
+  const bookingsRevenue = bookings
+    .filter((b) => b.status !== "cancelled" && b.status !== "zrušeno")
+    .reduce((s, b) => s + (b.price_kc ?? 0), 0);
+  const incomeByCat: Record<string, number> = {};
+  finEntries.filter((e) => e.kind === "income").forEach((e) => { incomeByCat[e.category] = (incomeByCat[e.category] ?? 0) + Number(e.amount_kc); });
+  if (bookingsRevenue > 0) incomeByCat["Rezervace"] = (incomeByCat["Rezervace"] ?? 0) + bookingsRevenue;
+  const expenseByCat: Record<string, number> = {};
+  finEntries.filter((e) => e.kind === "expense").forEach((e) => { expenseByCat[e.category] = (expenseByCat[e.category] ?? 0) + Number(e.amount_kc); });
+  const totalEarned = Object.values(incomeByCat).reduce((a, b) => a + b, 0);
+  const totalSpent = Object.values(expenseByCat).reduce((a, b) => a + b, 0);
+  const profit = totalEarned - totalSpent;
+  const FIN_COLORS = ["#1976FF", "#7c3aed", "#f59e0b", "#10b981", "#ef4444", "#06b6d4", "#ec4899", "#64748b"];
+  const incomeSlices = Object.entries(incomeByCat).map(([label, value], i) => ({ label, value, color: FIN_COLORS[i % FIN_COLORS.length] }));
+  const expenseSlices = Object.entries(expenseByCat).map(([label, value], i) => ({ label, value, color: FIN_COLORS[i % FIN_COLORS.length] }));
+  let topMembership = "—"; let topMembershipVal = 0;
+  for (const c of ["MEMBER", "VIP", "VIP+"]) { if ((incomeByCat[c] ?? 0) > topMembershipVal) { topMembershipVal = incomeByCat[c]; topMembership = c; } }
+  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "Jiné"];
+  const finExpenseCats = ["Cloudflare", "Supabase", "Vercel", "Doména", "Marketing", "Jiné"];
 
   // ── Admin obsah ──
   return (
@@ -1544,6 +1594,69 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+
+          {/* ── Finance ── */}
+          <div className="mt-8 border-t border-gray-100 pt-6">
+            <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">💰 Finance</h3>
+            <p className="mb-4 text-sm text-gray-500">Tržby z rezervací se počítají automaticky; členství, kurzy a výdaje na provoz si zapisuješ níže.</p>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Metric label="Vydělal jsem (Kč)" value={Math.round(totalEarned)} />
+              <Metric label="Utratil jsem (Kč)" value={Math.round(totalSpent)} />
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className={`text-2xl font-bold ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{Math.round(profit).toLocaleString("cs-CZ")}</p>
+                <p className="text-[11px] text-gray-500">Zisk (Kč)</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-base font-bold text-brand-dark">{topMembership}</p>
+                <p className="text-[11px] text-gray-500">Nejvýdělečnější členství</p>
+                {topMembershipVal > 0 && <p className="text-[11px] text-gray-400">{Math.round(topMembershipVal).toLocaleString("cs-CZ")} Kč</p>}
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Příjmy podle služby</p>
+                <Pie slices={incomeSlices} />
+              </div>
+              <div className="rounded-xl border border-gray-100 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Výdaje podle kategorie</p>
+                <Pie slices={expenseSlices} />
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-gray-100 p-4">
+              <p className="mb-3 text-sm font-semibold text-brand-dark">Přidat záznam</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <select value={finKind} onChange={(e) => { const k = e.target.value as "income" | "expense"; setFinKind(k); setFinCat(k === "income" ? "MEMBER" : "Cloudflare"); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                  <option value="income">Příjem</option>
+                  <option value="expense">Výdaj</option>
+                </select>
+                <select value={finCat} onChange={(e) => setFinCat(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                  {(finKind === "income" ? finIncomeCats : finExpenseCats).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input value={finAmount} onChange={(e) => setFinAmount(e.target.value)} placeholder="Částka (Kč)" inputMode="decimal" className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <input type="date" value={finDate} onChange={(e) => setFinDate(e.target.value)} className="rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <input value={finNote} onChange={(e) => setFinNote(e.target.value)} placeholder="Poznámka (nepovinné)" className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <button onClick={addFinance} className="btn-primary text-sm">Přidat</button>
+              </div>
+            </div>
+
+            {finEntries.length > 0 && (
+              <div className="mt-4 space-y-1">
+                {finEntries.slice(0, 30).map((e) => (
+                  <div key={e.id} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-1.5 text-xs">
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-bold ${e.kind === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{e.kind === "income" ? "+" : "−"}</span>
+                    <span className="shrink-0 font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                    <span className="text-gray-500">{e.category}</span>
+                    {e.note && <span className="min-w-0 truncate text-gray-400">· {e.note}</span>}
+                    <span className="ml-auto shrink-0 text-gray-400">{new Date(e.at).toLocaleDateString("cs-CZ")}</span>
+                    <button onClick={() => delFinance(e.id)} className="shrink-0 text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
         )}
       </div>
@@ -1626,6 +1739,40 @@ function AddDays({ onAdd }: { onAdd: (tierDb: string, days: number) => void }) {
       <input type="number" min={1} value={d} onChange={(e) => setD(Math.max(1, Number(e.target.value) || 1))} className="w-14 rounded-md border border-gray-200 px-1.5 py-1 text-[11px] focus:outline-none" />
       <span>dní</span>
       <button onClick={() => onAdd(t, d)} className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-brand-blue hover:bg-brand-light">Přidat</button>
+    </div>
+  );
+}
+
+function Pie({ slices }: { slices: { label: string; value: number; color: string }[] }) {
+  const data = slices.filter((s) => s.value > 0);
+  const total = data.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) return <p className="text-xs text-gray-400">Zatím žádná data.</p>;
+  const R = 55, sw = 26, circ = 2 * Math.PI * R;
+  let acc = 0;
+  return (
+    <div className="flex flex-wrap items-center gap-4">
+      <svg viewBox="0 0 140 140" className="h-32 w-32 shrink-0">
+        <g transform="rotate(-90 70 70)">
+          {data.map((s, i) => {
+            const frac = s.value / total;
+            const seg = (
+              <circle key={i} cx="70" cy="70" r={R} fill="none" stroke={s.color} strokeWidth={sw}
+                strokeDasharray={`${frac * circ} ${circ - frac * circ}`} strokeDashoffset={-acc * circ} />
+            );
+            acc += frac;
+            return seg;
+          })}
+        </g>
+      </svg>
+      <div className="min-w-[150px] flex-1 space-y-1">
+        {data.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs">
+            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: s.color }} />
+            <span className="min-w-0 truncate text-brand-dark">{s.label}</span>
+            <span className="ml-auto whitespace-nowrap text-gray-500">{Math.round(s.value).toLocaleString("cs-CZ")} Kč · {Math.round((s.value / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
