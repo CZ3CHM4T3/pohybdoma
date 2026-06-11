@@ -31,6 +31,7 @@ export const FRAMES: Record<FrameKey, { label: string; ring: string; glow: strin
 
 // Třídy na obal fotky (tlustý svítící rámeček).
 export function frameClass(key: string | null | undefined): string {
+  if (key === "lektor") return "frame-diamond"; // 3D diamantový rámeček (CSS v globals.css)
   const f = key ? FRAMES[key as FrameKey] : undefined;
   return f ? `ring-4 ${f.ring} ${f.glow}` : "";
 }
