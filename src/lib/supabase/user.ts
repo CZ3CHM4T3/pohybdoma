@@ -22,20 +22,34 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  // Zkus načíst i datum konce členství; když sloupec ještě není, spadni na základ.
+  const full = await supabase
     .from("profiles")
-    .select("full_name, tier")
+    .select("full_name, tier, tier_until")
     .eq("id", user.id)
     .maybeSingle();
+  let raw: Record<string, unknown> | null = (full.data as Record<string, unknown> | null) ?? null;
+  if (full.error) {
+    const base = await supabase.from("profiles").select("full_name, tier").eq("id", user.id).maybeSingle();
+    raw = (base.data as Record<string, unknown> | null) ?? null;
+  }
+
+  const fullName = (raw?.full_name as string | undefined) ?? null;
+  let tier = normalizeTier(raw?.tier as string | undefined);
+  // Auto-vypršení: po konci platnosti je z člena zase FREE.
+  const until = (raw?.tier_until as string | null | undefined) ?? null;
+  if (tier !== "FREE" && until && new Date(until).getTime() < Date.now()) {
+    tier = "FREE";
+  }
 
   return {
     id: user.id,
     email: user.email ?? null,
     fullName:
-      (profile?.full_name as string | undefined) ??
+      fullName ??
       (user.user_metadata?.full_name as string | undefined) ??
       null,
-    tier: normalizeTier(profile?.tier as string | undefined),
+    tier,
     isAdmin: isAdminEmail(user.email),
   };
 }

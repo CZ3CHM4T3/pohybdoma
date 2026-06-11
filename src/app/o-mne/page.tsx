@@ -118,67 +118,28 @@ export default function AboutPage() {
 
             <p>
               Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu.
-              Pohyb a lidské tělo mě fascinují odjakživa a postupně se staly nejen
-              mojí profesí, ale i celoživotním studiem.
+              Pohyb a lidské tělo mě fascinují odjakživa – staly se mojí profesí
+              i celoživotním studiem.
             </p>
             <p>
-              Moje cesta ale nevedla jen přes učebnice a kurzy. Sám jsem si dřív
-              prošel zraněními a dlouhodobými obtížemi, na které mi běžná odborná
-              řešení nepřinesla uspokojivou odpověď. To mě přivedlo k hlubšímu
-              hledání souvislostí a k přesvědčení, že lidské tělo je potřeba vnímat
-              komplexně. Musel jsem vzít věci do vlastních rukou a právě tato
-              zkušenost dnes významně ovlivňuje způsob, jakým pracuji s klienty.
-              Dnes mohu s klidem říct, že se každý rok cítím lépe a pracuji s tělem,
-              ne proti němu.
+              Sám jsem si prošel zraněními a dlouhodobými obtížemi, na které mi
+              běžná řešení nedala uspokojivou odpověď. Donutilo mě to hledat
+              souvislosti a vnímat tělo jako propojený celek. Dnes pracuji s tělem,
+              ne proti němu – a každý rok se cítím líp.
             </p>
             <p>
-              Jsem licencovaný fitness trenér, sportovní masér, cvičitel plavání
-              2. třídy, instruktor lyžování, bývalý plavčík a není mnoho sportů,
-              které jsem nezkusil. Díky pedagogickému vzdělání i praktickým
-              zkušenostem propojuji poznatky z biomechaniky, funkčního tréninku,
-              práce s fasciemi, regenerace a každodenního pohybu. Neřeším jen
-              symptomy, ale především jejich příčinu. Klienta vnímám jako propojený
-              celek rozmanitých dílčích faktorů.
+              Jsem licencovaný fitness trenér a sportovní masér. Propojuji
+              biomechaniku, funkční trénink, práci s fasciemi, regeneraci
+              i každodenní pohyb a neřeším jen symptomy, ale především jejich
+              příčinu. Klienta vnímám jako propojený celek.
             </p>
             <p>
-              Jsem také táta a dobře vím, jak náročné je skloubit péči o rodinu
-              s péčí o vlastní zdraví. Proto vždy hledám pro klienta řešení, která
-              jsou dlouhodobě udržitelná a fungují i v běžném životě plném práce,
-              dětí a každodenních povinností. Ze stejného popudu vznikla i tato moje
-              online iniciativa s hlavní myšlenkou – vybavit lidi dovednostmi
-              a znalostmi pro snadné a efektivní domácí cvičení a řešení základních
-              i komplexních pohybových obtíží.
-            </p>
-            <p>
-              Jsem spoluzakladatelem tenisové a fitness akademie MS GEM
-              v Dobřichovicích, která působí v areálu TJ Sokol Dobřichovice.
-              V posledních letech jsme s našimi svěřenci dosáhli na umístění mezi
-              nejlepšími týmy v České republice, ale výsledky pro mě nikdy nebyly
-              v rámci dětského pohybu tím nejdůležitějším cílem. Hlavní hodnotu
-              spatřuji v budování charakteru, kolektivu a kvalitních pohybových
-              základů.
-            </p>
-            <p>
-              Je proto běžné, že se děti na našich trénincích setkávají
-              s atleticko-gymnastickými základy, animal flow, kettlebellem,
-              kalistenikou, flow rope, prací s kotouči, koordinačními cvičeními
-              i pohybovými hrami a mnoha dalšími prvky. Vše je součástí promyšleného
-              systému, který jsem během let praxe postupně vytvářel a dále ho
-              aktivně rozvíjím.
-            </p>
-            <p>
-              Na své práci mám nejraději okamžiky, kdy lidé zjišťují, že jejich tělo
-              umí a zvládne mnohem víc, než si mysleli. Když mizí zbytečná tenze,
-              diskomfort a frustrace a pohyb se znovu stává přirozenou součástí
-              života, posouvá se optika nazírání na svět hned přívětivějším směrem.
-            </p>
-            <p>
-              Věřím, že zdravější, silnější a svobodnější pohyb nemusí být výsadou
-              sportovců. Může být dostupný téměř každému a často je cesta k němu
-              jednodušší, než se na první pohled zdá. Pokud jsi se i Ty rozhodl/a
-              vzít své zdraví a spokojenost pevněji do svých rukou, hledat
-              souvislosti a aktivně na sobě pracovat, budu rád, když na té cestě
-              budu moci být Tvým průvodcem. :)
+              Jako táta vím, jak těžké je skloubit rodinu s péčí o vlastní zdraví –
+              proto hledám řešení, která fungují v reálném životě, doma a bez drahého
+              vybavení. Spoluzaložil jsem tenisovou a fitness akademii MS GEM
+              v Dobřichovicích a ze stejné myšlenky vznikl i POHYB DOMA: vybavit tě
+              dovednostmi pro snadné a efektivní cvičení doma. Pokud chceš vzít své
+              zdraví pevněji do rukou, rád budu tvým průvodcem. :)
             </p>
           </div>
 

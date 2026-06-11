@@ -6,7 +6,7 @@ import { canAccess, formatDuration } from "@/lib/access";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
 import { FavoriteHeart } from "@/components/FavoriteHeart";
-import { WatchLogger } from "@/components/WatchLogger";
+import { StreamPlayer } from "@/components/StreamPlayer";
 import { SafetyNote } from "@/components/SafetyNote";
 import { TIER_STYLES } from "@/lib/tiers";
 import { getUserTier } from "@/lib/supabase/user";
@@ -46,16 +46,8 @@ export default async function VideoDetailPage({ params }: Props) {
         <div className="card overflow-hidden mb-8">
           {accessible ? (
             <div className="relative aspect-video bg-brand-dark">
-              <WatchLogger slug={video.slug} />
               {video.providerId ? (
-                <iframe
-                  src={`https://iframe.videodelivery.net/${video.providerId}`}
-                  className="absolute inset-0 h-full w-full"
-                  style={{ border: "none" }}
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                  allowFullScreen
-                  title={video.title}
-                />
+                <StreamPlayer uid={video.providerId} slug={video.slug} title={video.title} />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-center text-white/50">
                   <div>
