@@ -87,13 +87,22 @@ export default function ObchodniPodminkyPage() {
             Cvičíš na vlastní odpovědnost v rozsahu svých možností.
           </p>
 
-          <h2>11. Mimosoudní řešení sporů</h2>
+          <h2>11. Pravidla chování a ukončení přístupu</h2>
+          <p>
+            Uživatel se zavazuje chovat se ke mně i k ostatním členům slušně a respektovat pravidla webu
+            a komunity. Provozovatel si vyhrazuje <strong>právo omezit nebo ukončit přístup uživatele</strong>
+            (včetně zrušení účtu i členství bez náhrady) při hrubém nebo opakovaném porušení těchto podmínek —
+            zejména při urážlivém, nenávistném či nezákonném chování, obtěžování ostatních, sdílení nevhodného
+            obsahu nebo zneužívání služby.
+          </p>
+
+          <h2>12. Mimosoudní řešení sporů</h2>
           <p>
             K mimosoudnímu řešení spotřebitelských sporů je příslušná <strong>Česká obchodní inspekce</strong>
             (<a href="https://www.coi.cz" className="text-brand-blue hover:underline" target="_blank" rel="noopener">coi.cz</a>).
           </p>
 
-          <h2>12. Závěrečná ustanovení</h2>
+          <h2>13. Závěrečná ustanovení</h2>
           <p>
             Provozovatel může podmínky měnit; pro již uzavřené smlouvy platí znění účinné v době objednávky.
             Ochranu osobních údajů řeší samostatný dokument GDPR.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio } from "lucide-react";
+import { GripVertical, Radio, UserX } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -111,6 +111,10 @@ export default function AdminPage() {
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [kickId, setKickId] = useState<string | null>(null);
+  const [kickCode, setKickCode] = useState("");
+  const [kickInput, setKickInput] = useState("");
+  const [kickBusy, setKickBusy] = useState(false);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -307,6 +311,34 @@ export default function AdminPage() {
       return;
     }
     refreshMember(id);
+  }
+
+  function genKickCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bez matoucích 0/O/1/I
+    return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  }
+  function startKick(id: string) {
+    setKickId(id);
+    setKickCode(genKickCode());
+    setKickInput("");
+    setError(null);
+  }
+  function cancelKick() {
+    setKickId(null);
+    setKickCode("");
+    setKickInput("");
+  }
+  async function confirmKick(id: string) {
+    setKickBusy(true);
+    setError(null);
+    const { error } = await supabase.rpc("admin_kick_member", { target_id: id });
+    setKickBusy(false);
+    if (error) {
+      setError("Vyhození selhalo (spustil jsi admin_kick.sql?): " + error.message);
+      return;
+    }
+    setMembers((m) => m.filter((x) => x.id !== id));
+    cancelKick();
   }
 
   // ── Recenze ──
@@ -985,7 +1017,43 @@ export default function AdminPage() {
                           )}
                         </div>
                       )}
+                      <button
+                        onClick={() => startKick(m.id)}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-500 hover:text-red-700"
+                      >
+                        <UserX className="h-3.5 w-3.5" /> Vyhodit
+                      </button>
                     </div>
+                    {kickId === m.id && (
+                      <div className="w-full rounded-lg border border-red-200 bg-red-50/60 p-3">
+                        <p className="text-sm font-semibold text-red-700">Vyhodit člena z webu</p>
+                        <p className="mt-0.5 text-xs text-gray-600">
+                          Trvale a nevratně smaže účet i všechna data tohoto člena. Pro potvrzení opiš kód:
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="select-all rounded-md bg-white px-3 py-1.5 font-mono text-base font-bold tracking-[0.3em] text-brand-dark ring-1 ring-gray-200">
+                            {kickCode}
+                          </span>
+                          <input
+                            value={kickInput}
+                            onChange={(e) => setKickInput(e.target.value.toUpperCase())}
+                            placeholder="Opiš kód"
+                            maxLength={6}
+                            className="w-32 rounded-lg border border-red-200 px-3 py-2 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-400"
+                          />
+                          <button
+                            onClick={() => confirmKick(m.id)}
+                            disabled={kickBusy || kickInput !== kickCode}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <UserX className="h-4 w-4" /> {kickBusy ? "Vyhazuji…" : "Vyhodit natrvalo"}
+                          </button>
+                          <button onClick={cancelKick} className="text-sm font-semibold text-gray-500 hover:text-brand-dark">
+                            Zrušit
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
