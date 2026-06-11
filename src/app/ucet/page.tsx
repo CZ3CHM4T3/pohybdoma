@@ -23,6 +23,7 @@ import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
 import { Leaderboard } from "@/components/Leaderboard";
+import { GiftRedeem } from "@/components/GiftRedeem";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -484,6 +485,9 @@ export default function UcetPage() {
               );
             })}
           </div>
+
+          {/* Dárkový kód */}
+          <GiftRedeem />
 
           {/* Novinky + Žebříček */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

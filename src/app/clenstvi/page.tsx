@@ -183,18 +183,9 @@ export default function ClenstviPage() {
                   </span>
                   <h2 className="text-2xl lg:text-3xl font-semibold mb-2">Daruj členství</h2>
                   <p className="text-white/75 leading-relaxed max-w-xl">
-                    Zaplať a obdarovaný dostane kód, který si uplatní. Vyber libovolnou
-                    úroveň i délku – za běžnou cenu, bez háčků.
+                    Zaplať a obdarovaný dostane kód, který si uplatní ve svém účtu. Vyber
+                    libovolnou úroveň i délku – za běžnou cenu, bez háčků.
                   </p>
-                  <div className="mt-5 flex items-start gap-3 rounded-2xl bg-white/10 border border-white/15 p-4 max-w-xl">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5aadff]/20 text-[#5aadff]">
-                      <Gift className="h-4 w-4" strokeWidth={2.5} />
-                    </span>
-                    <p className="text-sm text-white/90 leading-relaxed">
-                      A jako poděkování: <strong>ten, kdo členství daruje, získá měsíc
-                      MEMBER zdarma.</strong>
-                    </p>
-                  </div>
                 </div>
                 <div className="shrink-0 text-center">
                   <a href="/kontakt" className="btn-primary bg-white text-brand-dark hover:opacity-90">

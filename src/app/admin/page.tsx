@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3 } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -153,6 +153,13 @@ export default function AdminPage() {
     pv: { total30: number; today: number; daily: { d: string; n: number }[]; top: { path: string; n: number }[] };
   };
   const [analytics, setAnalytics] = useState<Stats | null>(null);
+
+  // Dárkové kódy
+  type GiftCode = { code: string; tier: string; months: number; redeemed: boolean; redeemed_at: string | null; created_at: string };
+  const [giftTier, setGiftTier] = useState("member");
+  const [giftMonths, setGiftMonths] = useState(1);
+  const [lastGift, setLastGift] = useState<string | null>(null);
+  const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -269,8 +276,19 @@ export default function AdminPage() {
     supabase.rpc("admin_stats").then(({ data }) => {
       if (data) setAnalytics(data as Stats);
     });
+    supabase.rpc("list_gift_codes").then(({ data }) => {
+      if (data) setGiftCodes(data as GiftCode[]);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function genGift() {
+    setError(null);
+    const { data, error } = await supabase.rpc("create_gift_code", { p_tier: giftTier, p_months: giftMonths });
+    if (error) { setError("Vygenerování kódu selhalo (spustil jsi gift_codes.sql?): " + error.message); return; }
+    setLastGift(String(data));
+    supabase.rpc("list_gift_codes").then(({ data: d }) => { if (d) setGiftCodes(d as GiftCode[]); });
+  }
 
   // ── Akce ──
   async function addEvent(e: React.FormEvent) {
@@ -1058,6 +1076,48 @@ export default function AdminPage() {
           <p className="text-sm text-gray-500 mb-5">
             Přiřaď úroveň členství. Změna se projeví ihned a uživateli odemkne obsah.
           </p>
+
+          {/* Dárkové kódy */}
+          <div className="mb-6 rounded-xl border border-rose-100 bg-rose-50/40 p-4">
+            <div className="flex items-center gap-2">
+              <Gift className="h-4 w-4 text-rose-500" strokeWidth={2} />
+              <p className="text-sm font-semibold text-brand-dark">Dárkový kód</p>
+            </div>
+            <p className="mt-0.5 text-xs text-gray-500">Vygeneruj kód, který si obdarovaný uplatní ve svém účtu (Moje cesta → „Máš dárkový kód?").</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <select value={giftTier} onChange={(e) => setGiftTier(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue">
+                <option value="member">MEMBER</option>
+                <option value="vip">VIP</option>
+                <option value="vip_plus">VIP+</option>
+              </select>
+              <div className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+                <input type="number" min={1} max={24} value={giftMonths} onChange={(e) => setGiftMonths(Math.max(1, Math.min(24, Number(e.target.value) || 1)))} className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+                měsíců
+              </div>
+              <button onClick={genGift} className="btn-primary text-sm">Vygenerovat kód</button>
+            </div>
+            {lastGift && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="select-all rounded-lg bg-white px-3 py-1.5 font-mono text-base font-bold tracking-widest text-brand-dark ring-1 ring-gray-200">{lastGift}</span>
+                <button onClick={() => navigator.clipboard?.writeText(lastGift)} className="text-xs font-semibold text-brand-blue hover:underline">Zkopírovat</button>
+                <span className="text-xs text-gray-400">— pošli tenhle kód obdarovanému</span>
+              </div>
+            )}
+            {giftCodes.length > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-semibold text-gray-500">Všechny kódy ({giftCodes.length})</summary>
+                <div className="mt-2 space-y-1">
+                  {giftCodes.map((g) => (
+                    <div key={g.code} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-1.5 text-xs ring-1 ring-gray-100">
+                      <span className="font-mono font-semibold text-brand-dark">{g.code}</span>
+                      <span className="text-gray-500">{g.tier.toUpperCase()} · {g.months} měs.</span>
+                      <span className={g.redeemed ? "font-semibold text-emerald-600" : "text-gray-400"}>{g.redeemed ? "uplatněn" : "volný"}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
 
           {members.length === 0 ? (
             <p className="text-sm text-gray-400">Zatím žádní registrovaní uživatelé.</p>
