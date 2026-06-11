@@ -18,7 +18,6 @@ export function OnboardingTour() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem(DONE_KEY) === "1") return;
     const supabase = createClient();
     (async () => {
       const { data: au } = await supabase.auth.getUser();
@@ -26,10 +25,10 @@ export function OnboardingTour() {
       const { data, error } = await supabase.from("onboarding_steps").select("*").order("position");
       if (error || !data || data.length === 0) return; // žádné kroky / tabulka chybí → nic
       setSteps(data as Step[]);
-      setShow(true);
+      if (localStorage.getItem(DONE_KEY) !== "1") setShow(true); // poprvé spustí automaticky
     })();
-    // ruční spuštění z účtu: window.dispatchEvent(new Event("pd-onboarding-start"))
-    const start = () => { localStorage.removeItem(DONE_KEY); setI(0); setShow(true); };
+    // ruční spuštění (náhled v adminu / „spustit znovu"): kroky už jsou načtené
+    const start = () => { setI(0); setShow(true); };
     window.addEventListener("pd-onboarding-start", start);
     return () => window.removeEventListener("pd-onboarding-start", start);
   }, []);
