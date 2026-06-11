@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Check, X, Gift, Info } from "lucide-react";
 import { MOCK_MEMBERSHIP_PLANS, MEMBERSHIP_MATRIX, type MatrixCell } from "@/lib/mock-data";
+import { SubscribeButton } from "@/components/SubscribeButton";
 import { TIER_STYLES } from "@/lib/tiers";
 import type { AccessLevel } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -113,12 +114,11 @@ export default function ClenstviPage() {
                       ))}
                     </ul>
 
-                    <Link
-                      href={`/kontakt?zajem=${plan.name}`}
-                      className={`block w-full text-center rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 ${t.solid}`}
-                    >
-                      Chci {plan.name}
-                    </Link>
+                    <SubscribeButton
+                      tier={plan.tier}
+                      name={plan.name}
+                      className={`block w-full text-center rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 ${t.solid}`}
+                    />
                     <p className="mt-3 text-xs text-center text-gray-400">
                       Spouštím brzy – ozvi se a budeš u toho první.
                     </p>

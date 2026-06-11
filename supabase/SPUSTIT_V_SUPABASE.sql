@@ -514,6 +514,15 @@ returns void language sql security definer set search_path = public as $$
 $$;
 grant execute on function public.set_email_prefs(jsonb) to authenticated;
 
+
+-- ============================================================
+--  15) Stripe – sloupce pro předplatné
+-- ============================================================
+alter table public.profiles add column if not exists stripe_customer_id text;
+alter table public.profiles add column if not exists stripe_subscription_id text;
+alter table public.profiles add column if not exists subscription_status text;
+create index if not exists profiles_stripe_customer_idx on public.profiles (stripe_customer_id);
+
 -- ════════════════════════════════════════════════════════════════════════════
 --  HOTOVO ✅  Když to proběhlo bez červené chyby, vše je nasazené.
 -- ════════════════════════════════════════════════════════════════════════════
