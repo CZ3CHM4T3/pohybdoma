@@ -224,10 +224,10 @@ declare
   uid uuid := auth.uid();
 begin
   if uid is null then raise exception 'Nepřihlášený uživatel.'; end if;
-  delete from storage.objects where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid::text;
-  delete from storage.objects where bucket_id = 'community' and owner = uid;
-  delete from public.bookings where user_id = uid;
-  delete from public.reviews  where user_id = uid;
+  begin delete from storage.objects where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid::text; exception when others then null; end;
+  begin delete from storage.objects where bucket_id = 'community' and owner = uid; exception when others then null; end;
+  begin delete from public.bookings where user_id = uid; exception when others then null; end;
+  begin delete from public.reviews  where user_id = uid; exception when others then null; end;
   delete from auth.users where id = uid;
 end;
 $$;

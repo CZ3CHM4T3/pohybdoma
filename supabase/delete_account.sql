@@ -24,20 +24,25 @@ begin
     raise exception 'Nepřihlášený uživatel.';
   end if;
 
-  -- 1) Nahrané soubory v úložišti
-  --    avatar: cesta začíná uid/...   |   komunita/chat: owner = uid
-  delete from storage.objects
-   where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid::text;
-  delete from storage.objects
-   where bucket_id = 'community' and owner = uid;
+  -- 1) Nahrané soubory v úložišti (vedlejší úklid – nesmí shodit smazání účtu)
+  begin
+    delete from storage.objects where bucket_id = 'avatars' and (storage.foldername(name))[1] = uid::text;
+  exception when others then null; end;
+  begin
+    delete from storage.objects where bucket_id = 'community' and owner = uid;
+  exception when others then null; end;
 
-  -- 2) Rezervace (osobní údaje – nesmí zůstat)
-  delete from public.bookings where user_id = uid;
+  -- 2) Rezervace (osobní údaje)
+  begin
+    delete from public.bookings where user_id = uid;
+  exception when others then null; end;
 
   -- 3) Recenze (jméno + text)
-  delete from public.reviews where user_id = uid;
+  begin
+    delete from public.reviews where user_id = uid;
+  exception when others then null; end;
 
-  -- 4) Účet → kaskáda smaže profil a všechna navázaná data
+  -- 4) Účet → kaskáda smaže profil a všechna navázaná data (TOHLE je to hlavní)
   delete from auth.users where id = uid;
 end;
 $$;
