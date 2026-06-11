@@ -13,7 +13,7 @@ import { frameClass } from "@/lib/avatar-frames";
 
 type Pub = {
   id: string; name: string; tier: string; pinned_badges: string[]; theme: string | null;
-  minutes_month: number; minutes_total: number; member_since: string | null; avatar_frame: string | null;
+  minutes_month: number; minutes_total: number; member_since: string | null; avatar_frame: string | null; is_admin: boolean;
 };
 
 function fmtMin(m: number): string {
@@ -90,7 +90,7 @@ export default function ProfilPage() {
         </button>
 
         <div className={`card p-8 text-center transition-colors ${themeCard(theme)}`}>
-          <span className={`mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue text-3xl font-semibold text-white shadow ${frameClass(p.avatar_frame)}`}>
+          <span className={`mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-blue text-3xl font-semibold text-white shadow ${frameClass(p.is_admin ? "lektor" : p.avatar_frame)}`}>
             {(p.name[0] ?? "Č").toUpperCase()}
           </span>
           <h1 className="text-2xl font-semibold text-brand-dark">{p.name}</h1>

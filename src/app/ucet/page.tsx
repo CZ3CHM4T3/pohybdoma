@@ -16,6 +16,7 @@ import { MOCK_MEMBERSHIP_PLANS } from "@/lib/mock-data";
 import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
+import { isAdminEmail } from "@/lib/admin";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
@@ -348,6 +349,8 @@ export default function UcetPage() {
         return { tier: t, tagline: p?.tagline, price: p?.priceKcMonth ?? 0, features: p?.features ?? [] };
       }),
     ];
+    const isAdmin = isAdminEmail(user.email);
+    const myFrame = isAdmin ? "lektor" : avatarFrame; // lektor má unikátní rámeček
     return (
       <div className="min-h-screen bg-brand-light py-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
@@ -361,7 +364,7 @@ export default function UcetPage() {
 
           {/* Hlavička */}
           <div className="card p-6 mb-6 flex flex-wrap items-center gap-4">
-            <span className={`flex h-14 w-14 shrink-0 rounded-full ${frameClass(avatarFrame)}`}>
+            <span className={`flex h-14 w-14 shrink-0 rounded-full ${frameClass(myFrame)}`}>
               {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={avatarUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
@@ -522,8 +525,19 @@ export default function UcetPage() {
                 </div>
               </div>
 
+              {/* Rámeček fotky – lektor má svůj unikátní */}
+              {isAdmin && (
+                <div className="flex items-center gap-3 rounded-xl border border-brand-blue/20 bg-brand-light/60 p-4">
+                  <span className={`h-11 w-11 shrink-0 rounded-full ${FRAMES.lektor.swatch} ${frameClass("lektor")}`} />
+                  <div>
+                    <p className="text-sm font-semibold text-brand-dark">Lektorský rámeček</p>
+                    <p className="text-xs text-gray-500">Jako lektor máš kolem fotky vlastní modrý zářící rámeček — nedá se splést s odznaky členů.</p>
+                  </div>
+                </div>
+              )}
+
               {/* Rámeček fotky – odměna za umístění v žebříčku */}
-              {unlockedFrames(bestRank).length > 0 && (
+              {!isAdmin && unlockedFrames(bestRank).length > 0 && (
                 <div className="rounded-xl border border-amber-100 bg-amber-50/40 p-4">
                   <p className="text-sm font-semibold text-brand-dark">Rámeček fotky</p>
                   <p className="mt-0.5 text-xs text-gray-500">

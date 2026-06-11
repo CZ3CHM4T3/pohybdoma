@@ -52,7 +52,7 @@ drop function if exists public.public_profile(uuid);
 create or replace function public.public_profile(p_id uuid)
 returns table (
   id uuid, name text, tier text, pinned_badges text[], theme text,
-  minutes_month int, minutes_total int, member_since timestamptz, avatar_frame text
+  minutes_month int, minutes_total int, member_since timestamptz, avatar_frame text, is_admin boolean
 )
 language sql stable security definer set search_path = public, auth as $$
   select u.id,
@@ -68,7 +68,8 @@ language sql stable security definer set search_path = public, auth as $$
       select sum(w.seconds) from public.video_watch w where w.user_id = u.id
     ), 0)::int / 60,
     u.created_at,
-    p.avatar_frame
+    p.avatar_frame,
+    (lower(u.email) = 'schroffelh@seznam.cz')   -- lektor (admin)
   from auth.users u
   left join public.profiles p on p.id = u.id
   where u.id = p_id;

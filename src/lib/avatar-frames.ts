@@ -1,8 +1,14 @@
 // Prémiové rámečky kolem profilové fotky – odměna za umístění v žebříčku.
-// rank 1 → zlato, rank 2 → stříbro, rank 3 → bronz.
-export type FrameKey = "bronze" | "silver" | "gold";
+// rank 1 → zlato, rank 2 → stříbro, rank 3 → bronz. "lektor" = unikátní pro admina.
+export type FrameKey = "bronze" | "silver" | "gold" | "lektor";
 
 export const FRAMES: Record<FrameKey, { label: string; ring: string; glow: string; swatch: string }> = {
+  lektor: {
+    label: "Lektor",
+    ring: "ring-brand-blue",
+    glow: "shadow-[0_0_18px_3px_rgba(25,118,255,0.75)]",
+    swatch: "bg-gradient-to-br from-brand-blue to-brand-dark",
+  },
   bronze: {
     label: "Bronz",
     ring: "ring-amber-700",
