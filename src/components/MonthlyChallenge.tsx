@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkles, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Challenge = { id: string; title: string; body: string | null };
+type Challenge = { id: string; title: string; body: string | null; video_uid?: string | null };
 
 export function MonthlyChallenge() {
   const supabase = createClient();
@@ -25,6 +25,12 @@ export function MonthlyChallenge() {
         .maybeSingle();
       if (!c) return;
       setCh(c as Challenge);
+
+      // Video (Cloudflare UID) – načítá se měkce; když sloupec ještě není, přeskočí se.
+      supabase.from("challenges").select("video_uid").eq("id", (c as Challenge).id).maybeSingle().then(({ data }) => {
+        const vid = (data as { video_uid: string | null } | null)?.video_uid;
+        if (vid) setCh((prev) => (prev ? { ...prev, video_uid: vid } : prev));
+      });
 
       const { count: cnt } = await supabase
         .from("challenge_done")
@@ -74,6 +80,18 @@ export function MonthlyChallenge() {
           <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600">Měsíční výzva</p>
           <h3 className="text-base font-semibold text-brand-dark">{ch.title}</h3>
           {ch.body && <p className="mt-0.5 text-sm text-gray-600">{ch.body}</p>}
+          {ch.video_uid && (
+            <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-xl bg-brand-dark">
+              <iframe
+                src={`https://iframe.videodelivery.net/${ch.video_uid}`}
+                className="absolute inset-0 h-full w-full"
+                style={{ border: "none" }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen
+                title={ch.title}
+              />
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               onClick={toggle}

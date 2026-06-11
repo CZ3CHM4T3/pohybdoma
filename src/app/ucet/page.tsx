@@ -90,14 +90,12 @@ export default function UcetPage() {
     }
     supabase
       .from("profiles")
-      .select("tier, avatar_url, avatar_frame, fav_activity, tier_since, tier_until, full_name, pinned_badges")
+      .select("tier, avatar_url, tier_since, tier_until, full_name, pinned_badges")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setTier(normalizeTier(data?.tier as string | undefined));
         setAvatarUrl((data?.avatar_url as string | null) ?? null);
-        setAvatarFrame((data?.avatar_frame as string | null) ?? null);
-        setFavActivity((data?.fav_activity as string | null) ?? "");
         setTierSince((data?.tier_since as string | null) ?? null);
         setTierUntil((data?.tier_until as string | null) ?? null);
         setPinnedBadges((data?.pinned_badges as string[] | null) ?? []);
@@ -106,6 +104,17 @@ export default function UcetPage() {
             (user.user_metadata?.full_name as string | undefined) ||
             ""
         );
+      });
+    // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí (nic nerozbije).
+    supabase
+      .from("profiles")
+      .select("avatar_frame, fav_activity")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setAvatarFrame((data.avatar_frame as string | null) ?? null);
+        setFavActivity((data.fav_activity as string | null) ?? "");
       });
     // nejlepší umístění v žebříčku (odemyká rámečky)
     supabase.rpc("personal_best_rank", { p_id: user.id }).then(({ data }) => {

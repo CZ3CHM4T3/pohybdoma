@@ -148,10 +148,11 @@ export default function AdminPage() {
   const [stRec, setStRec] = useState("");
 
   // Měsíční výzva
-  type ChallengeRow = { id: string; title: string; body: string | null };
+  type ChallengeRow = { id: string; title: string; body: string | null; video_uid?: string | null };
   const [challenge, setChallenge] = useState<ChallengeRow | null>(null);
   const [chTitle, setChTitle] = useState("");
   const [chBody, setChBody] = useState("");
+  const [chVideo, setChVideo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   // Formulář nové recenze
@@ -192,7 +193,7 @@ export default function AdminPage() {
       supabase.from("events").select("*").order("date"),
       supabase.from("availability_overrides").select("*").order("date"),
       supabase.from("subscribers").select("*").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id,email,full_name,tier,tier_since,tier_until,bonus_days").order("email"),
+      supabase.from("profiles").select("id,email,full_name,tier").order("email"),
       supabase.from("reviews").select("*").order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("videos").select(VIDEO_COLS).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("streams").select("id, title, description, embed_url, recording_url, starts_at").order("starts_at", { ascending: false }),
@@ -203,11 +204,27 @@ export default function AdminPage() {
     if (e.data) setEvents(e.data as EventRow[]);
     if (o.data) setOverrides(o.data as OverrideRow[]);
     if (s.data) setSubscribers(s.data as { id: string; email: string; created_at: string }[]);
-    if (m.data) setMembers(m.data as Member[]);
+    if (m.data) setMembers(m.data.map((x) => ({
+      id: x.id, email: x.email, full_name: x.full_name, tier: x.tier,
+      tier_since: null, tier_until: null, bonus_days: 0,
+    })));
     if (r.data) setReviews(r.data as ReviewRow[]);
     if (v.data) setVideos(v.data as VideoRow[]);
     if (st.data) setStreams(st.data as StreamRow[]);
     setChallenge((ch.data as ChallengeRow | null) ?? null);
+
+    // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
+    supabase.from("profiles").select("id,tier_since,tier_until,bonus_days").then(({ data }) => {
+      if (!data) return;
+      const map = new Map((data as { id: string; tier_since: string | null; tier_until: string | null; bonus_days: number | null }[]).map((x) => [x.id, x]));
+      setMembers((list) => list.map((mm) => {
+        const ex = map.get(mm.id);
+        return ex ? { ...mm, tier_since: ex.tier_since, tier_until: ex.tier_until, bonus_days: ex.bonus_days ?? 0 } : mm;
+      }));
+    });
+    supabase.from("challenges").select("id, video_uid").eq("active", true).limit(1).maybeSingle().then(({ data }) => {
+      if (data) setChallenge((c) => (c ? { ...c, video_uid: (data as { video_uid: string | null }).video_uid } : c));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -476,9 +493,16 @@ export default function AdminPage() {
     setError(null);
     if (!chTitle.trim()) { setError("Vyplň název výzvy."); return; }
     await supabase.from("challenges").update({ active: false }).eq("active", true);
-    const { error } = await supabase.from("challenges").insert({ title: chTitle.trim(), body: chBody.trim(), active: true });
+    const base = { title: chTitle.trim(), body: chBody.trim(), active: true };
+    const withVideo = chVideo.trim() ? { ...base, video_uid: chVideo.trim() } : base;
+    let { error } = await supabase.from("challenges").insert(withVideo);
+    if (error && chVideo.trim()) {
+      // možná ještě není sloupec video_uid → ulož aspoň výzvu bez videa
+      ({ error } = await supabase.from("challenges").insert(base));
+      if (!error) { setError("Výzva uložena, ale video se nepřidalo – spusť v Supabase challenge_video.sql."); }
+    }
     if (error) { setError("Výzvu se nepodařilo uložit: " + error.message); return; }
-    setChTitle(""); setChBody("");
+    setChTitle(""); setChBody(""); setChVideo("");
     loadData();
   }
   async function clearChallenge() {
@@ -695,6 +719,7 @@ export default function AdminPage() {
               <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
               <textarea value={chBody} onChange={(e) => setChBody(e.target.value)} rows={2} placeholder="Každý den 5 minut pohybu. Stačí málo, hlavně pravidelně!" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
             </div>
+            <AdminInput label="Video k výzvě – Cloudflare UID (nepovinné)" value={chVideo} onChange={setChVideo} placeholder="např. a1b2c3d4e5f6… (necháš prázdné = bez videa)" />
             <div><button type="submit" className="btn-primary text-sm">Zveřejnit výzvu</button></div>
           </form>
         </section>

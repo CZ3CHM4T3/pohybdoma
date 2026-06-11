@@ -372,6 +372,13 @@ $$;
 revoke all on function public.admin_kick_member(uuid) from public, anon;
 grant execute on function public.admin_kick_member(uuid) to authenticated;
 
+
+-- ============================================================
+--  10) Video u měsíční výzvy (Cloudflare UID)
+-- ============================================================
+
+alter table public.challenges add column if not exists video_uid text;
+
 -- ════════════════════════════════════════════════════════════════════════════
 --  HOTOVO. Když to proběhlo bez červené chyby, vše nové je nasazené. ✅
 -- ════════════════════════════════════════════════════════════════════════════
