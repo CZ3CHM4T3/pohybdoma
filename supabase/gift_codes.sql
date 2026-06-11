@@ -17,13 +17,17 @@ alter table public.gift_codes enable row level security;
 -- žádné přímé čtení/zápis pro běžné uživatele; vše přes funkce níže
 revoke all on public.gift_codes from anon, authenticated;
 
--- Admin: vygeneruje nový kód a vrátí ho
-create or replace function public.create_gift_code(p_tier text, p_months int)
+-- Admin: vygeneruje nový kód a vrátí ho.
+-- p_log_income = true → zapíše tržbu (dárek byl koupen): cena úrovně × měsíce.
+drop function if exists public.create_gift_code(text, int);
+create or replace function public.create_gift_code(p_tier text, p_months int, p_log_income boolean default true)
 returns text
 language plpgsql security definer set search_path = public as $$
 declare
   v_code text;
   v_chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_months int := greatest(1, least(24, p_months));
+  v_price numeric;
   i int;
 begin
   if not public.is_admin() then raise exception 'Nedostatecna opravneni'; end if;
@@ -35,11 +39,25 @@ begin
     for i in 1..4 loop v_code := v_code || substr(v_chars, 1 + floor(random()*length(v_chars))::int, 1); end loop;
     exit when not exists (select 1 from public.gift_codes where code = v_code);
   end loop;
-  insert into public.gift_codes (code, tier, months) values (v_code, p_tier, greatest(1, least(24, p_months)));
+  insert into public.gift_codes (code, tier, months) values (v_code, p_tier, v_months);
+
+  if p_log_income then
+    v_price := case p_tier when 'member' then 199 when 'vip' then 399 when 'vip_plus' then 599 else 0 end;
+    if v_price > 0 then
+      begin
+        insert into public.finance_entries (kind, category, amount_kc, note)
+        values ('income',
+                case p_tier when 'member' then 'MEMBER' when 'vip' then 'VIP' else 'VIP+' end,
+                round(v_price * v_months),
+                'Dárkové členství');
+      exception when others then null;
+      end;
+    end if;
+  end if;
   return v_code;
 end;
 $$;
-grant execute on function public.create_gift_code(text, int) to authenticated;
+grant execute on function public.create_gift_code(text, int, boolean) to authenticated;
 
 -- Admin: seznam kódů (jako JSON)
 create or replace function public.list_gift_codes()

@@ -52,9 +52,12 @@ $$;
 grant execute on function public.grant_bonus_days(uuid, int) to authenticated;
 
 -- Přidání libovolného počtu dní libovolné úrovně členství (admin).
-create or replace function public.add_membership_days(target_id uuid, p_tier text, p_days int)
+-- p_log_income = true → automaticky zapíše tržbu (cena úrovně × dny/30).
+drop function if exists public.add_membership_days(uuid, text, int);
+create or replace function public.add_membership_days(target_id uuid, p_tier text, p_days int, p_log_income boolean default true)
 returns void
 language plpgsql security definer set search_path = public as $$
+declare v_price numeric;
 begin
   if not public.is_admin() then raise exception 'Nedostatecna opravneni'; end if;
   if p_tier not in ('member','vip','vip_plus') then raise exception 'Neplatna uroven'; end if;
@@ -64,6 +67,20 @@ begin
          tier_since = case when coalesce(tier, 'free') <> p_tier then now() else coalesce(tier_since, now()) end,
          tier_until = greatest(coalesce(tier_until, now()), now()) + make_interval(days => p_days)
    where id = target_id;
+
+  if p_log_income then
+    v_price := case p_tier when 'member' then 199 when 'vip' then 399 when 'vip_plus' then 599 else 0 end;
+    if v_price > 0 then
+      begin
+        insert into public.finance_entries (kind, category, amount_kc, note)
+        values ('income',
+                case p_tier when 'member' then 'MEMBER' when 'vip' then 'VIP' else 'VIP+' end,
+                round(v_price * p_days / 30.0),
+                'Členství (admin)');
+      exception when others then null; -- když finance_entries ještě není, nevadí
+      end;
+    end if;
+  end if;
 end;
 $$;
-grant execute on function public.add_membership_days(uuid, text, int) to authenticated;
+grant execute on function public.add_membership_days(uuid, text, int, boolean) to authenticated;

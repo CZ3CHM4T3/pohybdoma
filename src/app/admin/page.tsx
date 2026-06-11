@@ -162,6 +162,7 @@ export default function AdminPage() {
   const [giftMonths, setGiftMonths] = useState(1);
   const [lastGift, setLastGift] = useState<string | null>(null);
   const [giftCodes, setGiftCodes] = useState<GiftCode[]>([]);
+  const [giftPaid, setGiftPaid] = useState(true);
 
   // Finance
   type FinEntry = { id: number; kind: string; category: string; amount_kc: number; note: string | null; at: string };
@@ -316,10 +317,11 @@ export default function AdminPage() {
 
   async function genGift() {
     setError(null);
-    const { data, error } = await supabase.rpc("create_gift_code", { p_tier: giftTier, p_months: giftMonths });
+    const { data, error } = await supabase.rpc("create_gift_code", { p_tier: giftTier, p_months: giftMonths, p_log_income: giftPaid });
     if (error) { setError("Vygenerování kódu selhalo (spustil jsi gift_codes.sql?): " + error.message); return; }
     setLastGift(String(data));
     supabase.rpc("list_gift_codes").then(({ data: d }) => { if (d) setGiftCodes(d as GiftCode[]); });
+    supabase.from("finance_entries").select("*").order("at", { ascending: false }).then(({ data: d }) => { if (d) setFinEntries(d as FinEntry[]); });
   }
 
   // ── Akce ──
@@ -414,14 +416,15 @@ export default function AdminPage() {
     if (data) setMembers((m) => m.map((x) => (x.id === id ? (data as Member) : x)));
   }
 
-  async function addDays(id: string, tierDb: string, days: number) {
+  async function addDays(id: string, tierDb: string, days: number, logIncome: boolean) {
     setError(null);
-    const { error } = await supabase.rpc("add_membership_days", { target_id: id, p_tier: tierDb, p_days: days });
+    const { error } = await supabase.rpc("add_membership_days", { target_id: id, p_tier: tierDb, p_days: days, p_log_income: logIncome });
     if (error) {
       setError("Přidání dní selhalo (spustil jsi membership_dates.sql?): " + error.message);
       return;
     }
     refreshMember(id);
+    supabase.from("finance_entries").select("*").order("at", { ascending: false }).then(({ data }) => { if (data) setFinEntries(data as FinEntry[]); });
   }
 
   function genKickCode() {
@@ -1146,6 +1149,10 @@ export default function AdminPage() {
                 <input type="number" min={1} max={24} value={giftMonths} onChange={(e) => setGiftMonths(Math.max(1, Math.min(24, Number(e.target.value) || 1)))} className="w-16 rounded-lg border border-gray-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue" />
                 měsíců
               </div>
+              <label className="inline-flex items-center gap-1.5 text-xs text-gray-500" title="Započítat do tržeb (odškrtni u promo kódu zdarma)">
+                <input type="checkbox" checked={giftPaid} onChange={(e) => setGiftPaid(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue" />
+                tržba
+              </label>
               <button onClick={genGift} className="btn-primary text-sm">Vygenerovat kód</button>
             </div>
             {lastGift && (
@@ -1232,7 +1239,7 @@ export default function AdminPage() {
                           <option value="VIP_PLUS">VIP+</option>
                         </select>
                       </div>
-                      <AddDays onAdd={(tierDb, days) => addDays(m.id, tierDb, days)} />
+                      <AddDays onAdd={(tierDb, days, logIncome) => addDays(m.id, tierDb, days, logIncome)} />
                       <button
                         onClick={() => startKick(m.id)}
                         className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-500 hover:text-red-700"
@@ -1725,11 +1732,12 @@ function Centered({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AddDays({ onAdd }: { onAdd: (tierDb: string, days: number) => void }) {
+function AddDays({ onAdd }: { onAdd: (tierDb: string, days: number, logIncome: boolean) => void }) {
   const [t, setT] = useState("member");
   const [d, setD] = useState(30);
+  const [paid, setPaid] = useState(true);
   return (
-    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400">
       <span>Přidat:</span>
       <select value={t} onChange={(e) => setT(e.target.value)} className="rounded-md border border-gray-200 bg-white px-1.5 py-1 text-[11px] focus:outline-none">
         <option value="member">MEMBER</option>
@@ -1738,7 +1746,11 @@ function AddDays({ onAdd }: { onAdd: (tierDb: string, days: number) => void }) {
       </select>
       <input type="number" min={1} value={d} onChange={(e) => setD(Math.max(1, Number(e.target.value) || 1))} className="w-14 rounded-md border border-gray-200 px-1.5 py-1 text-[11px] focus:outline-none" />
       <span>dní</span>
-      <button onClick={() => onAdd(t, d)} className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-brand-blue hover:bg-brand-light">Přidat</button>
+      <label className="inline-flex items-center gap-1" title="Započítat do tržeb (odškrtni u dárku zdarma)">
+        <input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} className="h-3 w-3 rounded border-gray-300 text-brand-blue" />
+        tržba
+      </label>
+      <button onClick={() => onAdd(t, d, paid)} className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-brand-blue hover:bg-brand-light">Přidat</button>
     </div>
   );
 }
