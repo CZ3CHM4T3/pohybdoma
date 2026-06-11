@@ -384,11 +384,11 @@ export default function AdminPage() {
     if (data) setMembers((m) => m.map((x) => (x.id === id ? (data as Member) : x)));
   }
 
-  async function grantBonus(id: string, days: number) {
+  async function addDays(id: string, tierDb: string, days: number) {
     setError(null);
-    const { error } = await supabase.rpc("grant_bonus_days", { target_id: id, days });
+    const { error } = await supabase.rpc("add_membership_days", { target_id: id, p_tier: tierDb, p_days: days });
     if (error) {
-      setError("Přidání bonusových dní selhalo (spustil jsi membership_dates.sql?): " + error.message);
+      setError("Přidání dní selhalo (spustil jsi membership_dates.sql?): " + error.message);
       return;
     }
     refreshMember(id);
@@ -1182,16 +1182,7 @@ export default function AdminPage() {
                           <option value="VIP_PLUS">VIP+</option>
                         </select>
                       </div>
-                      {paid && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                          <span>Bonus:</span>
-                          <button onClick={() => grantBonus(m.id, 7)} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-brand-blue hover:bg-brand-light">+7</button>
-                          <button onClick={() => grantBonus(m.id, 30)} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-brand-blue hover:bg-brand-light">+30</button>
-                          {(m.bonus_days ?? 0) > 0 && (
-                            <button onClick={() => grantBonus(m.id, -(m.bonus_days ?? 0))} className="rounded-md border border-gray-200 px-1.5 py-0.5 font-semibold text-gray-400 hover:bg-gray-50" title="Vynulovat bonus">vynulovat</button>
-                          )}
-                        </div>
-                      )}
+                      <AddDays onAdd={(tierDb, days) => addDays(m.id, tierDb, days)} />
                       <button
                         onClick={() => startKick(m.id)}
                         className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-500 hover:text-red-700"
@@ -1617,6 +1608,24 @@ function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-brand-light flex items-center justify-center px-4">
       <div className="card p-8 text-center max-w-sm">{children}</div>
+    </div>
+  );
+}
+
+function AddDays({ onAdd }: { onAdd: (tierDb: string, days: number) => void }) {
+  const [t, setT] = useState("member");
+  const [d, setD] = useState(30);
+  return (
+    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+      <span>Přidat:</span>
+      <select value={t} onChange={(e) => setT(e.target.value)} className="rounded-md border border-gray-200 bg-white px-1.5 py-1 text-[11px] focus:outline-none">
+        <option value="member">MEMBER</option>
+        <option value="vip">VIP</option>
+        <option value="vip_plus">VIP+</option>
+      </select>
+      <input type="number" min={1} value={d} onChange={(e) => setD(Math.max(1, Number(e.target.value) || 1))} className="w-14 rounded-md border border-gray-200 px-1.5 py-1 text-[11px] focus:outline-none" />
+      <span>dní</span>
+      <button onClick={() => onAdd(t, d)} className="rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-brand-blue hover:bg-brand-light">Přidat</button>
     </div>
   );
 }

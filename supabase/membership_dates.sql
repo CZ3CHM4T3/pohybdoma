@@ -50,3 +50,20 @@ begin
 end;
 $$;
 grant execute on function public.grant_bonus_days(uuid, int) to authenticated;
+
+-- Přidání libovolného počtu dní libovolné úrovně členství (admin).
+create or replace function public.add_membership_days(target_id uuid, p_tier text, p_days int)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Nedostatecna opravneni'; end if;
+  if p_tier not in ('member','vip','vip_plus') then raise exception 'Neplatna uroven'; end if;
+  if coalesce(p_days, 0) = 0 then return; end if;
+  update public.profiles
+     set tier = p_tier,
+         tier_since = case when coalesce(tier, 'free') <> p_tier then now() else coalesce(tier_since, now()) end,
+         tier_until = greatest(coalesce(tier_until, now()), now()) + make_interval(days => p_days)
+   where id = target_id;
+end;
+$$;
+grant execute on function public.add_membership_days(uuid, text, int) to authenticated;
