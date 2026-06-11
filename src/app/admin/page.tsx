@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText } from "lucide-react";
+import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -27,6 +28,7 @@ const ADMIN_TABS = [
   { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
   { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
   { k: "pruvodce", label: "Průvodce", Icon: Compass, active: "bg-fuchsia-600 text-white", icon: "text-fuchsia-500" },
+  { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
   { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
 ];
 function slugifyVideo(s: string): string {
@@ -1505,6 +1507,8 @@ export default function AdminPage() {
           </div>
         </section>
         )}
+
+        {tab === "blog" && <BlogAdmin />}
 
         {tab === "analytika" && (
         <section className="card p-6 mt-8">

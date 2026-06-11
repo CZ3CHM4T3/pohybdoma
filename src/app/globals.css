@@ -247,6 +247,24 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Obsah blogu (editor i veřejný článek) ── */
+.blog-content :where(h2) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-brand-dark);
+  margin: 1.5rem 0 0.5rem;
+}
+.blog-content :where(p) { margin: 0.75rem 0; }
+.blog-content :where(ul) { list-style: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
+.blog-content :where(ol) { list-style: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
+.blog-content :where(a) { color: var(--color-brand-blue); text-decoration: underline; }
+.blog-content :where(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+}
+
 /* ── Keyframes ── */
 @keyframes float {
   0%,
