@@ -420,7 +420,9 @@ export default function AdminPage() {
   async function saveStep() {
     if (!obTitle.trim()) { setError("Vyplň nadpis kroku."); return; }
     setError(null);
-    const payload = { title: obTitle.trim(), body: obBody.trim(), href: obHref.trim() || null, image_url: obImage, cx: obCx, cy: obCy, radius: obRadius };
+    const hrefRaw = obHref.trim();
+    const href = hrefRaw ? (/^https?:\/\//.test(hrefRaw) ? hrefRaw : "/" + hrefRaw.replace(/^\/+/, "")) : null;
+    const payload = { title: obTitle.trim(), body: obBody.trim(), href, image_url: obImage, cx: obCx, cy: obCy, radius: obRadius };
     if (obEditId) {
       const { error } = await supabase.from("onboarding_steps").update(payload).eq("id", obEditId);
       if (error) { setError("Uložení selhalo (spustil jsi onboarding.sql?): " + error.message); return; }

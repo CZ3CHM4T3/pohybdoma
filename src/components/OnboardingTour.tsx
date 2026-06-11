@@ -43,8 +43,14 @@ export function OnboardingTour() {
     try { localStorage.setItem(DONE_KEY, "1"); } catch {}
   }
   function goThere() {
-    if (step.href) router.push(step.href);
-    finish();
+    if (step.href) {
+      const h = step.href.trim();
+      const url = /^https?:\/\//.test(h) ? h : "/" + h.replace(/^\/+/, "");
+      finish();
+      router.push(url);
+    } else {
+      finish();
+    }
   }
 
   return (
