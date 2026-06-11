@@ -4,10 +4,10 @@ export type FrameKey = "bronze" | "silver" | "gold" | "lektor";
 
 export const FRAMES: Record<FrameKey, { label: string; ring: string; glow: string; swatch: string }> = {
   lektor: {
-    label: "Lektor",
-    ring: "ring-brand-blue",
-    glow: "shadow-[0_0_18px_3px_rgba(25,118,255,0.75)]",
-    swatch: "bg-gradient-to-br from-brand-blue to-brand-dark",
+    label: "Zakladatel",
+    ring: "ring-amber-400",
+    glow: "shadow-[0_0_18px_3px_rgba(168,85,247,0.6)]",
+    swatch: "bg-gradient-to-br from-amber-400 to-violet-600",
   },
   bronze: {
     label: "Bronz",

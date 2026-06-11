@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
 import { BadgePins } from "@/components/BadgePins";
+import { FounderBadge } from "@/components/FounderBadge";
 
 const TABS: { key: Channel; label: string; Icon: LucideIcon }[] = [
   { key: "nastenka", label: "Nástěnka", Icon: Megaphone },
@@ -393,7 +394,7 @@ export default function KlubPage() {
             <Link href={`/profil/${c.author_id}`} className="hover:underline">{nameOf(c.author_name)}</Link>
             <BadgePins ids={pins[c.author_id]} />
             {cHonza ? (
-              <span className="rounded-full bg-white/20 px-1.5 text-[9px] font-bold text-white">LEKTOR</span>
+              <FounderBadge />
             ) : mine ? (
               <span className="rounded-full bg-brand-blue/10 px-1.5 text-[9px] font-bold text-brand-blue">TY</span>
             ) : null}
@@ -830,7 +831,7 @@ export default function KlubPage() {
                         <Link href={`/profil/${post.author_id}`} className="hover:underline">{nameOf(post.author_name)}</Link>
                         <BadgePins ids={pins[post.author_id]} />
                         {honza ? (
-                          <span className="rounded-full bg-brand-dark px-1.5 py-0.5 text-[10px] font-bold text-white">LEKTOR</span>
+                          <FounderBadge />
                         ) : (
                           <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">VIP+</span>
                         )}

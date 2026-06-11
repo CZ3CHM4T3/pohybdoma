@@ -10,6 +10,7 @@ import { BADGE_MAP } from "@/lib/badges";
 import { BadgeMedal } from "@/components/BadgeMedal";
 import { PROFILE_THEMES, themeCard } from "@/lib/profile-themes";
 import { frameClass } from "@/lib/avatar-frames";
+import { FounderBadge } from "@/components/FounderBadge";
 
 type Pub = {
   id: string; name: string; tier: string; pinned_badges: string[]; theme: string | null;
@@ -94,9 +95,13 @@ export default function ProfilPage() {
             {(p.name[0] ?? "Č").toUpperCase()}
           </span>
           <h1 className="text-2xl font-semibold text-brand-dark">{p.name}</h1>
-          <span className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${TIER_STYLES[tier].badge}`}>
-            {TIER_STYLES[tier].label}
-          </span>
+          {p.is_admin ? (
+            <div className="mt-2 flex justify-center"><FounderBadge className="text-xs px-3 py-1" /></div>
+          ) : (
+            <span className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${TIER_STYLES[tier].badge}`}>
+              {TIER_STYLES[tier].label}
+            </span>
+          )}
 
           <p className="mt-2 inline-flex items-center justify-center gap-1.5 text-xs text-gray-400">
             <Eye className="h-3.5 w-3.5" /> {isOwner ? "Takhle tě vidí ostatní členové" : "Sleduješ profil (jen pro zobrazení)"}

@@ -530,8 +530,8 @@ export default function UcetPage() {
                 <div className="flex items-center gap-3 rounded-xl border border-brand-blue/20 bg-brand-light/60 p-4">
                   <span className={`h-11 w-11 shrink-0 rounded-full ${FRAMES.lektor.swatch} ${frameClass("lektor")}`} />
                   <div>
-                    <p className="text-sm font-semibold text-brand-dark">Lektorský rámeček</p>
-                    <p className="text-xs text-gray-500">Jako lektor máš kolem fotky vlastní modrý zářící rámeček — nedá se splést s odznaky členů.</p>
+                    <p className="text-sm font-semibold text-brand-dark">Rámeček zakladatele</p>
+                    <p className="text-xs text-gray-500">Jako zakladatel máš kolem fotky vlastní zlatofialový diamantový rámeček — nedá se splést s odznaky členů.</p>
                   </div>
                 </div>
               )}
