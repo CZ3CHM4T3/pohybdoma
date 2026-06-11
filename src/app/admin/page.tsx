@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -17,16 +17,17 @@ import type { UserTier, AccessLevel } from "@/types";
 
 const ACCESS_OPTS: AccessLevel[] = ["FREE", "MEMBER", "VIP", "VIP_PLUS"];
 const DIFF_OPTS = ["začátečník", "mírně pokročilý", "pokročilý"];
-const ADMIN_TABS: { k: string; label: string }[] = [
-  { k: "videa", label: "Videa" },
-  { k: "live", label: "LIVE" },
-  { k: "vyzva", label: "Výzva" },
-  { k: "rozvrh", label: "Rozvrh" },
-  { k: "rezervace", label: "Rezervace" },
-  { k: "clenove", label: "Členové" },
-  { k: "recenze", label: "Recenze" },
-  { k: "newsletter", label: "Newsletter" },
-  { k: "pruvodce", label: "Průvodce" },
+const ADMIN_TABS = [
+  { k: "videa", label: "Videa", Icon: Film, active: "bg-violet-600 text-white", icon: "text-violet-500" },
+  { k: "live", label: "LIVE", Icon: Radio, active: "bg-red-600 text-white", icon: "text-red-500" },
+  { k: "vyzva", label: "Výzva", Icon: Flame, active: "bg-amber-500 text-white", icon: "text-amber-500" },
+  { k: "rozvrh", label: "Rozvrh", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500" },
+  { k: "rezervace", label: "Rezervace", Icon: CalendarCheck, active: "bg-emerald-600 text-white", icon: "text-emerald-500" },
+  { k: "clenove", label: "Členové", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500" },
+  { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
+  { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
+  { k: "pruvodce", label: "Průvodce", Icon: Compass, active: "bg-fuchsia-600 text-white", icon: "text-fuchsia-500" },
+  { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
 ];
 function slugifyVideo(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -34,6 +35,18 @@ function slugifyVideo(s: string): string {
 }
 function toArr(s: string): string[] {
   return s.split(",").map((x) => x.trim()).filter(Boolean);
+}
+// Doplní 30 denních sloupců (i prázdné dny) z řídké série {d,n}.
+function daily30(series: { d: string; n: number }[]): { label: string; n: number }[] {
+  const map = new Map(series.map((x) => [x.d, x.n]));
+  const out: { label: string; n: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - i);
+    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    out.push({ label: String(dt.getDate()), n: map.get(key) ?? 0 });
+  }
+  return out;
 }
 
 const HOURS = [
@@ -129,6 +142,17 @@ export default function AdminPage() {
   const [obRadius, setObRadius] = useState(10);
   const [obEditId, setObEditId] = useState<number | null>(null);
   const [obUploading, setObUploading] = useState(false);
+
+  // Analytika
+  type Stats = {
+    members: { total: number; free: number; member: number; vip: number; vip_plus: number };
+    reg7: number; reg30: number; reg_daily: { d: string; n: number }[];
+    bookings: { total: number; last7: number; last30: number };
+    minutes30: number; active7: number; subscribers: number; brags: number; challenges_done: number;
+    top_videos: { slug: string; minutes: number }[];
+    pv: { total30: number; today: number; daily: { d: string; n: number }[]; top: { path: string; n: number }[] };
+  };
+  const [analytics, setAnalytics] = useState<Stats | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [savingCell, setSavingCell] = useState<string | null>(null);
@@ -241,6 +265,9 @@ export default function AdminPage() {
     });
     supabase.from("onboarding_steps").select("*").order("position").then(({ data }) => {
       if (data) setOnbSteps(data as OnbStep[]);
+    });
+    supabase.rpc("admin_stats").then(({ data }) => {
+      if (data) setAnalytics(data as Stats);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -665,10 +692,11 @@ export default function AdminPage() {
               key={t.k}
               type="button"
               onClick={() => setTab(t.k)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                tab === t.k ? "bg-brand-blue text-white" : "text-gray-500 hover:text-brand-dark"
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                tab === t.k ? t.active : "text-gray-500 hover:bg-gray-50"
               }`}
             >
+              <t.Icon className={`h-4 w-4 ${tab === t.k ? "" : t.icon}`} strokeWidth={2} />
               {t.label}
             </button>
           ))}
@@ -1415,6 +1443,52 @@ export default function AdminPage() {
           </div>
         </section>
         )}
+
+        {tab === "analytika" && (
+        <section className="card p-6 mt-8">
+          <h2 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Analytika
+          </h2>
+          <p className="mb-5 text-sm text-gray-500">Přehled dění na webu (převážně za posledních 30 dní).</p>
+
+          {!analytics ? (
+            <p className="text-sm text-gray-400">Načítám… Pokud se nic neobjeví, spusť v Supabase <strong>analytics.sql</strong>.</p>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Metric label="Členů celkem" value={analytics.members.total} />
+                <Metric label="Registrace 30 dní" value={analytics.reg30} sub={`${analytics.reg7} za 7 dní`} />
+                <Metric label="Rezervace 30 dní" value={analytics.bookings.last30} sub={`${analytics.bookings.total} celkem`} />
+                <Metric label="Návštěvy dnes" value={analytics.pv.today} sub={`${analytics.pv.total30} za 30 dní`} />
+                <Metric label="Odcvičené minuty 30 dní" value={analytics.minutes30} />
+                <Metric label="Aktivní cvičící 7 dní" value={analytics.active7} />
+                <Metric label="Odběratelé newsletteru" value={analytics.subscribers} />
+                <Metric label="Splněné výzvy" value={analytics.challenges_done} />
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Členové podle úrovně</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <TierCard label="FREE" value={analytics.members.free} cls="bg-gray-100 text-gray-600" />
+                  <TierCard label="MEMBER" value={analytics.members.member} cls="bg-blue-100 text-blue-700" />
+                  <TierCard label="VIP" value={analytics.members.vip} cls="bg-violet-100 text-violet-700" />
+                  <TierCard label="VIP+" value={analytics.members.vip_plus} cls="bg-amber-100 text-amber-700" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <BarChart title="Návštěvy / den" data={daily30(analytics.pv.daily)} color="bg-indigo-500" />
+                <BarChart title="Registrace / den" data={daily30(analytics.reg_daily)} color="bg-emerald-500" />
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <TopList title="Nejnavštěvovanější stránky" items={analytics.pv.top.map((x) => ({ label: x.path, value: x.n, unit: "návštěv" }))} />
+                <TopList title="Nejsledovanější videa" items={analytics.top_videos.map((x) => ({ label: x.slug, value: x.minutes, unit: "min" }))} />
+              </div>
+            </div>
+          )}
+        </section>
+        )}
       </div>
     </div>
   );
@@ -1477,6 +1551,65 @@ function Centered({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-brand-light flex items-center justify-center px-4">
       <div className="card p-8 text-center max-w-sm">{children}</div>
+    </div>
+  );
+}
+
+function Metric({ label, value, sub }: { label: string; value: number; sub?: string }) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-2xl font-bold text-brand-dark">{value.toLocaleString("cs-CZ")}</p>
+      <p className="text-[11px] leading-tight text-gray-500">{label}</p>
+      {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
+    </div>
+  );
+}
+function TierCard({ label, value, cls }: { label: string; value: number; cls: string }) {
+  return (
+    <div className="rounded-xl border border-gray-100 p-3 text-center">
+      <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${cls}`}>{label}</span>
+      <p className="mt-1 text-xl font-bold text-brand-dark">{value}</p>
+    </div>
+  );
+}
+function BarChart({ title, data, color }: { title: string; data: { label: string; n: number }[]; color: string }) {
+  const max = Math.max(1, ...data.map((d) => d.n));
+  return (
+    <div className="rounded-xl border border-gray-100 p-4">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</p>
+      <div className="flex h-24 items-end gap-[2px]">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1" title={`${d.label}.: ${d.n}`}>
+            <div className={`${color} rounded-sm`} style={{ height: `${(d.n / max) * 100}%`, minHeight: d.n > 0 ? "2px" : "0" }} />
+          </div>
+        ))}
+      </div>
+      <p className="mt-1 text-[10px] text-gray-400">posledních 30 dní</p>
+    </div>
+  );
+}
+function TopList({ title, items }: { title: string; items: { label: string; value: number; unit: string }[] }) {
+  const max = Math.max(1, ...items.map((x) => x.value));
+  return (
+    <div className="rounded-xl border border-gray-100 p-4">
+      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">{title}</p>
+      {items.length === 0 ? (
+        <p className="text-xs text-gray-400">Zatím žádná data.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {items.map((x, i) => (
+            <div key={i}>
+              <div className="flex items-center justify-between text-xs">
+                <span className="min-w-0 truncate text-brand-dark">{x.label}</span>
+                <span className="ml-2 shrink-0 font-semibold text-gray-500">{x.value} {x.unit}</span>
+              </div>
+              <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full rounded-full bg-indigo-400" style={{ width: `${(x.value / max) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
