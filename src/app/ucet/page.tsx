@@ -18,6 +18,7 @@ import { TINT } from "@/lib/feature-tints";
 import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
 import { isAdminEmail } from "@/lib/admin";
 import { FILTER_SYSTEMS } from "@/lib/filters";
+import { EMAIL_PREFS, prefEnabled } from "@/lib/email-prefs";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
@@ -38,6 +39,7 @@ export default function UcetPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFrame, setAvatarFrame] = useState<string | null>(null);
   const [favActivity, setFavActivity] = useState<string>("");
+  const [emailPrefs, setEmailPrefs] = useState<Record<string, boolean>>({});
   const [bestRank, setBestRank] = useState<number | null>(null);
   const [tierSince, setTierSince] = useState<string | null>(null);
   const [tierUntil, setTierUntil] = useState<string | null>(null);
@@ -109,13 +111,14 @@ export default function UcetPage() {
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí (nic nerozbije).
     supabase
       .from("profiles")
-      .select("avatar_frame, fav_activity")
+      .select("avatar_frame, fav_activity, email_prefs")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
         setAvatarFrame((data.avatar_frame as string | null) ?? null);
         setFavActivity((data.fav_activity as string | null) ?? "");
+        setEmailPrefs((data.email_prefs as Record<string, boolean> | null) ?? {});
       });
     // nejlepší umístění v žebříčku (odemyká rámečky)
     supabase.rpc("personal_best_rank", { p_id: user.id }).then(({ data }) => {
@@ -240,6 +243,12 @@ export default function UcetPage() {
   async function saveFavActivity(val: string) {
     setFavActivity(val);
     await supabase.rpc("set_fav_activity", { p_val: val || null });
+  }
+
+  async function toggleEmailPref(key: string, val: boolean) {
+    const next = { ...emailPrefs, [key]: val };
+    setEmailPrefs(next);
+    await supabase.rpc("set_email_prefs", { p_prefs: next });
   }
 
   async function saveName() {
@@ -616,6 +625,33 @@ export default function UcetPage() {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-400">Zobrazí se na tvém profilu jako štítek.</p>
+              </div>
+
+              {/* E-mailová upozornění */}
+              <div className="border-t border-gray-100 pt-4">
+                <h3 className="text-sm font-semibold text-brand-dark">E-mailová upozornění</h3>
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Vyber si, co ti má chodit. Provozní e-maily (potvrzení rezervace, registrace a obnova hesla) chodí vždy.
+                </p>
+                <div className="mt-3 space-y-1">
+                  {EMAIL_PREFS.map((pref) => {
+                    const on = prefEnabled(emailPrefs, pref.key);
+                    return (
+                      <label key={pref.key} className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) => toggleEmailPref(pref.key, e.target.checked)}
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-blue focus:ring-brand-blue"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-brand-dark">{pref.label}</span>
+                          <span className="block text-xs text-gray-400">{pref.desc}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Heslo + odhlášení */}
