@@ -30,3 +30,26 @@ create policy "ob admin write" on public.onboarding_steps
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 grant select, insert, update, delete on public.onboarding_steps to authenticated;
+
+-- ── Výchozí kroky průvodce (vloží se jen když je tabulka prázdná) ───────────
+insert into public.onboarding_steps (position, title, body)
+select v.position, v.title, v.body
+from (values
+  (1, 'Vítej v POHYB DOMA!',
+      'Za minutku tě provedu tím nejdůležitějším – kde co najdeš a jak to funguje. Kdykoliv můžeš dát „Přeskočit".'),
+  (2, 'Knihovna pohybu',
+      'Tady jsou všechna cvičební videa. Filtry (část těla, systém, délka, co máš doma…) ti pomůžou najít přesně to svoje. A když nevíš, do čeho se pustit, tlačítko „Náhodně" ti video vybere za tebe.'),
+  (3, 'Moje cesta – tvoje základna',
+      'Tvůj účet má všechno pod jednou střechou: videa, kurzy, rezervace, stav členství, kruhy i deník. Odsud se dostaneš kamkoliv.'),
+  (4, 'Můj deník',
+      'Zapisuj si váhu, energii, spánek, bolest a trénink. V přehledném grafu pak uvidíš svůj posun černé na bílém – a že to funguje.'),
+  (5, 'Můj kalendář',
+      'Plánuj si tréninky i poznámky. Vlastní barevné kategorie, čas a detaily u každé události – ať máš ve svém pohybu řád.'),
+  (6, 'Komunita: Kruhy, Chlubírna a Buddies',
+      'Najdi parťáky se stejným cílem, pochlub se pokrokem a piš si s nimi naživo. Společně to jde líp a vydrží to déle.'),
+  (7, 'Výzvy, žebříček a odznaky',
+      'Každý měsíc krátká výzva pro radost. Za aktivitu sbíráš odznaky a posouváš se v žebříčku dříčů. Trocha hecu nikdy neuškodí. 💪'),
+  (8, 'A teď hlavně začni',
+      'Vyber si jedno video a pusť se do toho. Tvoje možnosti, tvoje cesta – a já jsem ti k ruce. — Honza')
+) as v(position, title, body)
+where not exists (select 1 from public.onboarding_steps);
