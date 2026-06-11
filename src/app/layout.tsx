@@ -29,6 +29,11 @@ export const metadata: Metadata = {
     siteName: "POHYB DOMA",
     locale: "cs_CZ",
     type: "website",
+    images: ["/og.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og.png"],
   },
   appleWebApp: {
     capable: true,
@@ -44,6 +49,25 @@ export const viewport: Viewport = {
   themeColor: "#062A6B",
 };
 
+// Strukturovaná data pro Google (bohatší výsledky). Aktivní hlavně po spuštění naveřejno.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: "POHYB DOMA",
+  description: "Osobní lektor pohybu. Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
+  url: "https://pohybdoma.cz",
+  logo: "https://pohybdoma.cz/LOGO.png",
+  image: "https://pohybdoma.cz/og.png",
+  email: "pohybdoma@seznam.cz",
+  areaServed: "Hradištko, Dobřichovice a okolí (a online po celé ČR)",
+  sameAs: ["https://www.instagram.com/pohybdoma/"],
+  founder: {
+    "@type": "Person",
+    name: "Mgr. Jan Schröffel",
+    jobTitle: "Lektor pohybu",
+  },
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -52,6 +76,7 @@ export default function RootLayout({
   return (
     <html lang="cs" className={montserrat.variable}>
       <body className="flex min-h-screen flex-col">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
         <MembershipExpiryBanner />
         <Header />
         <main className="flex-1">{children}</main>
