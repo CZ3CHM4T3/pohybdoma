@@ -100,8 +100,8 @@ export default function ObchodniPodminkyPage() {
           </p>
 
           <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">
-            Tento dokument je vzorový. Před spuštěním plateb doporučujeme kontrolu právníkem a doplnění
-            míst [DOPLŇ …] (zejm. identifikace, platební brána, fakturační systém).
+            Před spuštěním online plateb doporučuji nechat podmínky zkontrolovat právníkem
+            (zejm. platební brána a fakturace).
           </p>
         </div>
       </div>

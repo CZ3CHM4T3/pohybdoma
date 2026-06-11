@@ -78,14 +78,15 @@ export default function GdprPage() {
 
           <h2>7. Cookies</h2>
           <p>
-            Web používá nezbytné cookies pro přihlášení a základní fungování. Analytické či marketingové
-            cookies používám jen s tvým souhlasem [DOPLŇ dle reálného nasazení]. Nastavení cookies lze
-            kdykoliv změnit ve svém prohlížeči.
+            Web používá <strong>pouze nezbytné cookies</strong> nutné pro přihlášení a základní
+            bezpečnost. <strong>Nepoužívám analytické ani marketingové cookies</strong> a neprovádím
+            sledování třetích stran. Pokud bych je v budoucnu nasadil, vyžádám si nejdřív tvůj souhlas.
+            Cookies můžeš kdykoliv spravovat či smazat ve svém prohlížeči.
           </p>
 
           <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">
-            Tento dokument je vzorový a před spuštěním plateb doporučujeme nechat zkontrolovat právníkem
-            a doplnit označená místa [DOPLŇ …].
+            Tento dokument se snažím držet aktuální. Před spuštěním online plateb doporučuji nechat
+            zpracování údajů a podmínky zkontrolovat právníkem.
           </p>
         </div>
       </div>
