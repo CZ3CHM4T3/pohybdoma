@@ -9,8 +9,6 @@ type StreamPlayer = { addEventListener: (e: string, cb: () => void) => void; rem
 type StreamFn = (el: Element) => StreamPlayer;
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { getDemoTierClient } from "@/lib/demo-client";
-import { PREVIEW_MODE } from "@/lib/preview";
 import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
 import { formatDuration } from "@/lib/access";
 import { FILTER_BODY, FILTER_SYSTEMS, FILTER_GOALS, FILTER_DIFFICULTIES } from "@/lib/filters";
@@ -44,20 +42,7 @@ export default function MixerPage() {
     (async () => {
       const { data: au } = await supabase.auth.getUser();
       const user = au.user;
-      if (!user) {
-        if (PREVIEW_MODE && getDemoTierClient() === "VIP_PLUS") {
-          const { data } = await supabase
-            .from("videos")
-            .select(VIDEO_COLS)
-            .eq("published", true)
-            .order("position", { ascending: true, nullsFirst: false });
-          setVideos((data ?? []).map((r) => rowToVideo(r as VideoRow)));
-          setPhase("ready");
-        } else {
-          setPhase("anon");
-        }
-        return;
-      }
+      if (!user) { setPhase("anon"); return; }
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", user.id).maybeSingle();
       const tier = normalizeTier(p?.tier as string | undefined);
       const ok = tier === "VIP_PLUS" || isAdminEmail(user.email);

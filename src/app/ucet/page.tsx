@@ -17,7 +17,6 @@ import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
 import { isAdminEmail } from "@/lib/admin";
-import { PREVIEW_MODE } from "@/lib/preview";
 import { FILTER_SYSTEMS } from "@/lib/filters";
 import { EMAIL_PREFS, prefEnabled } from "@/lib/email-prefs";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
@@ -886,9 +885,9 @@ export default function UcetPage() {
         </div>
 
         <div className="card p-8">
-          {/* Tabs (v preview režimu je registrace vypnutá – jen přihlášení) */}
+          {/* Tabs */}
           <div className="flex rounded-lg bg-gray-100 p-1 mb-7">
-            {((PREVIEW_MODE ? ["prihlaseni"] : ["prihlaseni", "registrace"]) as Tab[]).map((t) => (
+            {(["prihlaseni", "registrace"] as Tab[]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -901,13 +900,6 @@ export default function UcetPage() {
               </button>
             ))}
           </div>
-
-          {PREVIEW_MODE && (
-            <p className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-sm text-amber-800">
-              Registrace se spustí brzy. Web si zatím můžeš prohlédnout v ukázkovém režimu –
-              dole zvol, jako jaká úroveň členství.
-            </p>
-          )}
 
           {error && (
             <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">

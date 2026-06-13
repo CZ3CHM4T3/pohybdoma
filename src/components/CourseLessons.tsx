@@ -7,7 +7,6 @@ import type { CourseLesson, UserTier } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { formatDuration, canAccess } from "@/lib/access";
 import { normalizeTier } from "@/lib/tiers";
-import { getDemoTierClient } from "@/lib/demo-client";
 import { AccessBadge } from "@/components/ui/Badge";
 import { LockBadge } from "@/components/ui/LockBadge";
 
@@ -43,7 +42,7 @@ export function CourseLessons({
       const uid = data.user?.id ?? null;
       setUserId(uid);
       setChecking(false);
-      if (!uid) { setUserTier(getDemoTierClient() ?? "FREE"); return; } // demo/ukázka
+      if (!uid) return;
       // Úroveň členství (kvůli zamykání lekcí)
       supabase
         .from("profiles")

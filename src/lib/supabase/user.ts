@@ -1,9 +1,6 @@
-import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { DEMO_COOKIE, parseDemoTier } from "@/lib/demo";
-import { PREVIEW_MODE } from "@/lib/preview";
 import type { UserTier } from "@/types";
 
 export type SessionUser = {
@@ -57,18 +54,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   };
 }
 
-/**
- * Úroveň pro zobrazování obsahu. Přihlášený = jeho skutečná úroveň.
- * Nepřihlášený v preview režimu = zvolená demo úroveň (jinak FREE).
- * Demo nikdy nedává admina – ten se řeší podle e-mailu zvlášť.
- */
+/** Jen úroveň přihlášeného uživatele; nepřihlášený = "FREE". */
 export async function getUserTier(): Promise<UserTier> {
   const u = await getSessionUser();
-  if (u) return u.tier;
-  if (PREVIEW_MODE) {
-    const c = await cookies();
-    const demo = parseDemoTier(c.get(DEMO_COOKIE)?.value);
-    if (demo) return demo;
-  }
-  return "FREE";
+  return u?.tier ?? "FREE";
 }

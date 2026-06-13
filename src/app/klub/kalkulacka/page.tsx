@@ -6,8 +6,6 @@ import { Calculator, Lock, ArrowLeft, Plus, Trash2, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { getDemoTierClient } from "@/lib/demo-client";
-import { PREVIEW_MODE } from "@/lib/preview";
 import { FOODS, FOOD_CATS, type Food } from "@/lib/foods";
 
 type Item = { key: string; foodId: string; grams: number };
@@ -29,10 +27,7 @@ export default function KalkulackaPage() {
     (async () => {
       const { data: au } = await supabase.auth.getUser();
       const user = au.user;
-      if (!user) {
-        setPhase(PREVIEW_MODE && getDemoTierClient() === "VIP_PLUS" ? "ready" : "anon");
-        return;
-      }
+      if (!user) { setPhase("anon"); return; }
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", user.id).maybeSingle();
       const ok = normalizeTier(p?.tier as string | undefined) === "VIP_PLUS" || isAdminEmail(user.email);
       setPhase(ok ? "ready" : "locked");

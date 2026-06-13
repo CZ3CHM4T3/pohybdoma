@@ -6,7 +6,6 @@ import { Users, Search, Plus, X, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { getDemoTierClient } from "@/lib/demo-client";
 import type { UserTier } from "@/types";
 
 type Circle = {
@@ -61,8 +60,6 @@ export default function KruhyPage() {
         setTier(normalizeTier(p?.tier as string | undefined));
         const { data: m } = await supabase.from("circle_members").select("circle_id").eq("user_id", user.id);
         setJoined(new Set((m ?? []).map((r: { circle_id: string }) => r.circle_id)));
-      } else {
-        setTier(getDemoTierClient() ?? "FREE"); // demo/ukázka
       }
       await loadCircles();
     })();

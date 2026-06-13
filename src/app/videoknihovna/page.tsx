@@ -13,7 +13,6 @@ import {
   FILTER_DIFFICULTIES, FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
 } from "@/lib/filters";
 import { createClient } from "@/lib/supabase/client";
-import { getDemoTierClient } from "@/lib/demo-client";
 
 // ── Skupiny filtrů ──────────────────────────────────────────────────────────
 type Group = { key: string; title: string; options: { value: string; label: string }[]; access?: boolean };
@@ -58,7 +57,7 @@ export default function VideoknihovnaPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { setUserTier(getDemoTierClient() ?? "FREE"); return; } // demo/ukázka
+      if (!data.user) return;
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", data.user.id).maybeSingle();
       setUserTier(normalizeTier(p?.tier as string | undefined));
     });
