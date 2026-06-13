@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Users, ArrowLeft, MessagesSquare, Send, ImagePlus, X, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeTier } from "@/lib/tiers";
+import { getDemoTierClient } from "@/lib/demo-client";
 import { AuthorName } from "@/components/AuthorName";
 import type { UserTier } from "@/types";
 
@@ -83,6 +84,8 @@ export default function CircleDetailPage() {
         const isIn = !!mine;
         setJoined(isIn);
         if (isIn) { await loadMembers((c as Circle).id); await loadPosts((c as Circle).id); }
+      } else {
+        setTier(getDemoTierClient() ?? "FREE"); // demo/ukázka
       }
       setPhase("ready");
     })();

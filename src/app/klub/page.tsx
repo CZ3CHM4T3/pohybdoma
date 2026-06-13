@@ -10,6 +10,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+import { getDemoTierClient } from "@/lib/demo-client";
+import { PREVIEW_MODE } from "@/lib/preview";
 import { BadgePins } from "@/components/BadgePins";
 import { FounderBadge } from "@/components/FounderBadge";
 
@@ -192,7 +194,16 @@ export default function KlubPage() {
     (async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
-      if (!user) { setPhase("anon"); return; }
+      if (!user) {
+        // Ukázkový režim: demo VIP+ uvidí Klub (obsah je prázdný, jen náhled).
+        if (PREVIEW_MODE && getDemoTierClient() === "VIP_PLUS") {
+          setPhase("ready");
+          await loadAll();
+        } else {
+          setPhase("anon");
+        }
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("profiles")

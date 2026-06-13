@@ -6,6 +6,8 @@ import { Radio, Lock, ArrowLeft, Calendar, ExternalLink } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+import { getDemoTierClient } from "@/lib/demo-client";
+import { PREVIEW_MODE } from "@/lib/preview";
 
 type Stream = {
   id: string;
@@ -41,7 +43,19 @@ export default function LivePage() {
     (async () => {
       const { data: au } = await supabase.auth.getUser();
       const user = au.user;
-      if (!user) { setPhase("anon"); return; }
+      if (!user) {
+        if (PREVIEW_MODE && getDemoTierClient() === "VIP_PLUS") {
+          const { data } = await supabase
+            .from("streams")
+            .select("id, title, description, embed_url, recording_url, starts_at")
+            .order("starts_at", { ascending: false });
+          setStreams((data ?? []) as Stream[]);
+          setPhase("ready");
+        } else {
+          setPhase("anon");
+        }
+        return;
+      }
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", user.id).maybeSingle();
       const ok = normalizeTier(p?.tier as string | undefined) === "VIP_PLUS" || isAdminEmail(user.email);
       if (!ok) { setPhase("locked"); return; }

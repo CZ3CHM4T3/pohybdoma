@@ -8,6 +8,8 @@ import { Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+import { getDemoTierClient } from "@/lib/demo-client";
+import { PREVIEW_MODE } from "@/lib/preview";
 import type { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
@@ -55,7 +57,11 @@ export function Header() {
     setSignedIn(!!authUser);
     const admin = isAdminEmail(authUser?.email);
     setIsAdmin(admin);
-    if (!authUser) { setIsClub(false); return; }
+    if (!authUser) {
+      // Ukázkový režim: demo VIP+ vidí odkaz na Klub.
+      setIsClub(PREVIEW_MODE && getDemoTierClient() === "VIP_PLUS");
+      return;
+    }
     const supabase = createClient();
     supabase
       .from("profiles")

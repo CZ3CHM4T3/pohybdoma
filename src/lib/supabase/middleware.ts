@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_GATE_CODE } from "@/lib/gate";
+import { PREVIEW_MODE } from "@/lib/preview";
 
 /**
  * Obnovuje (refreshuje) Supabase session při každém požadavku a propisuje
@@ -50,7 +51,9 @@ export async function updateSession(request: NextRequest) {
 
   // Přihlašovací zeď: jen v „soukromém režimu" (když je nastaven SITE_ACCESS_CODE).
   // Nepřihlášeného pošleme na /ucet (registrace/přihlášení), kromě veřejných stránek.
-  if (SITE_GATE_CODE && !user) {
+  // V PREVIEW (ukázkovém) režimu je zeď VYPNUTÁ – návštěvník po zadání kódu si web
+  // prohlíží volně jako zvolená demo úroveň, bez nutnosti registrace.
+  if (SITE_GATE_CODE && !user && !PREVIEW_MODE) {
     const { pathname } = request.nextUrl;
     const isPublic =
       pathname === "/ucet" ||
