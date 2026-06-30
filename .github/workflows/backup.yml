@@ -18,13 +18,19 @@ jobs:
           sudo apt-get install -y postgresql-client-17
 
       - name: Vytvoření zálohy
+        # Heslo se předává zvlášť přes PGPASSWORD – zvládne i speciální znaky
+        # a odpadají problémy s formátem připojovacího řetězce (závorky, mezery).
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PGHOST: aws-1-eu-central-1.pooler.supabase.com
+          PGPORT: "5432"
+          PGUSER: postgres.elavgxuequqnptbjswqn
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           mkdir -p backup
           STAMP=$(date +%Y-%m-%d)
           # -Fc = komprimovaný formát (obnova přes pg_restore), bez vlastníků/práv kvůli přenositelnosti
-          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -Fc -f "backup/pohybdoma-$STAMP.dump"
+          pg_dump --no-owner --no-privileges -Fc -f "backup/pohybdoma-$STAMP.dump"
           ls -lh backup
 
       - name: Uložení zálohy jako artefakt
