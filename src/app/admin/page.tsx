@@ -183,6 +183,9 @@ export default function AdminPage() {
   const [finAmount, setFinAmount] = useState("");
   const [finNote, setFinNote] = useState("");
   const [finDate, setFinDate] = useState("");
+  // Rychlé zadání měsíčního příjmu odjinud (fitko apod.) v kartě Faktury
+  const [extCat, setExtCat] = useState("Fitko");
+  const [extAmount, setExtAmount] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [tab, setTab] = useState<string>("videa");
@@ -328,6 +331,20 @@ export default function AdminPage() {
   async function delFinance(id: number) {
     setFinEntries((e) => e.filter((x) => x.id !== id));
     await supabase.from("finance_entries").delete().eq("id", id);
+  }
+
+  // Rychlý měsíční příjem odjinud (fitko apod.) – zapíše se k 1. dni vybraného měsíce.
+  async function addExternalIncome() {
+    const amt = Number(extAmount.replace(",", "."));
+    if (!amt || amt <= 0) { setError("Zadej částku v Kč."); return; }
+    setError(null);
+    const { error } = await supabase.from("finance_entries").insert({
+      kind: "income", category: extCat, amount_kc: amt, note: null, at: `${invMonth}-01`,
+    });
+    if (error) { setError("Uložení selhalo (spustil jsi finance.sql?): " + error.message); return; }
+    setExtAmount("");
+    const { data } = await supabase.from("finance_entries").select("*").order("at", { ascending: false });
+    if (data) setFinEntries(data as FinEntry[]);
   }
 
   async function genGift() {
@@ -739,7 +756,7 @@ export default function AdminPage() {
   const expenseSlices = Object.entries(expenseByCat).map(([label, value], i) => ({ label, value, color: FIN_COLORS[i % FIN_COLORS.length] }));
   let topMembership = "—"; let topMembershipVal = 0;
   for (const c of ["MEMBER", "VIP", "VIP+"]) { if ((incomeByCat[c] ?? 0) > topMembershipVal) { topMembershipVal = incomeByCat[c]; topMembership = c; } }
-  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "Jiné"];
+  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "Fitko", "Osobní lekce", "Jiné"];
   const finExpenseCats = ["Cloudflare", "Supabase", "Vercel", "Doména", "Marketing", "Jiné"];
 
   // ── Admin obsah ──
@@ -1345,25 +1362,33 @@ export default function AdminPage() {
         )}
 
         {tab === "faktury" && (() => {
-          // Sjednocené řádky: webové rezervace + vlastní lekce (obě s cenou).
+          // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
           type Line = { date: string; time: string; client: string; what: string; amount: number };
-          const allLines: Line[] = [
+          const lessonLines: Line[] = [
             ...bookings.map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.service_name, amount: b.price_kc || 0 })),
             ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0 })),
           ];
-          const monthLines = allLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+          const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
           const byClient = new Map<string, Line[]>();
           for (const ln of monthLines) {
             if (!byClient.has(ln.client)) byClient.set(ln.client, []);
             byClient.get(ln.client)!.push(ln);
           }
           const clients = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
-          const monthTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+          const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+
+          // Příjmy odjinud (ručně – fitko apod.) pro vybraný měsíc
+          const monthFin = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === invMonth);
+          const manualTotal = monthFin.reduce((s, e) => s + Number(e.amount_kc), 0);
+          const monthGrand = lessonsTotal + manualTotal;
+
           const year = invMonth.slice(0, 4);
           const yearMonths = Array.from({ length: 12 }, (_, i) => {
             const mm = String(i + 1).padStart(2, "0");
-            const total = allLines.filter((x) => x.date.slice(0, 7) === `${year}-${mm}`).reduce((s, x) => s + x.amount, 0);
-            return { mm, total };
+            const key = `${year}-${mm}`;
+            const les = lessonLines.filter((x) => x.date.slice(0, 7) === key).reduce((s, x) => s + x.amount, 0);
+            const man = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === key).reduce((s, e) => s + Number(e.amount_kc), 0);
+            return { mm, total: les + man };
           });
           const yearTotal = yearMonths.reduce((s, x) => s + x.total, 0);
           const maxMonth = Math.max(1, ...yearMonths.map((m) => m.total));
@@ -1374,11 +1399,11 @@ export default function AdminPage() {
           <section className="card p-6">
             <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
             <p className="text-sm text-gray-500 mb-5">
-              Kolik komu naúčtovat za lekce v daném měsíci (webové rezervace + tvoje vlastní lekce).
-              Čísla faktur přibydou, až poběží Stripe – zatím je to podklad pro fakturaci a příjmy.
+              Kolik komu naúčtovat za lekce + příjmy odjinud (fitko). Čísla faktur přibydou, až poběží
+              Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
             </p>
 
-            {/* Výběr měsíce */}
+            {/* Výběr měsíce + celkový příjem */}
             <div className="flex flex-wrap items-end gap-3 mb-6">
               <div>
                 <label className="block text-xs font-semibold text-brand-dark mb-1">Měsíc</label>
@@ -1390,16 +1415,20 @@ export default function AdminPage() {
                 />
               </div>
               <div className="rounded-lg bg-green-50 px-4 py-2">
-                <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Příjem za <span className="capitalize">{monthLabel}</span></p>
-                <p className="text-xl font-bold text-green-800">{monthTotal.toLocaleString("cs-CZ")} Kč</p>
+                <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Příjem celkem · <span className="capitalize">{monthLabel}</span></p>
+                <p className="text-xl font-bold text-green-800">{monthGrand.toLocaleString("cs-CZ")} Kč</p>
+                {manualTotal > 0 && lessonsTotal > 0 && (
+                  <p className="text-[11px] text-green-600">lekce {lessonsTotal.toLocaleString("cs-CZ")} + jinde {manualTotal.toLocaleString("cs-CZ")}</p>
+                )}
               </div>
             </div>
 
-            {/* Vyúčtování po klientech */}
+            {/* Vyúčtování lekcí po klientech */}
+            <h3 className="text-sm font-semibold text-brand-dark mb-2">Lekce – komu naúčtovat</h3>
             {clients.length === 0 ? (
-              <p className="text-sm text-gray-400 mb-8">V tomto měsíci nejsou žádné lekce.</p>
+              <p className="text-sm text-gray-400 mb-6">V tomto měsíci nejsou žádné lekce.</p>
             ) : (
-              <div className="space-y-4 mb-8">
+              <div className="space-y-4 mb-6">
                 {clients.map(([client, lines]) => {
                   const sub = lines.reduce((s, x) => s + x.amount, 0);
                   return (
@@ -1421,12 +1450,44 @@ export default function AdminPage() {
                     </div>
                   );
                 })}
-                <div className="flex items-center justify-between rounded-xl bg-brand-dark px-4 py-3 text-white">
-                  <span className="font-semibold">Celkem za <span className="capitalize">{monthLabel}</span></span>
-                  <span className="text-lg font-bold">{monthTotal.toLocaleString("cs-CZ")} Kč</span>
-                </div>
               </div>
             )}
+
+            {/* Příjmy odjinud (fitko apod.) */}
+            <h3 className="text-sm font-semibold text-brand-dark mb-2 mt-6">Příjmy odjinud (fitko apod.)</h3>
+            {monthFin.length > 0 && (
+              <div className="space-y-1.5 mb-3">
+                {monthFin.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">{e.category}</span>
+                    {e.note && <span className="text-gray-400 truncate">· {e.note}</span>}
+                    <span className="ml-auto font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                    <button type="button" onClick={() => delFinance(e.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-end gap-2 mb-8 rounded-lg bg-gray-50 p-3">
+              <div>
+                <label className="block text-[11px] text-gray-400 mb-0.5">Odkud</label>
+                <select value={extCat} onChange={(e) => setExtCat(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
+                  {["Fitko", "Osobní lekce", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="w-28">
+                <label className="block text-[11px] text-gray-400 mb-0.5">Částka Kč</label>
+                <input value={extAmount} onChange={(e) => setExtAmount(e.target.value)} inputMode="decimal" placeholder="např. 12000" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+              </div>
+              <button type="button" onClick={addExternalIncome} disabled={!extAmount.trim()} className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-800 disabled:opacity-40">
+                Přidat za <span className="capitalize">{monthLabel}</span>
+              </button>
+            </div>
+
+            {/* Celkem za měsíc */}
+            <div className="flex items-center justify-between rounded-xl bg-brand-dark px-4 py-3 text-white mb-8">
+              <span className="font-semibold">Celkem za <span className="capitalize">{monthLabel}</span></span>
+              <span className="text-lg font-bold">{monthGrand.toLocaleString("cs-CZ")} Kč</span>
+            </div>
 
             {/* Roční přehled */}
             <h3 className="text-sm font-semibold text-brand-dark mb-1">Přehled roku {year} <span className="text-gray-400 font-normal">· celkem {yearTotal.toLocaleString("cs-CZ")} Kč</span></h3>
