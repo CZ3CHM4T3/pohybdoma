@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_GATE_CODE } from "@/lib/gate";
+import { isPublicPath } from "@/lib/public-paths";
 
 /**
  * Obnovuje (refreshuje) Supabase session při každém požadavku a propisuje
@@ -53,15 +54,9 @@ export async function updateSession(request: NextRequest) {
   if (SITE_GATE_CODE && !user) {
     const { pathname } = request.nextUrl;
     const isPublic =
-      pathname === "/ucet" ||
-      pathname === "/vstup" ||
-      pathname === "/obnova-hesla" ||
-      pathname.startsWith("/auth") ||
+      isPublicPath(pathname) ||
       pathname.startsWith("/api") ||
       pathname.startsWith("/_next") ||
-      pathname === "/gdpr" ||
-      pathname === "/obchodni-podminky" ||
-      pathname === "/zdravotni-upozorneni" ||
       /\.[a-zA-Z0-9]+$/.test(pathname);
     if (!isPublic) {
       const u = request.nextUrl.clone();

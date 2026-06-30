@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { SITE_GATE_CODE } from "@/lib/gate";
+import { isPublicPath } from "@/lib/public-paths";
 
 // ── Soukromá brána ───────────────────────────────────────────────────────────
 // Aktivní jen když je nastavená proměnná SITE_ACCESS_CODE (jinak je web veřejný).
@@ -14,9 +15,9 @@ function gate(req: NextRequest): NextResponse | null {
 
   const { pathname, searchParams } = req.nextUrl;
 
-  // Vždy povol: vstupní stránku, API, Next interní a statické soubory
+  // Vždy povol: veřejné stránky (výloha, rezervace, blog…), API, Next interní a statické soubory
   if (
-    pathname === "/vstup" ||
+    isPublicPath(pathname) ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico" ||
