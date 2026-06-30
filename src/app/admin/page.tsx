@@ -105,6 +105,13 @@ type Booking = {
   status: string;
   created_at: string;
 };
+type LessonRow = {
+  id: string;
+  date: string;
+  time: string;
+  client_name: string;
+  note: string | null;
+};
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -125,6 +132,7 @@ export default function AdminPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
+  const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [kickId, setKickId] = useState<string | null>(null);
@@ -270,6 +278,11 @@ export default function AdminPage() {
     if (st.data) setStreams(st.data as StreamRow[]);
     setChallenge((ch.data as ChallengeRow | null) ?? null);
 
+    // Vlastní lekce (plánovač) – samostatně, ať to nespadne, když tabulka ještě není.
+    supabase.from("lesson_plans").select("*").order("date").order("time").then(({ data }) => {
+      if (data) setLessons(data as LessonRow[]);
+    });
+
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
     supabase.from("profiles").select("id,tier_since,tier_until,bonus_days").then(({ data }) => {
       if (!data) return;
@@ -385,6 +398,23 @@ export default function AdminPage() {
       .eq("time", time);
     if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
     await loadData();
+  }
+
+  // ── Vlastní lekce (plánovač) ──
+  async function addLesson(date: string, time: string, clientName: string, note: string) {
+    setError(null);
+    const { error } = await supabase
+      .from("lesson_plans")
+      .insert({ date, time, client_name: clientName, note: note || null });
+    if (error) { setError("Lekci se nepodařilo uložit (spustil jsi planner.sql?): " + error.message); return; }
+    const { data } = await supabase.from("lesson_plans").select("*").order("date").order("time");
+    if (data) setLessons(data as LessonRow[]);
+  }
+  async function deleteLesson(id: string) {
+    setError(null);
+    const { error } = await supabase.from("lesson_plans").delete().eq("id", id);
+    if (error) { setError("Smazání lekce selhalo: " + error.message); return; }
+    setLessons((prev) => prev.filter((x) => x.id !== id));
   }
 
   // ── Členové (úroveň přístupu) ──
@@ -937,12 +967,61 @@ export default function AdminPage() {
 
         {tab === "rozvrh" && (
         <>
-        {/* ── Týdenní rozvrh ── */}
+        {/* ── Agenda: Co mě čeká ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Týdenní rozvrh</h2>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Co mě čeká</h2>
           <p className="text-sm text-gray-500 mb-5">
+            Tvoje lekce a rezervace klientů dopředu, den po dni.
+          </p>
+          {(() => {
+            const todayKey = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD lokálně
+            type AgendaItem = { date: string; time: string; who: string; what: string; kind: "lekce" | "rezervace" };
+            const items: AgendaItem[] = [
+              ...lessons.map((l) => ({ date: l.date, time: l.time, who: l.client_name || "Lekce", what: l.note || "vlastní lekce", kind: "lekce" as const })),
+              ...bookings.map((b) => ({ date: b.date, time: b.time, who: b.contact_name, what: b.service_name, kind: "rezervace" as const })),
+            ]
+              .filter((x) => x.date >= todayKey)
+              .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+            if (items.length === 0) {
+              return <p className="text-sm text-gray-400">Zatím nemáš nic naplánovaného. Přidej lekci v kalendáři níže, nebo počkej na rezervace klientů.</p>;
+            }
+            const byDay = new Map<string, AgendaItem[]>();
+            for (const it of items.slice(0, 60)) {
+              if (!byDay.has(it.date)) byDay.set(it.date, []);
+              byDay.get(it.date)!.push(it);
+            }
+            return (
+              <div className="space-y-4">
+                {[...byDay.entries()].map(([date, dayItems]) => (
+                  <div key={date}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5 capitalize">
+                      {new Date(date + "T00:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })}
+                    </p>
+                    <div className="space-y-1.5">
+                      {dayItems.map((it, i) => (
+                        <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${it.kind === "lekce" ? "bg-violet-50" : "bg-brand-light"}`}>
+                          <span className={`rounded px-1.5 py-0.5 font-bold text-white ${it.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"}`}>{it.time}</span>
+                          <span className="font-semibold text-brand-dark">{it.who}</span>
+                          <span className="text-gray-500 truncate">· {it.what}</span>
+                          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>{it.kind}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </section>
+
+        {/* ── Moje běžné volné hodiny (opakující se týdenní šablona) ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Moje běžné volné hodiny</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Nastav, kdy <strong>obvykle</strong> míváš volno – <span className="text-emerald-600 font-medium">platí automaticky pro všechny týdny dopředu</span> a klienti si tyto
+            hodiny rezervují. Výjimky pro konkrétní dny (dovolená, extra hodina) upravíš v kalendáři níže.
             Klikni na hodinu = přepneš <span className="text-emerald-600 font-medium">volno</span> /{" "}
-            <span className="text-gray-400 font-medium">obsazeno</span>. Platí každý týden.
+            <span className="text-gray-400 font-medium">zavřeno</span>.
           </p>
 
           <div className="overflow-x-auto">
@@ -988,20 +1067,24 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* ── Měsíční kalendář ── */}
+        {/* ── Měsíční kalendář / plánovač ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Kalendář měsíce</h2>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Kalendář a plánovač</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Celý měsíc s možností listovat. Klikni na den a uprav dostupnost hodin
-            jen pro to datum (výjimky). Týdenní rozvrh výše zůstává jako základ.
+            Listuj měsíce dopředu a <strong>klikni na den</strong> – uvidíš, koho a kdy ten den máš
+            (lekce i rezervace), můžeš <strong>přidat vlastní lekci</strong> a upravit volné hodiny
+            pro klienty jen pro ten den.
           </p>
           <MonthCalendar
             weekly={weekly}
             overrides={overrides}
             events={events}
             bookings={bookings}
+            lessons={lessons}
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
+            onAddLesson={addLesson}
+            onDeleteLesson={deleteLesson}
           />
         </section>
 

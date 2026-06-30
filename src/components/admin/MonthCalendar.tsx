@@ -29,6 +29,13 @@ export type BookingLite = {
   contact_name: string;
   status: string;
 };
+export type LessonRow = {
+  id: string;
+  date: string;
+  time: string;
+  client_name: string;
+  note: string | null;
+};
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -74,23 +81,36 @@ export function MonthCalendar({
   overrides,
   events,
   bookings,
+  lessons,
   onSetOverride,
   onResetOverride,
+  onAddLesson,
+  onDeleteLesson,
 }: {
   weekly: WeeklyRow[];
   overrides: OverrideRow[];
   events: EventRow[];
   bookings: BookingLite[];
+  lessons: LessonRow[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string) => Promise<void>;
+  onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minMonth = useMemo(() => startOfMonth(today), [today]);
-  const maxMonth = useMemo(() => addMonths(minMonth, 11), [minMonth]);
+  const maxMonth = useMemo(() => addMonths(minMonth, 17), [minMonth]);
 
   const [viewMonth, setViewMonth] = useState<Date>(minMonth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [showHours, setShowHours] = useState(false);
+
+  // Formulář na přidání vlastní lekce
+  const [lTime, setLTime] = useState("15:00");
+  const [lName, setLName] = useState("");
+  const [lNote, setLNote] = useState("");
+  const [lSaving, setLSaving] = useState(false);
 
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
   const canPrev = startOfMonth(viewMonth) > minMonth;
@@ -112,8 +132,8 @@ export function MonthCalendar({
     const w = weeklyStatus(date.getDay(), time);
     return { status: w ?? "booked", overridden: false };
   }
-  function dayHasFree(date: Date): boolean {
-    return HOURS.some((t) => effective(date, t).status === "free");
+  function dayFreeCount(date: Date): number {
+    return HOURS.filter((t) => effective(date, t).status === "free").length;
   }
   function eventsFor(date: Date) {
     const key = dateKey(date);
@@ -121,7 +141,11 @@ export function MonthCalendar({
   }
   function bookingsFor(date: Date) {
     const key = dateKey(date);
-    return bookings.filter((b) => b.date === key);
+    return bookings.filter((b) => b.date === key).sort((a, b2) => a.time.localeCompare(b2.time));
+  }
+  function lessonsFor(date: Date) {
+    const key = dateKey(date);
+    return lessons.filter((l) => l.date === key).sort((a, b) => a.time.localeCompare(b.time));
   }
 
   async function toggleHour(date: Date, time: string) {
@@ -139,6 +163,15 @@ export function MonthCalendar({
     setSavingCell(null);
   }
 
+  async function submitLesson() {
+    if (!selectedDate || !lName.trim() || !lTime) return;
+    setLSaving(true);
+    await onAddLesson(dateKey(selectedDate), lTime, lName.trim(), lNote.trim());
+    setLSaving(false);
+    setLName("");
+    setLNote("");
+  }
+
   const selPast = selectedDate ? startOfDay(selectedDate) < today : false;
 
   return (
@@ -148,7 +181,7 @@ export function MonthCalendar({
         <button
           type="button"
           disabled={!canPrev}
-          onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+          onClick={() => { setViewMonth(addMonths(viewMonth, -1)); setSelectedDate(null); }}
           className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           aria-label="Předchozí měsíc"
         >
@@ -160,7 +193,7 @@ export function MonthCalendar({
         <button
           type="button"
           disabled={!canNext}
-          onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+          onClick={() => { setViewMonth(addMonths(viewMonth, 1)); setSelectedDate(null); }}
           className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           aria-label="Další měsíc"
         >
@@ -182,33 +215,43 @@ export function MonthCalendar({
         {days.map((d) => {
           const inMonth = d.getMonth() === viewMonth.getMonth();
           const isPast = startOfDay(d) < today;
-          const free = inMonth && dayHasFree(d);
+          const freeCount = inMonth ? dayFreeCount(d) : 0;
           const eventDay = inMonth && eventsFor(d).length > 0;
-          const hasBooking = inMonth && bookingsFor(d).length > 0;
-          const clickable = inMonth && !isPast;
+          const dayBookings = inMonth ? bookingsFor(d).length : 0;
+          const dayLessons = inMonth ? lessonsFor(d).length : 0;
+          const taken = dayBookings + dayLessons;
+          const clickable = inMonth;
           const isSelected = selectedDate && sameDay(d, selectedDate);
+          const isToday = sameDay(d, today);
           return (
             <button
               key={d.toISOString()}
               type="button"
               disabled={!clickable}
-              onClick={() => setSelectedDate(d)}
-              className={`relative aspect-square rounded-lg text-sm font-medium transition-all ${
+              onClick={() => { setSelectedDate(d); setShowHours(false); }}
+              className={`relative aspect-square rounded-lg text-sm font-medium transition-all flex flex-col items-center justify-center ${
                 !inMonth
                   ? "text-gray-300"
                   : isSelected
                     ? "bg-brand-blue text-white shadow-md"
                     : isPast
-                      ? "text-gray-300 cursor-not-allowed"
-                      : "text-brand-dark hover:bg-brand-light"
+                      ? "text-gray-300 hover:bg-gray-50"
+                      : isToday
+                        ? "text-brand-dark bg-brand-light ring-1 ring-brand-blue/40"
+                        : "text-brand-dark hover:bg-brand-light"
               }`}
             >
-              {d.getDate()}
-              {!isSelected && inMonth && (free || eventDay || hasBooking) && (
+              <span>{d.getDate()}</span>
+              {/* Počet obsazených (rezervace + lekce) jako malé číslo */}
+              {!isSelected && inMonth && taken > 0 && (
+                <span className="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-blue px-1 text-[10px] font-bold text-white">
+                  {taken}
+                </span>
+              )}
+              {!isSelected && inMonth && (freeCount > 0 || eventDay) && (
                 <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                  {free && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+                  {freeCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                   {eventDay && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                  {hasBooking && <span className="w-1.5 h-1.5 rounded-full bg-brand-blue" />}
                 </span>
               )}
             </button>
@@ -219,108 +262,175 @@ export function MonthCalendar({
       {/* Legenda */}
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
         <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> volný termín
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" /> mám volné hodiny
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-blue px-1 text-[10px] font-bold text-white">2</span> obsazeno (lekce/rezervace)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" /> akce
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-blue inline-block" /> rezervace
-        </span>
       </div>
 
-      {/* Editor vybraného dne */}
+      {/* Detail vybraného dne */}
       {selectedDate && (
         <div className="mt-6 rounded-xl border border-gray-100 p-4">
-          <p className="text-sm font-semibold text-brand-dark capitalize mb-1">
+          <p className="text-sm font-semibold text-brand-dark capitalize mb-3">
             {selectedDate.toLocaleDateString("cs-CZ", {
               weekday: "long", day: "numeric", month: "long", year: "numeric",
             })}
           </p>
 
-          {selPast ? (
-            <p className="text-sm text-gray-400">Tento den už proběhl – nelze upravovat.</p>
+          {/* ── Koho tu máš (lekce + rezervace) ── */}
+          {(lessonsFor(selectedDate).length > 0 || bookingsFor(selectedDate).length > 0) ? (
+            <div className="space-y-1.5 mb-4">
+              {lessonsFor(selectedDate).map((l) => (
+                <div key={l.id} className="flex items-center gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs">
+                  <span className="rounded bg-violet-600 px-1.5 py-0.5 font-bold text-white">{l.time}</span>
+                  <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
+                  {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
+                  <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteLesson(l.id)}
+                    title="Smazat lekci"
+                    className="text-gray-300 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {bookingsFor(selectedDate).map((b) => (
+                <div key={b.id} className="flex items-center gap-2 rounded-lg bg-brand-light px-2.5 py-1.5 text-xs">
+                  <span className="rounded bg-brand-blue px-1.5 py-0.5 font-bold text-white">{b.time}</span>
+                  <span className="font-semibold text-brand-dark">{b.contact_name}</span>
+                  <span className="text-gray-500 truncate">· {b.service_name}</span>
+                  <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">{b.status}</span>
+                </div>
+              ))}
+            </div>
           ) : (
-            <>
-              <p className="text-xs text-gray-500 mb-3">
-                Klikni na hodinu = přepneš <span className="text-emerald-600 font-medium">volno</span> /{" "}
-                <span className="text-gray-400 font-medium">obsazeno</span> jen pro tento den. Hodina s
-                výjimkou má štítek – „×" ji vrátí na týdenní rozvrh.
-              </p>
+            <p className="text-xs text-gray-400 mb-4">Tento den zatím nikoho nemáš.</p>
+          )}
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                {HOURS.map((time) => {
-                  const { status, overridden } = effective(selectedDate, time);
-                  const free = status === "free";
-                  const cellKey = `${dateKey(selectedDate)}-${time}`;
-                  const saving = savingCell === cellKey;
-                  return (
-                    <div key={time} className="relative">
-                      <button
-                        type="button"
-                        onClick={() => toggleHour(selectedDate, time)}
-                        disabled={saving}
-                        className={`w-full h-10 rounded-md text-xs font-semibold transition-all ${
-                          free
-                            ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                        } ${saving ? "opacity-50" : ""}`}
-                      >
-                        {time}
-                      </button>
-                      {overridden && (
-                        <button
-                          type="button"
-                          onClick={() => resetHour(selectedDate, time)}
-                          disabled={saving}
-                          title="Vrátit na týdenní rozvrh"
-                          className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+          {/* Akce v tento den */}
+          {eventsFor(selectedDate).length > 0 && (
+            <div className="mb-4 space-y-1.5">
+              {eventsFor(selectedDate).map((e) => (
+                <div key={e.id} className="flex items-center gap-2 text-xs text-gray-600">
+                  <span className="rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-white">{e.kind}</span>
+                  {e.time && <span className="text-amber-800">{e.time}</span>}
+                  <span className="font-medium text-brand-dark">{e.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Přidat vlastní lekci ── */}
+          {!selPast && (
+            <div className="rounded-lg bg-gray-50 p-3 mb-4">
+              <p className="text-xs font-semibold text-brand-dark mb-2">+ Přidat vlastní lekci</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Čas</label>
+                  <input
+                    type="time"
+                    value={lTime}
+                    onChange={(e) => setLTime(e.target.value)}
+                    className="rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
+                  <input
+                    type="text"
+                    value={lName}
+                    onChange={(e) => setLName(e.target.value)}
+                    placeholder="Jméno"
+                    className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
+                  <input
+                    type="text"
+                    value={lNote}
+                    onChange={(e) => setLNote(e.target.value)}
+                    placeholder="např. masáž zad"
+                    className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={submitLesson}
+                  disabled={lSaving || !lName.trim()}
+                  className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-40"
+                >
+                  {lSaving ? "Ukládám…" : "Přidat"}
+                </button>
               </div>
+            </div>
+          )}
 
-              {/* Rezervace v tento den */}
-              {bookingsFor(selectedDate).length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-semibold text-brand-dark mb-2">Rezervace tento den</p>
-                  <div className="space-y-1.5">
-                    {bookingsFor(selectedDate).map((b) => (
-                      <div key={b.id} className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="rounded bg-brand-light px-1.5 py-0.5 font-semibold text-brand-blue">
-                          {b.time}
-                        </span>
-                        <span className="font-medium text-brand-dark">{b.service_name}</span>
-                        <span>· {b.contact_name}</span>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">{b.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {/* ── Volné hodiny pro klienty (výjimky) – schované pod tlačítkem ── */}
+          {!selPast && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowHours((v) => !v)}
+                className="text-xs font-semibold text-brand-blue hover:underline"
+              >
+                {showHours ? "Skrýt volné hodiny" : "Upravit volné hodiny pro klienty tento den ▾"}
+              </button>
 
-              {/* Akce v tento den */}
-              {eventsFor(selectedDate).length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-semibold text-brand-dark mb-2">Akce tento den</p>
-                  <div className="space-y-1.5">
-                    {eventsFor(selectedDate).map((e) => (
-                      <div key={e.id} className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="rounded-full bg-amber-500 px-2 py-0.5 font-semibold text-white">
-                          {e.kind}
-                        </span>
-                        {e.time && <span className="text-amber-800">{e.time}</span>}
-                        <span className="font-medium text-brand-dark">{e.title}</span>
-                      </div>
-                    ))}
+              {showHours && (
+                <>
+                  <p className="text-[11px] text-gray-500 mt-2 mb-2">
+                    Zeleně = klient si může zarezervovat. Klik přepne volno/zavřeno jen pro tento den.
+                    Štítek „×" vrátí hodinu na běžný týdenní rozvrh.
+                  </p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {HOURS.map((time) => {
+                      const { status, overridden } = effective(selectedDate, time);
+                      const free = status === "free";
+                      const cellKey = `${dateKey(selectedDate)}-${time}`;
+                      const saving = savingCell === cellKey;
+                      return (
+                        <div key={time} className="relative">
+                          <button
+                            type="button"
+                            onClick={() => toggleHour(selectedDate, time)}
+                            disabled={saving}
+                            className={`w-full h-10 rounded-md text-xs font-semibold transition-all ${
+                              free
+                                ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                            } ${saving ? "opacity-50" : ""}`}
+                          >
+                            {time}
+                          </button>
+                          {overridden && (
+                            <button
+                              type="button"
+                              onClick={() => resetHour(selectedDate, time)}
+                              disabled={saving}
+                              title="Vrátit na týdenní rozvrh"
+                              className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </>
               )}
-            </>
+            </div>
+          )}
+
+          {selPast && (
+            <p className="text-xs text-gray-400">Tento den už proběhl – jen k nahlédnutí.</p>
           )}
         </div>
       )}
