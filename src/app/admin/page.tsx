@@ -56,15 +56,12 @@ const HOURS = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
   "14:00", "15:00", "16:00", "17:00", "18:00",
 ];
-const DAYS = [
-  { wd: 1, label: "Po" },
-  { wd: 2, label: "Út" },
-  { wd: 3, label: "St" },
-  { wd: 4, label: "Čt" },
-  { wd: 5, label: "Pá" },
-  { wd: 6, label: "So" },
-  { wd: 0, label: "Ne" },
-];
+// "2026-07-04" → "so 4. 7. 2026" (s názvem dne)
+function fmtDateCs(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", year: "numeric" });
+}
 
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
 type EventRow = {
@@ -136,7 +133,6 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
-  const [calView, setCalView] = useState<"month" | "week">("month");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [kickId, setKickId] = useState<string | null>(null);
@@ -186,7 +182,6 @@ export default function AdminPage() {
   const [finDate, setFinDate] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
-  const [savingCell, setSavingCell] = useState<string | null>(null);
   const [tab, setTab] = useState<string>("videa");
 
   // Formulář nového videa
@@ -701,40 +696,6 @@ export default function AdminPage() {
     if (admin) loadData();
   }, [admin, loadData]);
 
-  const isFree = (wd: number, time: string) =>
-    weekly.find((r) => r.weekday === wd && r.time === time)?.is_free ?? false;
-
-  async function toggle(wd: number, time: string) {
-    const key = `${wd}-${time}`;
-    const current = isFree(wd, time);
-    const snapshot = weekly;
-    setSavingCell(key);
-    setError(null);
-    // optimisticky – uprav existující řádek, nebo přidej nový (víkendy zatím v DB nejsou)
-    setWeekly((prev) => {
-      const exists = prev.some((r) => r.weekday === wd && r.time === time);
-      if (exists) {
-        return prev.map((r) =>
-          r.weekday === wd && r.time === time ? { ...r, is_free: !current } : r
-        );
-      }
-      return [...prev, { weekday: wd, time, is_free: !current }];
-    });
-    // upsert = vytvoří řádek, když chybí (díky unique (weekday, time))
-    const { error } = await supabase
-      .from("availability_weekly")
-      .upsert({ weekday: wd, time, is_free: !current }, { onConflict: "weekday,time" });
-    setSavingCell(null);
-    if (error) {
-      setWeekly(snapshot); // revert
-      setError(
-        "Uložení se nezdařilo. Spustil jsi v Supabase admin-policies.sql? (" +
-          error.message +
-          ")"
-      );
-    }
-  }
-
   // ── Stavy přístupu ──
   if (checking) {
     return <Centered>Načítám…</Centered>;
@@ -1017,115 +978,44 @@ export default function AdminPage() {
           })()}
         </section>
 
-        {/* ── Moje běžné volné hodiny (opakující se týdenní šablona) ── */}
+        {/* ── Moje volné hodiny (po týdnech, s daty) ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Moje běžné volné hodiny</h2>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Moje volné hodiny</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Nastav, kdy <strong>obvykle</strong> míváš volno – <span className="text-emerald-600 font-medium">platí automaticky pro všechny týdny dopředu</span> a klienti si tyto
-            hodiny rezervují. Výjimky pro konkrétní dny (dovolená, extra hodina) upravíš v kalendáři níže.
-            Klikni na hodinu = přepneš <span className="text-emerald-600 font-medium">volno</span> /{" "}
-            <span className="text-gray-400 font-medium">zavřeno</span>.
+            Tady nastavuješ, <strong>které hodiny jsou volné pro klienty</strong>. Listuj po týdnech
+            (← →) klidně na měsíce dopředu a u konkrétních dnů naklikej volno. Kliknutím na <strong>datum dne</strong>
+            otevřeš den a můžeš přidat vlastní lekci.
           </p>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-separate border-spacing-1">
-              <thead>
-                <tr>
-                  <th className="w-14"></th>
-                  {DAYS.map((d) => (
-                    <th key={d.wd} className="text-xs font-semibold text-gray-500 pb-1">
-                      {d.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {HOURS.map((time) => (
-                  <tr key={time}>
-                    <td className="text-xs text-gray-400 pr-2 text-right align-middle">{time}</td>
-                    {DAYS.map((d) => {
-                      const free = isFree(d.wd, time);
-                      const key = `${d.wd}-${time}`;
-                      return (
-                        <td key={key}>
-                          <button
-                            type="button"
-                            onClick={() => toggle(d.wd, time)}
-                            disabled={savingCell === key}
-                            className={`w-full h-9 rounded-md text-xs font-semibold transition-all ${
-                              free
-                                ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                            } ${savingCell === key ? "opacity-50" : ""}`}
-                          >
-                            {free ? "volno" : "—"}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <WeekCalendar
+            weekly={weekly}
+            overrides={overrides}
+            bookings={bookings}
+            lessons={lessons}
+            onSetOverride={setOverrideAt}
+            onResetOverride={resetOverrideAt}
+            onAddLesson={addLesson}
+            onDeleteLesson={deleteLesson}
+          />
         </section>
 
-        {/* ── Kalendář / plánovač (Měsíc / Týden) ── */}
+        {/* ── Měsíční přehled / výjimky ── */}
         <section className="card p-6 mb-8">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
-            <h2 className="text-lg font-semibold text-brand-dark">Kalendář a plánovač</h2>
-            <div className="inline-flex rounded-lg bg-gray-100 p-1">
-              <button
-                type="button"
-                onClick={() => setCalView("month")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  calView === "month" ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"
-                }`}
-              >
-                Měsíc
-              </button>
-              <button
-                type="button"
-                onClick={() => setCalView("week")}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  calView === "week" ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"
-                }`}
-              >
-                Týden
-              </button>
-            </div>
-          </div>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Měsíční přehled</h2>
           <p className="text-sm text-gray-500 mb-5">
-            {calView === "month" ? (
-              <>Listuj měsíce dopředu a <strong>klikni na den</strong> – uvidíš, koho a kdy ten den máš
-              (lekce i rezervace), můžeš <strong>přidat vlastní lekci</strong> a upravit volné hodiny.</>
-            ) : (
-              <>Vyber týden a <strong>naklikej volné hodiny</strong> pro jeho konkrétní dny. Ideální, když
-              máš volno každý týden jinak.</>
-            )}
+            Celý měsíc na jednom místě – uvidíš, které dny máš volno, kolik máš obsazeno a kde jsou akce.
+            Klik na den ukáže detail a umí i výjimky.
           </p>
-          {calView === "month" ? (
-            <MonthCalendar
-              weekly={weekly}
-              overrides={overrides}
-              events={events}
-              bookings={bookings}
-              lessons={lessons}
-              onSetOverride={setOverrideAt}
-              onResetOverride={resetOverrideAt}
-              onAddLesson={addLesson}
-              onDeleteLesson={deleteLesson}
-            />
-          ) : (
-            <WeekCalendar
-              weekly={weekly}
-              overrides={overrides}
-              bookings={bookings}
-              lessons={lessons}
-              onSetOverride={setOverrideAt}
-              onResetOverride={resetOverrideAt}
-            />
-          )}
+          <MonthCalendar
+            weekly={weekly}
+            overrides={overrides}
+            events={events}
+            bookings={bookings}
+            lessons={lessons}
+            onSetOverride={setOverrideAt}
+            onResetOverride={resetOverrideAt}
+            onAddLesson={addLesson}
+            onDeleteLesson={deleteLesson}
+          />
         </section>
 
         {/* ── Akce / workshopy ── */}
@@ -1144,7 +1034,7 @@ export default function AdminPage() {
                 <div key={ev.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-brand-dark truncate">
-                      {ev.date} · {ev.title}
+                      <span className="capitalize">{fmtDateCs(ev.date)}</span> · {ev.title}
                     </p>
                     <p className="text-xs text-gray-500">
                       {ev.kind}{ev.time ? ` · ${ev.time}` : ""}{ev.location ? ` · ${ev.location}` : ""}
@@ -1200,7 +1090,7 @@ export default function AdminPage() {
               {overrides.map((o) => (
                 <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
                   <p className="text-sm text-brand-dark">
-                    {o.date} · {o.time} ·{" "}
+                    <span className="capitalize">{fmtDateCs(o.date)}</span> · {o.time} ·{" "}
                     <span className={o.status === "free" ? "text-emerald-600 font-semibold" : "text-gray-500 font-semibold"}>
                       {o.status === "free" ? "volno" : "obsazeno"}
                     </span>
@@ -1423,7 +1313,7 @@ export default function AdminPage() {
                 <div key={b.id} className="rounded-xl border border-gray-100 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <span className="font-semibold text-brand-dark">
-                      {b.service_name} · {b.date} v {b.time}
+                      {b.service_name} · <span className="capitalize">{fmtDateCs(b.date)}</span> v {b.time}
                     </span>
                     <span className="text-sm font-semibold text-brand-blue">{b.price_kc} Kč</span>
                   </div>

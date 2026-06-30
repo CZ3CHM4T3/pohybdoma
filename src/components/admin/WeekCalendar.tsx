@@ -42,6 +42,8 @@ export function WeekCalendar({
   lessons,
   onSetOverride,
   onResetOverride,
+  onAddLesson,
+  onDeleteLesson,
 }: {
   weekly: WeeklyRow[];
   overrides: OverrideRow[];
@@ -49,6 +51,8 @@ export function WeekCalendar({
   lessons: LessonRow[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string) => Promise<void>;
+  onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => startOfWeek(today), [today]);
@@ -56,6 +60,13 @@ export function WeekCalendar({
 
   const [weekStart, setWeekStart] = useState<Date>(minWeek);
   const [savingCell, setSavingCell] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+
+  // Formulář na vlastní lekci
+  const [lTime, setLTime] = useState("15:00");
+  const [lName, setLName] = useState("");
+  const [lNote, setLNote] = useState("");
+  const [lSaving, setLSaving] = useState(false);
 
   const days = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -100,6 +111,23 @@ export function WeekCalendar({
     setSavingCell(null);
   }
 
+  function lessonsForDay(date: Date) {
+    const key = dateKey(date);
+    return lessons.filter((l) => l.date === key).sort((a, b) => a.time.localeCompare(b.time));
+  }
+  function bookingsForDay(date: Date) {
+    const key = dateKey(date);
+    return bookings.filter((b) => b.date === key).sort((a, b) => a.time.localeCompare(b.time));
+  }
+  async function submitLesson() {
+    if (!selectedDay || !lName.trim() || !lTime) return;
+    setLSaving(true);
+    await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim());
+    setLSaving(false);
+    setLName("");
+    setLNote("");
+  }
+
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
 
   return (
@@ -141,14 +169,22 @@ export function WeekCalendar({
               <th className="w-12"></th>
               {days.map((d) => {
                 const isToday = dateKey(d) === dateKey(today);
+                const isSel = selectedDay && dateKey(d) === dateKey(selectedDay);
                 return (
                   <th key={d.toISOString()} className="min-w-[64px] pb-1">
-                    <div className={`text-xs font-semibold ${isToday ? "text-brand-blue" : "text-gray-500"}`}>
-                      {WD_CS[(d.getDay() + 6) % 7]}
-                    </div>
-                    <div className="text-[11px] text-gray-400">
-                      {d.getDate()}.{d.getMonth() + 1}.
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDay(d)}
+                      title="Otevřít den (přidat lekci)"
+                      className={`w-full rounded-md py-1 transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}
+                    >
+                      <div className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>
+                        {WD_CS[(d.getDay() + 6) % 7]}
+                      </div>
+                      <div className={`text-[11px] ${isSel ? "text-white/80" : "text-gray-400"}`}>
+                        {d.getDate()}.{d.getMonth() + 1}.
+                      </div>
+                    </button>
                   </th>
                 );
               })}
@@ -222,6 +258,62 @@ export function WeekCalendar({
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-600 inline-block" /> moje lekce</span>
         <span className="flex items-center gap-1.5"><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">×</span> výjimka jen pro tento den</span>
       </div>
+
+      {/* Panel vybraného dne – lekce + přidání */}
+      {selectedDay && (
+        <div className="mt-5 rounded-xl border border-gray-100 p-4">
+          <p className="text-sm font-semibold text-brand-dark capitalize mb-3">
+            {selectedDay.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+
+          {(lessonsForDay(selectedDay).length > 0 || bookingsForDay(selectedDay).length > 0) ? (
+            <div className="space-y-1.5 mb-4">
+              {lessonsForDay(selectedDay).map((l) => (
+                <div key={l.id} className="flex items-center gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs">
+                  <span className="rounded bg-violet-600 px-1.5 py-0.5 font-bold text-white">{l.time}</span>
+                  <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
+                  {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
+                  <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
+                  <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
+                </div>
+              ))}
+              {bookingsForDay(selectedDay).map((b) => (
+                <div key={b.id} className="flex items-center gap-2 rounded-lg bg-brand-light px-2.5 py-1.5 text-xs">
+                  <span className="rounded bg-brand-blue px-1.5 py-0.5 font-bold text-white">{b.time}</span>
+                  <span className="font-semibold text-brand-dark">{b.contact_name}</span>
+                  <span className="text-gray-500 truncate">· {b.service_name}</span>
+                  <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">{b.status}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 mb-4">Tento den zatím nikoho nemáš.</p>
+          )}
+
+          {startOfDay(selectedDay) >= today && (
+            <div className="rounded-lg bg-gray-50 p-3">
+              <p className="text-xs font-semibold text-brand-dark mb-2">+ Přidat vlastní lekci</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Čas</label>
+                  <input type="time" value={lTime} onChange={(e) => setLTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
+                  <input type="text" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
+                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="např. masáž zad" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                </div>
+                <button type="button" onClick={submitLesson} disabled={lSaving || !lName.trim()} className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-40">
+                  {lSaving ? "Ukládám…" : "Přidat"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
