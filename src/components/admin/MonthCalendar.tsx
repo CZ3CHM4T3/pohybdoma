@@ -35,6 +35,7 @@ export type LessonRow = {
   time: string;
   client_name: string;
   note: string | null;
+  price_kc: number | null;
 };
 
 function startOfDay(d: Date): Date {
@@ -94,7 +95,7 @@ export function MonthCalendar({
   lessons: LessonRow[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
-  onAddLesson: (date: string, time: string, clientName: string, note: string) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -109,6 +110,7 @@ export function MonthCalendar({
   const [lTime, setLTime] = useState("15:00");
   const [lName, setLName] = useState("");
   const [lNote, setLNote] = useState("");
+  const [lPrice, setLPrice] = useState("1000");
   const [lSaving, setLSaving] = useState(false);
 
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
@@ -165,7 +167,8 @@ export function MonthCalendar({
   async function submitLesson() {
     if (!selectedDate || !lName.trim() || !lTime) return;
     setLSaving(true);
-    await onAddLesson(dateKey(selectedDate), lTime, lName.trim(), lNote.trim());
+    const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
+    await onAddLesson(dateKey(selectedDate), lTime, lName.trim(), lNote.trim(), Number.isFinite(priceKc as number) ? priceKc : null);
     setLSaving(false);
     setLName("");
     setLNote("");
@@ -288,6 +291,7 @@ export function MonthCalendar({
                   <span className="rounded bg-violet-600 px-1.5 py-0.5 font-bold text-white">{l.time}</span>
                   <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
                   {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
+                  {l.price_kc != null && <span className="text-violet-700 font-semibold">· {l.price_kc} Kč</span>}
                   <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
                   <button
                     type="button"
@@ -349,13 +353,23 @@ export function MonthCalendar({
                     className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs"
                   />
                 </div>
-                <div className="flex-1 min-w-[120px]">
+                <div className="flex-1 min-w-[110px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
                   <input
                     type="text"
                     value={lNote}
                     onChange={(e) => setLNote(e.target.value)}
                     placeholder="např. masáž zad"
+                    className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs"
+                  />
+                </div>
+                <div className="w-20">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Cena Kč</label>
+                  <input
+                    type="number"
+                    value={lPrice}
+                    onChange={(e) => setLPrice(e.target.value)}
+                    placeholder="1000"
                     className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs"
                   />
                 </div>

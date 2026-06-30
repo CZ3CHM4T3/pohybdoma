@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Trash2 } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2 } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,7 @@ const ADMIN_TABS = [
   { k: "vyzva", label: "Výzva", Icon: Flame, active: "bg-amber-500 text-white", icon: "text-amber-500" },
   { k: "rozvrh", label: "Rozvrh", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500" },
   { k: "rezervace", label: "Rezervace", Icon: CalendarCheck, active: "bg-emerald-600 text-white", icon: "text-emerald-500" },
+  { k: "faktury", label: "Faktury", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600" },
   { k: "clenove", label: "Členové", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500" },
   { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
   { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
@@ -111,6 +112,7 @@ type LessonRow = {
   time: string;
   client_name: string;
   note: string | null;
+  price_kc: number | null;
 };
 type ReviewRow = {
   id: string;
@@ -133,6 +135,7 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [kickId, setKickId] = useState<string | null>(null);
@@ -400,11 +403,11 @@ export default function AdminPage() {
   }
 
   // ── Vlastní lekce (plánovač) ──
-  async function addLesson(date: string, time: string, clientName: string, note: string) {
+  async function addLesson(date: string, time: string, clientName: string, note: string, priceKc: number | null) {
     setError(null);
     const { error } = await supabase
       .from("lesson_plans")
-      .insert({ date, time, client_name: clientName, note: note || null });
+      .insert({ date, time, client_name: clientName, note: note || null, price_kc: priceKc });
     if (error) { setError("Lekci se nepodařilo uložit (spustil jsi planner.sql?): " + error.message); return; }
     const { data } = await supabase.from("lesson_plans").select("*").order("date").order("time");
     if (data) setLessons(data as LessonRow[]);
@@ -1340,6 +1343,113 @@ export default function AdminPage() {
           )}
         </section>
         )}
+
+        {tab === "faktury" && (() => {
+          // Sjednocené řádky: webové rezervace + vlastní lekce (obě s cenou).
+          type Line = { date: string; time: string; client: string; what: string; amount: number };
+          const allLines: Line[] = [
+            ...bookings.map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.service_name, amount: b.price_kc || 0 })),
+            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0 })),
+          ];
+          const monthLines = allLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+          const byClient = new Map<string, Line[]>();
+          for (const ln of monthLines) {
+            if (!byClient.has(ln.client)) byClient.set(ln.client, []);
+            byClient.get(ln.client)!.push(ln);
+          }
+          const clients = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+          const monthTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+          const year = invMonth.slice(0, 4);
+          const yearMonths = Array.from({ length: 12 }, (_, i) => {
+            const mm = String(i + 1).padStart(2, "0");
+            const total = allLines.filter((x) => x.date.slice(0, 7) === `${year}-${mm}`).reduce((s, x) => s + x.amount, 0);
+            return { mm, total };
+          });
+          const yearTotal = yearMonths.reduce((s, x) => s + x.total, 0);
+          const maxMonth = Math.max(1, ...yearMonths.map((m) => m.total));
+          const MNAMES = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
+          const monthLabel = new Date(invMonth + "-01T00:00:00").toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
+
+          return (
+          <section className="card p-6">
+            <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Kolik komu naúčtovat za lekce v daném měsíci (webové rezervace + tvoje vlastní lekce).
+              Čísla faktur přibydou, až poběží Stripe – zatím je to podklad pro fakturaci a příjmy.
+            </p>
+
+            {/* Výběr měsíce */}
+            <div className="flex flex-wrap items-end gap-3 mb-6">
+              <div>
+                <label className="block text-xs font-semibold text-brand-dark mb-1">Měsíc</label>
+                <input
+                  type="month"
+                  value={invMonth}
+                  onChange={(e) => setInvMonth(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm"
+                />
+              </div>
+              <div className="rounded-lg bg-green-50 px-4 py-2">
+                <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Příjem za <span className="capitalize">{monthLabel}</span></p>
+                <p className="text-xl font-bold text-green-800">{monthTotal.toLocaleString("cs-CZ")} Kč</p>
+              </div>
+            </div>
+
+            {/* Vyúčtování po klientech */}
+            {clients.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-8">V tomto měsíci nejsou žádné lekce.</p>
+            ) : (
+              <div className="space-y-4 mb-8">
+                {clients.map(([client, lines]) => {
+                  const sub = lines.reduce((s, x) => s + x.amount, 0);
+                  return (
+                    <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="flex items-center justify-between bg-gray-50 px-4 py-2">
+                        <span className="font-semibold text-brand-dark">{client}</span>
+                        <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {lines.map((ln, i) => (
+                          <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                            <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(ln.date)}</span>
+                            <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
+                            <span className="text-gray-600 truncate flex-1">{ln.what}</span>
+                            <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="flex items-center justify-between rounded-xl bg-brand-dark px-4 py-3 text-white">
+                  <span className="font-semibold">Celkem za <span className="capitalize">{monthLabel}</span></span>
+                  <span className="text-lg font-bold">{monthTotal.toLocaleString("cs-CZ")} Kč</span>
+                </div>
+              </div>
+            )}
+
+            {/* Roční přehled */}
+            <h3 className="text-sm font-semibold text-brand-dark mb-1">Přehled roku {year} <span className="text-gray-400 font-normal">· celkem {yearTotal.toLocaleString("cs-CZ")} Kč</span></h3>
+            <p className="text-xs text-gray-400 mb-3">Příjem po měsících – klikni na měsíc pro detail výše.</p>
+            <div className="space-y-1.5">
+              {yearMonths.map((m, i) => (
+                <button
+                  key={m.mm}
+                  type="button"
+                  onClick={() => setInvMonth(`${year}-${m.mm}`)}
+                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors ${invMonth === `${year}-${m.mm}` ? "bg-brand-light" : "hover:bg-gray-50"}`}
+                >
+                  <span className="w-20 shrink-0 text-xs font-medium text-gray-600">{MNAMES[i]}</span>
+                  <span className="flex-1 h-3 rounded-full bg-gray-100 overflow-hidden">
+                    <span className="block h-full rounded-full bg-green-500" style={{ width: `${(m.total / maxMonth) * 100}%` }} />
+                  </span>
+                  <span className="w-24 shrink-0 text-right text-xs font-semibold text-brand-dark">{m.total.toLocaleString("cs-CZ")} Kč</span>
+                </button>
+              ))}
+            </div>
+          </section>
+          );
+        })()}
 
         {tab === "recenze" && (
         <section className="card p-6 mt-8">

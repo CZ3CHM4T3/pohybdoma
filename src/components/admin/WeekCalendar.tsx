@@ -51,7 +51,7 @@ export function WeekCalendar({
   lessons: LessonRow[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
-  onAddLesson: (date: string, time: string, clientName: string, note: string) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -66,6 +66,7 @@ export function WeekCalendar({
   const [lTime, setLTime] = useState("15:00");
   const [lName, setLName] = useState("");
   const [lNote, setLNote] = useState("");
+  const [lPrice, setLPrice] = useState("1000");
   const [lSaving, setLSaving] = useState(false);
 
   const days = useMemo(
@@ -122,7 +123,8 @@ export function WeekCalendar({
   async function submitLesson() {
     if (!selectedDay || !lName.trim() || !lTime) return;
     setLSaving(true);
-    await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim());
+    const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
+    await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), Number.isFinite(priceKc as number) ? priceKc : null);
     setLSaving(false);
     setLName("");
     setLNote("");
@@ -273,6 +275,7 @@ export function WeekCalendar({
                   <span className="rounded bg-violet-600 px-1.5 py-0.5 font-bold text-white">{l.time}</span>
                   <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
                   {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
+                  {l.price_kc != null && <span className="text-violet-700 font-semibold">· {l.price_kc} Kč</span>}
                   <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
                   <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
                 </div>
@@ -302,9 +305,13 @@ export function WeekCalendar({
                   <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
                   <input type="text" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
                 </div>
-                <div className="flex-1 min-w-[120px]">
+                <div className="flex-1 min-w-[110px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
                   <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="např. masáž zad" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                </div>
+                <div className="w-20">
+                  <label className="block text-[11px] text-gray-400 mb-0.5">Cena Kč</label>
+                  <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="1000" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
                 </div>
                 <button type="button" onClick={submitLesson} disabled={lSaving || !lName.trim()} className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-40">
                   {lSaving ? "Ukládám…" : "Přidat"}

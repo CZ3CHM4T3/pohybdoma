@@ -10,8 +10,12 @@ create table if not exists public.lesson_plans (
   time        text not null,
   client_name text not null default '',
   note        text,
+  price_kc    integer,
   created_at  timestamptz not null default now()
 );
+
+-- Kdyby tabulka už existovala bez ceny (starší verze) – doplní sloupec.
+alter table public.lesson_plans add column if not exists price_kc integer;
 
 create index if not exists lesson_plans_date_idx on public.lesson_plans (date);
 
