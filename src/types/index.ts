@@ -107,6 +107,8 @@ export interface Service {
   priceWeekdayKc?: number;
   /** Volitelně: cena o víkendu (So–Ne). */
   priceWeekendKc?: number;
+  /** Volitelně: sleva v Kč pro VIP+ členy (odečte se od ceny). */
+  vipPlusDiscountKc?: number;
   /** "online" = odkudkoliv, "inPerson" = jen ve spádové oblasti. */
   mode: ServiceMode;
   description: string;

@@ -6,6 +6,7 @@ import {
   SERVICE_AREA,
   HOME_BASE,
   getServicePrice,
+  getServicePriceForTier,
   hasDayPricing,
 } from "@/lib/mock-data";
 import type { Service, ScheduleSlot, SlotStatus, CalendarEvent } from "@/types";
@@ -19,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeTier } from "@/lib/tiers";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
 const MONTHS_CS = [
@@ -116,6 +118,7 @@ export default function RezervacePage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [isVipPlus, setIsVipPlus] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -165,7 +168,7 @@ export default function RezervacePage() {
       setEmail((e) => e || user.email || "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, tier")
         .eq("id", user.id)
         .maybeSingle();
       const fullName =
@@ -173,13 +176,16 @@ export default function RezervacePage() {
         (user.user_metadata?.full_name as string | undefined) ||
         "";
       if (fullName) setName((n) => n || fullName);
+      setIsVipPlus(normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS");
     });
   }, []);
 
   const service: Service | null =
     SERVICES.find((s) => s.id === serviceId) ?? null;
   const isInPerson = service?.mode === "inPerson";
-  const price = service ? getServicePrice(service, selectedDate) : 0;
+  const fullPrice = service ? getServicePrice(service, selectedDate) : 0;
+  const price = service ? getServicePriceForTier(service, selectedDate, isVipPlus) : 0;
+  const vipSaved = fullPrice - price; // kolik VIP+ ušetří (0, když není sleva)
 
   // ── Výpočet slotů a akcí z načtených dat ──
   const slotsFor = useCallback(
@@ -395,7 +401,15 @@ export default function RezervacePage() {
                   </p>
                   <div className="flex items-end justify-between border-t border-black/5 pt-3 mb-4">
                     <span className="text-xl font-semibold text-brand-dark">
-                      {s.priceLabel ?? `${s.priceKc} Kč`}
+                      {isVipPlus && s.vipPlusDiscountKc ? (
+                        <>
+                          <span className="text-sm text-gray-400 line-through mr-1.5">{s.priceKc} Kč</span>
+                          <span className="text-amber-700">{s.priceKc - s.vipPlusDiscountKc} Kč</span>
+                          <span className="block text-[11px] font-semibold text-amber-700">VIP+ cena</span>
+                        </>
+                      ) : (
+                        s.priceLabel ?? `${s.priceKc} Kč`
+                      )}
                     </span>
                     <span className="text-xs text-gray-400">{s.durationLabel ?? `${s.durationMin} min`}</span>
                   </div>
@@ -616,7 +630,17 @@ export default function RezervacePage() {
               <div className="rounded-xl bg-brand-light p-4 mb-6 text-sm text-brand-dark">
                 <strong>{service.name}</strong> ·{" "}
                 {selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })} v {selectedTime} ·{" "}
-                <strong>{price} Kč</strong>
+                {vipSaved > 0 ? (
+                  <>
+                    <span className="text-gray-400 line-through">{fullPrice} Kč</span>{" "}
+                    <strong className="text-amber-700">{price} Kč</strong>
+                    <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      VIP+ sleva −{vipSaved} Kč
+                    </span>
+                  </>
+                ) : (
+                  <strong>{price} Kč</strong>
+                )}
                 {hasDayPricing(service) && (
                   <span className="text-gray-500">
                     {" "}({selectedDate.getDay() === 0 || selectedDate.getDay() === 6 ? "víkendová" : "všední"} sazba)

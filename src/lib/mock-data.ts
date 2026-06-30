@@ -58,6 +58,7 @@ export const SERVICES: Service[] = [
     name: "Osobní lekce",
     durationMin: 60,
     priceKc: 1000,
+    vipPlusDiscountKc: 100,
     mode: "inPerson",
     icon: "🧍",
     tone: "blue",
@@ -144,6 +145,22 @@ export function getServicePrice(service: Service, date?: Date | null): number {
 /** Má služba denní (všední/víkendovou) sazbu? */
 export function hasDayPricing(service: Service): boolean {
   return service.priceWeekdayKc != null && service.priceWeekendKc != null;
+}
+
+/**
+ * Cena pro daného člena. VIP+ má u vybraných služeb slevu (vipPlusDiscountKc).
+ * isVipPlus = true → odečte slevu; jinak plná cena.
+ */
+export function getServicePriceForTier(
+  service: Service,
+  date: Date | null | undefined,
+  isVipPlus: boolean
+): number {
+  const base = getServicePrice(service, date);
+  if (isVipPlus && service.vipPlusDiscountKc) {
+    return Math.max(0, base - service.vipPlusDiscountKc);
+  }
+  return base;
 }
 
 // ─── Týdenní rozvrh ─────────────────────────────────────────────────────────
