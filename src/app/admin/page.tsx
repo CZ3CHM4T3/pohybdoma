@@ -62,6 +62,8 @@ const DAYS = [
   { wd: 3, label: "St" },
   { wd: 4, label: "Čt" },
   { wd: 5, label: "Pá" },
+  { wd: 6, label: "So" },
+  { wd: 0, label: "Ne" },
 ];
 
 type WeeklyRow = { weekday: number; time: string; is_free: boolean };
@@ -705,27 +707,26 @@ export default function AdminPage() {
   async function toggle(wd: number, time: string) {
     const key = `${wd}-${time}`;
     const current = isFree(wd, time);
+    const snapshot = weekly;
     setSavingCell(key);
     setError(null);
-    // optimisticky
-    setWeekly((prev) =>
-      prev.map((r) =>
-        r.weekday === wd && r.time === time ? { ...r, is_free: !current } : r
-      )
-    );
+    // optimisticky – uprav existující řádek, nebo přidej nový (víkendy zatím v DB nejsou)
+    setWeekly((prev) => {
+      const exists = prev.some((r) => r.weekday === wd && r.time === time);
+      if (exists) {
+        return prev.map((r) =>
+          r.weekday === wd && r.time === time ? { ...r, is_free: !current } : r
+        );
+      }
+      return [...prev, { weekday: wd, time, is_free: !current }];
+    });
+    // upsert = vytvoří řádek, když chybí (díky unique (weekday, time))
     const { error } = await supabase
       .from("availability_weekly")
-      .update({ is_free: !current })
-      .eq("weekday", wd)
-      .eq("time", time);
+      .upsert({ weekday: wd, time, is_free: !current }, { onConflict: "weekday,time" });
     setSavingCell(null);
     if (error) {
-      // revert
-      setWeekly((prev) =>
-        prev.map((r) =>
-          r.weekday === wd && r.time === time ? { ...r, is_free: current } : r
-        )
-      );
+      setWeekly(snapshot); // revert
       setError(
         "Uložení se nezdařilo. Spustil jsi v Supabase admin-policies.sql? (" +
           error.message +
