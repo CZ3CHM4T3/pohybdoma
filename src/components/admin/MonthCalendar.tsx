@@ -104,7 +104,6 @@ export function MonthCalendar({
   const [viewMonth, setViewMonth] = useState<Date>(minMonth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [savingCell, setSavingCell] = useState<string | null>(null);
-  const [showHours, setShowHours] = useState(false);
 
   // Formulář na přidání vlastní lekce
   const [lTime, setLTime] = useState("15:00");
@@ -228,7 +227,7 @@ export function MonthCalendar({
               key={d.toISOString()}
               type="button"
               disabled={!clickable}
-              onClick={() => { setSelectedDate(d); setShowHours(false); }}
+              onClick={() => setSelectedDate(d)}
               className={`relative aspect-square rounded-lg text-sm font-medium transition-all flex flex-col items-center justify-center ${
                 !inMonth
                   ? "text-gray-300"
@@ -372,60 +371,49 @@ export function MonthCalendar({
             </div>
           )}
 
-          {/* ── Volné hodiny pro klienty (výjimky) – schované pod tlačítkem ── */}
+          {/* ── Volné hodiny pro klienty (výjimky) – rovnou vidět ── */}
           {!selPast && (
             <div>
-              <button
-                type="button"
-                onClick={() => setShowHours((v) => !v)}
-                className="text-xs font-semibold text-brand-blue hover:underline"
-              >
-                {showHours ? "Skrýt volné hodiny" : "Upravit volné hodiny pro klienty tento den ▾"}
-              </button>
-
-              {showHours && (
-                <>
-                  <p className="text-[11px] text-gray-500 mt-2 mb-2">
-                    Zeleně = klient si může zarezervovat. Klik přepne volno/zavřeno jen pro tento den.
-                    Štítek „×" vrátí hodinu na běžný týdenní rozvrh.
-                  </p>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {HOURS.map((time) => {
-                      const { status, overridden } = effective(selectedDate, time);
-                      const free = status === "free";
-                      const cellKey = `${dateKey(selectedDate)}-${time}`;
-                      const saving = savingCell === cellKey;
-                      return (
-                        <div key={time} className="relative">
-                          <button
-                            type="button"
-                            onClick={() => toggleHour(selectedDate, time)}
-                            disabled={saving}
-                            className={`w-full h-10 rounded-md text-xs font-semibold transition-all ${
-                              free
-                                ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                            } ${saving ? "opacity-50" : ""}`}
-                          >
-                            {time}
-                          </button>
-                          {overridden && (
-                            <button
-                              type="button"
-                              onClick={() => resetHour(selectedDate, time)}
-                              disabled={saving}
-                              title="Vrátit na týdenní rozvrh"
-                              className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+              <p className="text-xs font-semibold text-brand-dark mb-1">Volné hodiny pro klienty</p>
+              <p className="text-[11px] text-gray-500 mb-2">
+                <span className="text-emerald-600 font-medium">Zeleně</span> = klient si může zarezervovat.
+                Klik přepne volno/zavřeno jen pro tento den. Štítek „×" vrátí hodinu na běžný rozvrh.
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {HOURS.map((time) => {
+                  const { status, overridden } = effective(selectedDate, time);
+                  const free = status === "free";
+                  const cellKey = `${dateKey(selectedDate)}-${time}`;
+                  const saving = savingCell === cellKey;
+                  return (
+                    <div key={time} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => toggleHour(selectedDate, time)}
+                        disabled={saving}
+                        className={`w-full h-10 rounded-md text-xs font-semibold transition-all ${
+                          free
+                            ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                        } ${saving ? "opacity-50" : ""}`}
+                      >
+                        {time}
+                      </button>
+                      {overridden && (
+                        <button
+                          type="button"
+                          onClick={() => resetHour(selectedDate, time)}
+                          disabled={saving}
+                          title="Vrátit na týdenní rozvrh"
+                          className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
