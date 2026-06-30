@@ -184,7 +184,7 @@ export default function AdminPage() {
   const [finNote, setFinNote] = useState("");
   const [finDate, setFinDate] = useState("");
   // Rychlé zadání měsíčního příjmu odjinud (fitko apod.) v kartě Faktury
-  const [extCat, setExtCat] = useState("Fitko");
+  const [extCat, setExtCat] = useState("MS GEM");
   const [extAmount, setExtAmount] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
@@ -756,7 +756,7 @@ export default function AdminPage() {
   const expenseSlices = Object.entries(expenseByCat).map(([label, value], i) => ({ label, value, color: FIN_COLORS[i % FIN_COLORS.length] }));
   let topMembership = "—"; let topMembershipVal = 0;
   for (const c of ["MEMBER", "VIP", "VIP+"]) { if ((incomeByCat[c] ?? 0) > topMembershipVal) { topMembershipVal = incomeByCat[c]; topMembership = c; } }
-  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "Fitko", "Osobní lekce", "Jiné"];
+  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "MS GEM", "Fitness lekce", "Jiné"];
   const finExpenseCats = ["Cloudflare", "Supabase", "Vercel", "Doména", "Marketing", "Jiné"];
 
   // ── Admin obsah ──
@@ -1392,15 +1392,32 @@ export default function AdminPage() {
           });
           const yearTotal = yearMonths.reduce((s, x) => s + x.total, 0);
           const maxMonth = Math.max(1, ...yearMonths.map((m) => m.total));
-          const MNAMES = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
+          const MSHORT = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
           const monthLabel = new Date(invMonth + "-01T00:00:00").toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
+
+          // Barvy zdrojů příjmů
+          const CAT_COLOR: Record<string, string> = {
+            "MS GEM": "#4f46e5", "Fitness lekce": "#10b981", "Web (lekce)": "#7c3aed",
+            "Kurz": "#f59e0b", "MEMBER": "#1976FF", "VIP": "#a855f7", "VIP+": "#f59e0b", "Jiné": "#64748b",
+          };
+          const catColor = (c: string) => CAT_COLOR[c] ?? "#0ea5e9";
+
+          // Rozpad příjmů po měsících a kategoriích (vybraný rok)
+          const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
+          const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
+          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, "Web (lekce)", l.amount); });
+          finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, e.category, Number(e.amount_kc)));
+          const yearByCat: Record<string, number> = {};
+          monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
+          const orderedCats = Object.keys(yearByCat).sort((a, b) => yearByCat[b] - yearByCat[a]);
+          const pieSlices = orderedCats.map((c) => ({ label: c, value: yearByCat[c], color: catColor(c) }));
 
           return (
           <section className="card p-6">
             <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
             <p className="text-sm text-gray-500 mb-5">
-              Kolik komu naúčtovat za lekce + příjmy odjinud (fitko). Čísla faktur přibydou, až poběží
-              Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
+              Kolik komu naúčtovat za lekce + příjmy odjinud (MS GEM, fitness lekce). Čísla faktur přibydou,
+              až poběží Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
             </p>
 
             {/* Výběr měsíce + celkový příjem */}
@@ -1453,13 +1470,15 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Příjmy odjinud (fitko apod.) */}
-            <h3 className="text-sm font-semibold text-brand-dark mb-2 mt-6">Příjmy odjinud (fitko apod.)</h3>
+            {/* Příjmy odjinud (MS GEM, fitness lekce) */}
+            <h3 className="text-sm font-semibold text-brand-dark mb-2 mt-6">Příjmy odjinud (MS GEM, fitness lekce…)</h3>
             {monthFin.length > 0 && (
               <div className="space-y-1.5 mb-3">
                 {monthFin.map((e) => (
                   <div key={e.id} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
-                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">{e.category}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-brand-dark">
+                      <span className="h-2 w-2 rounded-full" style={{ background: catColor(e.category) }} />{e.category}
+                    </span>
                     {e.note && <span className="text-gray-400 truncate">· {e.note}</span>}
                     <span className="ml-auto font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
                     <button type="button" onClick={() => delFinance(e.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -1471,7 +1490,7 @@ export default function AdminPage() {
               <div>
                 <label className="block text-[11px] text-gray-400 mb-0.5">Odkud</label>
                 <select value={extCat} onChange={(e) => setExtCat(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
-                  {["Fitko", "Osobní lekce", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  {["MS GEM", "Fitness lekce", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="w-28">
@@ -1489,24 +1508,49 @@ export default function AdminPage() {
               <span className="text-lg font-bold">{monthGrand.toLocaleString("cs-CZ")} Kč</span>
             </div>
 
-            {/* Roční přehled */}
+            {/* Roční přehled – grafy */}
             <h3 className="text-sm font-semibold text-brand-dark mb-1">Přehled roku {year} <span className="text-gray-400 font-normal">· celkem {yearTotal.toLocaleString("cs-CZ")} Kč</span></h3>
-            <p className="text-xs text-gray-400 mb-3">Příjem po měsících – klikni na měsíc pro detail výše.</p>
-            <div className="space-y-1.5">
-              {yearMonths.map((m, i) => (
-                <button
-                  key={m.mm}
-                  type="button"
-                  onClick={() => setInvMonth(`${year}-${m.mm}`)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors ${invMonth === `${year}-${m.mm}` ? "bg-brand-light" : "hover:bg-gray-50"}`}
-                >
-                  <span className="w-20 shrink-0 text-xs font-medium text-gray-600">{MNAMES[i]}</span>
-                  <span className="flex-1 h-3 rounded-full bg-gray-100 overflow-hidden">
-                    <span className="block h-full rounded-full bg-green-500" style={{ width: `${(m.total / maxMonth) * 100}%` }} />
-                  </span>
-                  <span className="w-24 shrink-0 text-right text-xs font-semibold text-brand-dark">{m.total.toLocaleString("cs-CZ")} Kč</span>
-                </button>
-              ))}
+            <p className="text-xs text-gray-400 mb-3">Příjem po měsících, barevně podle zdroje. Klikni na měsíc pro detail nahoře.</p>
+
+            {/* Sloupcový graf po měsících (stacked podle zdroje) */}
+            <div className="rounded-xl border border-gray-100 p-4 mb-5">
+              <div className="flex h-48 items-end gap-1.5">
+                {yearMonths.map((m, i) => {
+                  const cats = orderedCats.filter((c) => (monthCats[i][c] ?? 0) > 0);
+                  const isSel = invMonth === `${year}-${m.mm}`;
+                  return (
+                    <button
+                      key={m.mm}
+                      type="button"
+                      onClick={() => setInvMonth(`${year}-${m.mm}`)}
+                      className="group flex h-full flex-1 flex-col items-center justify-end gap-1"
+                    >
+                      <span className="text-[9px] font-semibold text-gray-400 group-hover:text-brand-dark">
+                        {m.total > 0 ? `${Math.round(m.total / 1000)}k` : ""}
+                      </span>
+                      <div
+                        className={`flex w-full flex-col-reverse overflow-hidden rounded-sm ${isSel ? "ring-2 ring-brand-dark ring-offset-1" : ""}`}
+                        style={{ height: `${(m.total / maxMonth) * 100}%`, minHeight: m.total > 0 ? "4px" : "0" }}
+                      >
+                        {cats.map((c) => (
+                          <div
+                            key={c}
+                            title={`${MSHORT[i]} · ${c}: ${Math.round(monthCats[i][c]).toLocaleString("cs-CZ")} Kč`}
+                            style={{ height: `${(monthCats[i][c] / m.total) * 100}%`, background: catColor(c) }}
+                          />
+                        ))}
+                      </div>
+                      <span className={`text-[10px] ${isSel ? "font-bold text-brand-dark" : "text-gray-500"}`}>{MSHORT[i]}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Koláč podle zdroje + legenda */}
+            <div className="rounded-xl border border-gray-100 p-4">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Příjmy podle zdroje · {year}</p>
+              <Pie slices={pieSlices} />
             </div>
           </section>
           );
