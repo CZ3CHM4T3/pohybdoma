@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
+import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -133,6 +134,7 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [calView, setCalView] = useState<"month" | "week">("month");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [kickId, setKickId] = useState<string | null>(null);
@@ -1067,25 +1069,62 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {/* ── Měsíční kalendář / plánovač ── */}
+        {/* ── Kalendář / plánovač (Měsíc / Týden) ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Kalendář a plánovač</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold text-brand-dark">Kalendář a plánovač</h2>
+            <div className="inline-flex rounded-lg bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setCalView("month")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  calView === "month" ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"
+                }`}
+              >
+                Měsíc
+              </button>
+              <button
+                type="button"
+                onClick={() => setCalView("week")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  calView === "week" ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"
+                }`}
+              >
+                Týden
+              </button>
+            </div>
+          </div>
           <p className="text-sm text-gray-500 mb-5">
-            Listuj měsíce dopředu a <strong>klikni na den</strong> – uvidíš, koho a kdy ten den máš
-            (lekce i rezervace), můžeš <strong>přidat vlastní lekci</strong> a upravit volné hodiny
-            pro klienty jen pro ten den.
+            {calView === "month" ? (
+              <>Listuj měsíce dopředu a <strong>klikni na den</strong> – uvidíš, koho a kdy ten den máš
+              (lekce i rezervace), můžeš <strong>přidat vlastní lekci</strong> a upravit volné hodiny.</>
+            ) : (
+              <>Vyber týden a <strong>naklikej volné hodiny</strong> pro jeho konkrétní dny. Ideální, když
+              máš volno každý týden jinak.</>
+            )}
           </p>
-          <MonthCalendar
-            weekly={weekly}
-            overrides={overrides}
-            events={events}
-            bookings={bookings}
-            lessons={lessons}
-            onSetOverride={setOverrideAt}
-            onResetOverride={resetOverrideAt}
-            onAddLesson={addLesson}
-            onDeleteLesson={deleteLesson}
-          />
+          {calView === "month" ? (
+            <MonthCalendar
+              weekly={weekly}
+              overrides={overrides}
+              events={events}
+              bookings={bookings}
+              lessons={lessons}
+              onSetOverride={setOverrideAt}
+              onResetOverride={resetOverrideAt}
+              onAddLesson={addLesson}
+              onDeleteLesson={deleteLesson}
+            />
+          ) : (
+            <WeekCalendar
+              weekly={weekly}
+              overrides={overrides}
+              bookings={bookings}
+              lessons={lessons}
+              onSetOverride={setOverrideAt}
+              onResetOverride={resetOverrideAt}
+            />
+          )}
         </section>
 
         {/* ── Akce / workshopy ── */}

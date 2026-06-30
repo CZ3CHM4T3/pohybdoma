@@ -625,6 +625,17 @@ export default function RezervacePage() {
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <SectionHeading label="Krok 3" title="Dokonči rezervaci" />
 
+            {!userId ? (
+              <div className="mt-8 card p-6 lg:p-8 text-center">
+                <p className="text-brand-dark font-semibold mb-1">Rezervace jen pro registrované</p>
+                <p className="text-sm text-gray-500 mb-5 max-w-md mx-auto">
+                  Pro objednání lekce se prosím přihlas nebo si vytvoř účet – je to rychlé.
+                  Členové <strong>VIP+</strong> navíc rovnou uvidí svoji zvýhodněnou cenu.
+                </p>
+                <a href="/ucet" className="btn-primary inline-block">Přihlásit se / registrovat</a>
+                <p className="mt-3 text-xs text-gray-400">Po přihlášení se vrať sem a dokonči rezervaci.</p>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="mt-8 card p-6 lg:p-8">
               {/* Souhrn */}
               <div className="rounded-xl bg-brand-light p-4 mb-6 text-sm text-brand-dark">
@@ -751,6 +762,7 @@ export default function RezervacePage() {
                 Termín ti potvrdím e-mailem. Zrušení / přesun možný 24 h předem.
               </p>
             </form>
+            )}
           </div>
         </section>
       )}
