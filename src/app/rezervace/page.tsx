@@ -110,6 +110,12 @@ export default function RezervacePage() {
   const [viewMonth, setViewMonth] = useState<Date>(minMonth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  // Týdenní přehled dostupnosti (Po daného týdne)
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const x = startOfDay(new Date());
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  });
 
   const [municipality, setMunicipality] = useState("");
   const [address, setAddress] = useState("");
@@ -127,18 +133,23 @@ export default function RezervacePage() {
   const [weekly, setWeekly] = useState<WeeklyRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [busy, setBusy] = useState<Set<string>>(new Set()); // "YYYY-MM-DD HH:MM" obsazené termíny
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     const supabase = createClient();
     (async () => {
-      const [w, o, e] = await Promise.all([
+      const from = dateKey(today);
+      const to = dateKey(new Date(today.getFullYear(), today.getMonth() + 4, 0));
+      const [w, o, e, bt] = await Promise.all([
         supabase.from("availability_weekly").select("weekday,time,is_free"),
         supabase.from("availability_overrides").select("date,time,status"),
         supabase.from("events").select("*").order("date"),
+        supabase.rpc("busy_times", { p_from: from, p_to: to }),
       ]);
       if (w.data) setWeekly(w.data as WeeklyRow[]);
       if (o.data) setOverrides(o.data as OverrideRow[]);
+      if (bt.data) setBusy(new Set((bt.data as { date: string; time: string }[]).map((r) => `${r.date} ${r.time}`)));
       if (e.data) {
         setEvents(
           (e.data as Record<string, unknown>[]).map((r) => ({
@@ -202,9 +213,10 @@ export default function RezervacePage() {
         .forEach((r) => map.set(r.time, r.status));
       return [...map.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([time, status]) => ({ time, status }));
+        // Obsazený termín (rezervace/lekce) přebije volno.
+        .map(([time, status]) => ({ time, status: busy.has(`${key} ${time}`) ? "booked" : status }));
     },
-    [weekly, overrides, today]
+    [weekly, overrides, busy, today]
   );
   const dayHasFree = useCallback(
     (date: Date) => slotsFor(date).some((s) => s.status === "free"),
@@ -218,6 +230,13 @@ export default function RezervacePage() {
   const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
   const slots = selectedDate ? slotsFor(selectedDate) : [];
   const dayEvents = selectedDate ? eventsFor(selectedDate) : [];
+
+  // Týdenní přehled
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => { const x = new Date(weekStart); x.setDate(weekStart.getDate() + i); return x; }),
+    [weekStart]
+  );
+  const thisWeekMonday = useMemo(() => { const x = startOfDay(new Date()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }, []);
 
   const canPrev = startOfMonth(viewMonth) > minMonth;
   const canNext = startOfMonth(viewMonth) < maxMonth;
@@ -449,7 +468,82 @@ export default function RezervacePage() {
               <p className="mt-8 text-sm text-gray-500">Načítám dostupné termíny…</p>
             )}
 
+            {/* Týdenní přehled – kde je volno */}
             <div className={`mt-8 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  disabled={weekStart <= thisWeekMonday}
+                  onClick={() => { const x = new Date(weekStart); x.setDate(weekStart.getDate() - 7); setWeekStart(x); }}
+                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
+                  aria-label="Předchozí týden"
+                >
+                  ←
+                </button>
+                <h3 className="text-sm font-semibold text-brand-dark">
+                  {weekDays[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – {weekDays[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => { const x = new Date(weekStart); x.setDate(weekStart.getDate() + 7); setWeekStart(x); }}
+                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light"
+                  aria-label="Další týden"
+                >
+                  →
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                {weekDays.map((d) => {
+                  const past = d < today;
+                  const daySlots = past ? [] : slotsFor(d);
+                  const isToday = sameDay(d, today);
+                  return (
+                    <div key={d.toISOString()} className={`rounded-lg border p-2 ${isToday ? "border-brand-blue/40 bg-brand-light/40" : "border-gray-100"}`}>
+                      <p className="text-center text-xs font-semibold text-brand-dark">
+                        {WEEKDAYS_CS[(d.getDay() + 6) % 7]} <span className="text-gray-400 font-normal">{d.getDate()}.{d.getMonth() + 1}.</span>
+                      </p>
+                      {past ? (
+                        <p className="mt-2 text-center text-[11px] text-gray-300">—</p>
+                      ) : daySlots.length === 0 ? (
+                        <p className="mt-2 text-center text-[11px] text-gray-300">necvičím</p>
+                      ) : (
+                        <div className="mt-1.5 flex flex-col gap-1">
+                          {daySlots.map((s) => {
+                            const isFree = s.status === "free";
+                            const isSel = !!selectedDate && sameDay(d, selectedDate) && selectedTime === s.time;
+                            return (
+                              <button
+                                key={s.time}
+                                type="button"
+                                disabled={!isFree}
+                                onClick={() => { setSelectedDate(d); setSelectedTime(s.time); }}
+                                className={`rounded-md px-1 py-1 text-xs font-semibold transition-all ${
+                                  isSel
+                                    ? "bg-emerald-600 text-white"
+                                    : isFree
+                                      ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                      : "bg-gray-100 text-gray-400 line-through cursor-not-allowed"
+                                }`}
+                              >
+                                {s.time}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-xs text-gray-400">
+                <span className="font-medium text-emerald-600">Zeleně</span> = volno (klikni a rezervuj) ·{" "}
+                <span className="line-through">přeškrtnuté</span> = obsazeno
+              </p>
+            </div>
+
+            <p className="mt-6 mb-1 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">nebo vyber v kalendáři</p>
+
+            <div className={`mt-2 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
               {/* Navigace měsíců */}
               <div className="flex items-center justify-between mb-4">
                 <button
