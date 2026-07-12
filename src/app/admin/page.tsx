@@ -33,6 +33,18 @@ const ADMIN_TABS = [
   { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
   { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
 ];
+// Stavy rezervace (životní cyklus)
+const BOOKING_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: "Čeká na potvrzení", cls: "bg-amber-100 text-amber-700" },
+  confirmed: { label: "Potvrzeno", cls: "bg-blue-100 text-blue-700" },
+  completed: { label: "Proběhla", cls: "bg-emerald-100 text-emerald-700" },
+  cancelled: { label: "Zrušeno včas", cls: "bg-gray-100 text-gray-500" },
+  no_show: { label: "Storno – poplatek", cls: "bg-red-100 text-red-700" },
+};
+function bookingStatusMeta(s: string) {
+  return BOOKING_STATUS[s] ?? { label: s, cls: "bg-gray-100 text-gray-500" };
+}
+
 function slugifyVideo(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 50);
@@ -142,6 +154,11 @@ export default function AdminPage() {
   const [kickCode, setKickCode] = useState("");
   const [kickInput, setKickInput] = useState("");
   const [kickBusy, setKickBusy] = useState(false);
+  // Storno rezervace s opsáním kódu
+  const [stornoId, setStornoId] = useState<string | null>(null);
+  const [stornoCode, setStornoCode] = useState("");
+  const [stornoInput, setStornoInput] = useState("");
+  const [stornoBusy, setStornoBusy] = useState(false);
 
   // Onboarding průvodce
   type OnbStep = { id: number; position: number; title: string; body: string; image_url: string | null; cx: number; cy: number; radius: number; href: string | null };
@@ -504,6 +521,22 @@ export default function AdminPage() {
     cancelKick();
   }
 
+  // ── Správa rezervací (stav) ──
+  async function updateBookingStatus(id: string, status: string) {
+    setError(null);
+    const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+    if (error) { setError("Změna stavu rezervace selhala: " + error.message); return; }
+    setBookings((bs) => bs.map((b) => (b.id === id ? { ...b, status } : b)));
+  }
+  function startStorno(id: string) { setStornoId(id); setStornoCode(genKickCode()); setStornoInput(""); setError(null); }
+  function cancelStorno() { setStornoId(null); setStornoCode(""); setStornoInput(""); }
+  async function confirmStorno(id: string) {
+    setStornoBusy(true);
+    await updateBookingStatus(id, "no_show");
+    setStornoBusy(false);
+    cancelStorno();
+  }
+
   // ── Onboarding průvodce ──
   async function loadOnb() {
     const { data } = await supabase.from("onboarding_steps").select("*").order("position");
@@ -740,8 +773,9 @@ export default function AdminPage() {
   }
 
   // ── Finance (z deníku + tržby z rezervací) ──
+  // Do příjmů se počítají jen proběhlé lekce a storno poplatky (ne čekající/zrušené).
   const bookingsRevenue = bookings
-    .filter((b) => b.status !== "cancelled" && b.status !== "zrušeno")
+    .filter((b) => b.status === "completed" || b.status === "no_show")
     .reduce((s, b) => s + (b.price_kc ?? 0), 0);
   const incomeByCat: Record<string, number> = {};
   finEntries.filter((e) => e.kind === "income").forEach((e) => { incomeByCat[e.category] = (incomeByCat[e.category] ?? 0) + Number(e.amount_kc); });
@@ -1349,11 +1383,36 @@ export default function AdminPage() {
                       <span className="sm:col-span-2 text-gray-500">„{b.reason}"</span>
                     )}
                   </div>
-                  <div className="mt-2">
-                    <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-                      {b.status}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${bookingStatusMeta(b.status).cls}`}>
+                      {bookingStatusMeta(b.status).label}
                     </span>
+                    {b.status !== "cancelled" && b.status !== "completed" && b.status !== "no_show" && (
+                      <>
+                        {b.status === "pending" && (
+                          <button onClick={() => updateBookingStatus(b.id, "confirmed")} className="rounded-md bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700">Potvrdit</button>
+                        )}
+                        <button onClick={() => updateBookingStatus(b.id, "completed")} className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700">Proběhla</button>
+                        <button onClick={() => updateBookingStatus(b.id, "cancelled")} className="rounded-md border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50">Zrušit včas</button>
+                        <button onClick={() => startStorno(b.id)} className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Pozdní storno (poplatek)</button>
+                      </>
+                    )}
+                    {(b.status === "cancelled" || b.status === "no_show" || b.status === "completed") && (
+                      <button onClick={() => updateBookingStatus(b.id, "pending")} className="text-xs font-semibold text-gray-400 hover:text-brand-dark">↺ vrátit na čekající</button>
+                    )}
                   </div>
+                  {stornoId === b.id && (
+                    <div className="mt-2 rounded-lg border border-red-200 bg-red-50/60 p-3">
+                      <p className="text-sm font-semibold text-red-700">Pozdní storno – naúčtovat poplatek {b.price_kc} Kč</p>
+                      <p className="mt-0.5 text-xs text-gray-600">Klient zrušil pozdě (&lt; 24 h) nebo nedorazil. Pro potvrzení opiš kód:</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="select-all rounded-md bg-white px-3 py-1.5 font-mono text-base font-bold tracking-[0.3em] text-brand-dark ring-1 ring-gray-200">{stornoCode}</span>
+                        <input value={stornoInput} onChange={(e) => setStornoInput(e.target.value.toUpperCase())} placeholder="Opiš kód" maxLength={6} className="w-32 rounded-lg border border-red-200 px-3 py-2 text-sm font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-red-400" />
+                        <button onClick={() => confirmStorno(b.id)} disabled={stornoBusy || stornoInput !== stornoCode} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed">{stornoBusy ? "Účtuji…" : "Naúčtovat storno"}</button>
+                        <button onClick={cancelStorno} className="text-sm font-semibold text-gray-500 hover:text-brand-dark">Zpět</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1365,7 +1424,9 @@ export default function AdminPage() {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
           type Line = { date: string; time: string; client: string; what: string; amount: number };
           const lessonLines: Line[] = [
-            ...bookings.map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.service_name, amount: b.price_kc || 0 })),
+            // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
+            ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
+              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0 })),
             ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0 })),
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
