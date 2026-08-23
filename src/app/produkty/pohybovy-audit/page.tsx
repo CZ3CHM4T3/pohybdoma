@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Check, ArrowLeft, ClipboardList } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { getSessionUser } from "@/lib/supabase/user";
 
 export const metadata: Metadata = {
   title: "Pohybový audit",
@@ -17,7 +19,9 @@ const OBSAH = [
   "Follow-up: kontrola výsledků a úprava plánu",
 ];
 
-export default function PohybovyAuditPage() {
+export default async function PohybovyAuditPage() {
+  const u = await getSessionUser();
+  if (!u?.isAdmin) redirect("/");
   return (
     <>
       <section className="bg-brand-light py-12 lg:py-16">

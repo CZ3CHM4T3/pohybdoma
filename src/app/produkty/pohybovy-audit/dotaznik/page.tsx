@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { isAdminEmail } from "@/lib/admin";
 
 // Vstupní dotazník k Pohybovému auditu. Zatím nástroj pro lektora (vyplnit / vytisknout).
 // Později se dá zpřístupnit přihlášeným (VIP+) k online vyplnění.
@@ -40,6 +44,15 @@ function Flag({ text }: { text: string }) {
 }
 
 export default function DotaznikPage() {
+  const router = useRouter();
+  const [ok, setOk] = useState(false);
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      if (isAdminEmail(data.user?.email)) setOk(true);
+      else router.replace("/");
+    });
+  }, [router]);
+  if (!ok) return null;
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10">
       <div className="no-print mb-6 flex items-center justify-between gap-3">

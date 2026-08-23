@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Activity, ClipboardCheck, Sparkles, ArrowRight } from "lucide-react";
-import { SectionHeading } from "@/components/ui/SectionHeading";
+import { getSessionUser } from "@/lib/supabase/user";
 
 export const metadata: Metadata = {
   title: "Produkty",
@@ -51,7 +52,9 @@ const PRODUCTS: Product[] = [
   },
 ];
 
-export default function ProduktyPage() {
+export default async function ProduktyPage() {
+  const u = await getSessionUser();
+  if (!u?.isAdmin) redirect("/");
   return (
     <>
       <section className="bg-brand-light py-12 lg:py-16">

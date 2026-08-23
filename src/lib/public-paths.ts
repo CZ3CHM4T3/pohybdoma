@@ -7,7 +7,6 @@ const PUBLIC_PATHS = [
   "/recenze",
   "/kontakt",
   "/rezervace",
-  "/produkty",
   "/osobni-lekce",
   "/blog",
   // přihlášení / účet / brána

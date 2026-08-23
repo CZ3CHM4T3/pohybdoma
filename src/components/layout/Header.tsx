@@ -14,7 +14,6 @@ const NAV_LINKS = [
   { href: "/", label: "Domů" },
   { href: "/o-mne", label: "O mně" },
   { href: "/rezervace", label: "Rezervace" },
-  { href: "/produkty", label: "Produkty" },
   { href: "/videoknihovna", label: "Knihovna pohybu" },
   { href: "/kurzy", label: "Kurzy" },
   { href: "/clenstvi", label: "Členství" },
@@ -128,16 +127,28 @@ export function Header() {
               </Link>
             )}
             {isAdmin && (
-              <Link
-                href="/admin"
-                className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
-                  pathname.startsWith("/admin")
-                    ? "text-white bg-brand-dark"
-                    : "text-brand-dark hover:text-white hover:bg-brand-dark"
-                }`}
-              >
-                Admin
-              </Link>
+              <>
+                <Link
+                  href="/produkty"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                    pathname.startsWith("/produkty")
+                      ? "text-white bg-brand-dark"
+                      : "text-brand-dark hover:text-white hover:bg-brand-dark"
+                  }`}
+                >
+                  Produkty
+                </Link>
+                <Link
+                  href="/admin"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                    pathname.startsWith("/admin")
+                      ? "text-white bg-brand-dark"
+                      : "text-brand-dark hover:text-white hover:bg-brand-dark"
+                  }`}
+                >
+                  Admin
+                </Link>
+              </>
             )}
           </nav>
 
@@ -206,13 +217,22 @@ export function Header() {
               </Link>
             )}
             {isAdmin && (
-              <Link
-                href="/admin"
-                onClick={() => setMenuOpen(false)}
-                className="block px-4 py-3 rounded-lg text-sm font-semibold tracking-wide text-brand-dark hover:bg-brand-light"
-              >
-                Admin
-              </Link>
+              <>
+                <Link
+                  href="/produkty"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-3 rounded-lg text-sm font-semibold tracking-wide text-brand-dark hover:bg-brand-light"
+                >
+                  Produkty
+                </Link>
+                <Link
+                  href="/admin"
+                  onClick={() => setMenuOpen(false)}
+                  className="block px-4 py-3 rounded-lg text-sm font-semibold tracking-wide text-brand-dark hover:bg-brand-light"
+                >
+                  Admin
+                </Link>
+              </>
             )}
             <div className="mt-3 px-4">
               <Link href="/clenstvi" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">
