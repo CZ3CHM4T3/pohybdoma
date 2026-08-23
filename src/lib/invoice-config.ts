@@ -6,19 +6,19 @@
 // ════════════════════════════════════════════════════════════════════════════
 
 export const INVOICE_SUPPLIER = {
-  name: "Mgr. Jan Schröffel", // jméno / název
-  address: "", // ulice a č.p.
-  city: "", // PSČ a město
-  ico: "", // IČO
+  name: "Jan Schröffel", // jméno / název
+  address: "Chovatelů 159", // ulice a č.p.
+  city: "252 09 Hradištko", // PSČ a město
+  ico: "04531817", // IČO
   dic: "", // DIČ – JEN když jsi plátce DPH, jinak nech prázdné
-  iban: "", // IBAN pro QR platbu, např. "CZ6508000000192000145399"
-  accountDisplay: "", // číslo účtu pro zobrazení, např. "123456789/0800"
+  iban: "CZ4130300000003470043017", // IBAN pro QR platbu (spočítán z účtu 3470043017/3030)
+  accountDisplay: "3470043017/3030", // číslo účtu pro zobrazení
   email: "pohybdoma@seznam.cz",
   phone: "",
 };
 
 export const INVOICE_SETTINGS = {
-  vatPayer: false, // jsi plátce DPH? (ověř s účetní)
+  vatPayer: false, // Jan není plátce DPH
   dueDays: 14, // splatnost ve dnech
   numberPrefix: "", // volitelná předpona čísla faktury (např. "PD")
 };
