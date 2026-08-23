@@ -49,7 +49,7 @@ export default async function BlogPage() {
                     <div className="relative aspect-video flex items-center justify-center bg-gradient-to-br from-brand-dark to-[#1256c0]">
                       {post.cover_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        <img src={post.cover_url} alt={post.title} className="absolute inset-0 h-full w-full object-cover" />
                       ) : (
                         <PenLine className="h-9 w-9 text-white/30" strokeWidth={2} />
                       )}

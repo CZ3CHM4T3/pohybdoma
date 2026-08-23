@@ -46,7 +46,7 @@ export default async function BlogPostPage({ params }: Props) {
 
         {post.cover_url && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={post.cover_url} alt="" className="mb-8 w-full rounded-2xl object-cover shadow" />
+          <img src={post.cover_url} alt={post.title} className="mb-8 w-full rounded-2xl object-cover shadow" />
         )}
 
         <div className="blog-content text-lg leading-relaxed text-gray-700" dangerouslySetInnerHTML={{ __html: post.content }} />
