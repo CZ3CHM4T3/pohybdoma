@@ -133,6 +133,15 @@ type LessonRow = {
   note: string | null;
   price_kc: number | null;
 };
+type RecurringRow = {
+  id: string;
+  client_name: string;
+  weekday: number;
+  time: string;
+  price_kc: number | null;
+  note: string | null;
+  active: boolean;
+};
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -154,6 +163,11 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [recurring, setRecurring] = useState<RecurringRow[]>([]);
+  const [recClient, setRecClient] = useState("");
+  const [recWeekday, setRecWeekday] = useState("1");
+  const [recTime, setRecTime] = useState("15:00");
+  const [recPrice, setRecPrice] = useState("1000");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -310,6 +324,10 @@ export default function AdminPage() {
     // Vlastní lekce (plánovač) – samostatně, ať to nespadne, když tabulka ještě není.
     supabase.from("lesson_plans").select("*").order("date").order("time").then(({ data }) => {
       if (data) setLessons(data as LessonRow[]);
+    });
+    // Stálí klienti (opakované lekce) – samostatně kvůli odolnosti.
+    supabase.from("recurring_lessons").select("*").order("weekday").order("time").then(({ data }) => {
+      if (data) setRecurring(data as RecurringRow[]);
     });
 
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
@@ -514,6 +532,29 @@ export default function AdminPage() {
     const { error } = await supabase.from("lesson_plans").delete().eq("id", id);
     if (error) { setError("Smazání lekce selhalo: " + error.message); return; }
     setLessons((prev) => prev.filter((x) => x.id !== id));
+  }
+
+  // ── Stálí klienti (opakované lekce) ──
+  async function addRecurring() {
+    if (!recClient.trim()) { setError("Zadej jméno stálého klienta."); return; }
+    setError(null);
+    const priceKc = recPrice.trim() === "" ? null : Number(recPrice);
+    const { error } = await supabase.from("recurring_lessons").insert({
+      client_name: recClient.trim(),
+      weekday: Number(recWeekday),
+      time: recTime,
+      price_kc: Number.isFinite(priceKc as number) ? priceKc : null,
+    });
+    if (error) { setError("Uložení selhalo (spustil jsi recurring.sql?): " + error.message); return; }
+    setRecClient("");
+    const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
+    if (data) setRecurring(data as RecurringRow[]);
+  }
+  async function deleteRecurring(id: string) {
+    setError(null);
+    const { error } = await supabase.from("recurring_lessons").delete().eq("id", id);
+    if (error) { setError("Smazání selhalo: " + error.message); return; }
+    setRecurring((prev) => prev.filter((x) => x.id !== id));
   }
 
   // ── Členové (úroveň přístupu) ──
@@ -1113,6 +1154,58 @@ export default function AdminPage() {
             onAddLesson={addLesson}
             onDeleteLesson={deleteLesson}
           />
+        </section>
+
+        {/* ── Stálí klienti (opakované lekce) ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Stálí klienti (opakované lekce)</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Lekce, se kterými počítáš každý týden. Automaticky obsazují termín. Když se klient
+            <strong> včas omluví (24 h předem)</strong>, termín se uvolní ostatním. <span className="text-gray-400">(Spusť recurring.sql.)</span>
+          </p>
+
+          {recurring.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {recurring.map((r) => (
+                <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
+                  <span className="text-sm text-brand-dark">
+                    <span className="font-semibold">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][r.weekday]}</span>
+                    {" "}v {r.time} · <span className="font-medium">{r.client_name}</span>
+                    {r.price_kc != null && <span className="text-gray-500"> · {r.price_kc} Kč</span>}
+                  </span>
+                  <button type="button" onClick={() => deleteRecurring(r.id)} className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">
+                    Smazat
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
+            <div className="flex-1 min-w-[140px]">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Stálý klient</label>
+              <input value={recClient} onChange={(e) => setRecClient(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
+              <select value={recWeekday} onChange={(e) => setRecWeekday(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                {[["1", "Po"], ["2", "Út"], ["3", "St"], ["4", "Čt"], ["5", "Pá"], ["6", "So"], ["0", "Ne"]].map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-24">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Čas</label>
+              <input type="time" value={recTime} onChange={(e) => setRecTime(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="w-20">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Cena Kč</label>
+              <input type="number" value={recPrice} onChange={(e) => setRecPrice(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <button type="button" onClick={addRecurring} disabled={!recClient.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+              Přidat
+            </button>
+          </div>
         </section>
 
         {/* ── Měsíční přehled / výjimky ── */}
