@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Check, X, Gift, Info } from "lucide-react";
 import { MOCK_MEMBERSHIP_PLANS, MEMBERSHIP_MATRIX, type MatrixCell } from "@/lib/mock-data";
 import { SubscribeButton } from "@/components/SubscribeButton";
+import { GiftRedeem } from "@/components/GiftRedeem";
 import { TIER_STYLES } from "@/lib/tiers";
 import type { AccessLevel } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -195,6 +196,11 @@ export default function ClenstviPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Máš dárkový kód? */}
+          <div className="mt-8 max-w-3xl mx-auto">
+            <GiftRedeem />
           </div>
 
           {/* FAQ */}

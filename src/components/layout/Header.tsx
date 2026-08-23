@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Crown } from "lucide-react";
+import { Crown, UserCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
@@ -89,21 +89,21 @@ export function Header() {
               width={140}
               height={48}
               className={`w-auto object-contain transition-all duration-300 ${
-                scrolled ? "h-8" : "h-10"
+                scrolled ? "h-10" : "h-12"
               }`}
               priority
             />
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-1" aria-label="Hlavní navigace">
+          <nav className="hidden xl:flex items-center gap-0.5" aria-label="Hlavní navigace">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                  className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
                     active
                       ? "text-brand-blue bg-brand-light"
                       : "text-brand-dark hover:text-brand-blue hover:bg-brand-light"
@@ -117,7 +117,7 @@ export function Header() {
             {isClub && (
               <Link
                 href="/klub"
-                className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors inline-flex items-center gap-1.5 ${
+                className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors inline-flex items-center gap-1.5 ${
                   pathname.startsWith("/klub")
                     ? "text-white bg-amber-500"
                     : "text-amber-700 hover:text-white hover:bg-amber-500"
@@ -130,7 +130,7 @@ export function Header() {
               <>
                 <Link
                   href="/produkty"
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                  className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
                     pathname.startsWith("/produkty")
                       ? "text-white bg-brand-dark"
                       : "text-brand-dark hover:text-white hover:bg-brand-dark"
@@ -140,7 +140,7 @@ export function Header() {
                 </Link>
                 <Link
                   href="/admin"
-                  className={`px-3 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
+                  className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
                     pathname.startsWith("/admin")
                       ? "text-white bg-brand-dark"
                       : "text-brand-dark hover:text-white hover:bg-brand-dark"
@@ -157,15 +157,14 @@ export function Header() {
             {signedIn ? (
               <Link
                 href="/ucet"
-                className="hidden sm:inline-flex items-center gap-2 rounded-lg border-2 border-brand-blue px-4 py-1.5 text-sm font-semibold text-brand-blue hover:bg-brand-light transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-brand-blue px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-light transition-colors"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-blue text-[11px] text-white">✓</span>
-                Můj účet
+                <UserCircle className="h-4 w-4" strokeWidth={2} /> Můj účet
               </Link>
             ) : (
               <Link
                 href="/clenstvi"
-                className="hidden sm:inline-flex btn-primary text-sm py-2 px-4"
+                className="hidden sm:inline-flex items-center rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
               >
                 Začít hned
               </Link>
@@ -175,7 +174,7 @@ export function Header() {
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              className="lg:hidden p-2 rounded-lg text-brand-dark hover:bg-brand-light transition-colors"
+              className="xl:hidden p-2 rounded-lg text-brand-dark hover:bg-brand-light transition-colors"
               aria-expanded={menuOpen}
               aria-label="Otevřít menu"
             >
@@ -188,7 +187,7 @@ export function Header() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <nav className="lg:hidden pb-4 border-t border-gray-100 pt-3" aria-label="Mobilní navigace">
+          <nav className="xl:hidden pb-4 border-t border-gray-100 pt-3" aria-label="Mobilní navigace">
             {NAV_LINKS.map((link) => {
               const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
               return (

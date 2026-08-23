@@ -24,7 +24,6 @@ import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
 import { Leaderboard } from "@/components/Leaderboard";
-import { GiftRedeem } from "@/components/GiftRedeem";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -431,11 +430,8 @@ export default function UcetPage() {
             </div>
           </div>
 
-          {/* Měsíční výzva (pro všechny) */}
-          <MonthlyChallenge />
-
           {/* Rychlé dlaždice */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-6">
             {tiles.map((t) => {
               const Icon = t.Icon;
               const locked = !!t.req && !canAccess(tier, t.req);
@@ -447,9 +443,9 @@ export default function UcetPage() {
                     key={t.action}
                     type="button"
                     onClick={() => t.action === "membership" ? setShowMembership(true) : setShowReservations(true)}
-                    className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
+                    className="card card-3d p-2.5 flex flex-col items-center justify-center gap-1.5 text-center"
                   >
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint}`}>
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.tint}`}>
                       <Icon className="h-5 w-5" strokeWidth={2} />
                     </span>
                     <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
@@ -463,9 +459,9 @@ export default function UcetPage() {
                   <Link
                     key={t.label}
                     href="/clenstvi"
-                    className="group relative card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center overflow-hidden"
+                    className="group relative card card-3d p-2.5 flex flex-col items-center justify-center gap-1.5 text-center overflow-hidden"
                   >
-                    <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint} opacity-40`}>
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.tint} opacity-40`}>
                       <Icon className="h-5 w-5" strokeWidth={2} />
                     </span>
                     <span className="text-xs font-semibold text-brand-dark opacity-30">{t.label}</span>
@@ -487,9 +483,9 @@ export default function UcetPage() {
                 <Link
                   key={t.href}
                   href={t.href!}
-                  className="card card-3d p-4 flex flex-col items-center justify-center gap-2 text-center"
+                  className="card card-3d p-2.5 flex flex-col items-center justify-center gap-1.5 text-center"
                 >
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${t.tint}`}>
+                  <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.tint}`}>
                     <Icon className="h-5 w-5" strokeWidth={2} />
                   </span>
                   <span className="text-xs font-semibold text-brand-dark">{t.label}</span>
@@ -498,13 +494,11 @@ export default function UcetPage() {
             })}
           </div>
 
-          {/* Dárkový kód */}
-          <GiftRedeem />
-
-          {/* Novinky + Žebříček */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Novinky + Žebříček + Výzva (na bok) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <NovinkyFeed />
             <Leaderboard />
+            <MonthlyChallenge />
           </div>
 
           {/* Můj kalendář – osobní poznámky a události */}
