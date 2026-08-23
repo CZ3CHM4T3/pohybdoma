@@ -45,10 +45,22 @@ drop policy if exists "admin recurring cancel" on public.recurring_cancellations
 create policy "admin recurring cancel" on public.recurring_cancellations
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
+-- Přihlášený klient smí ČÍST své pravidelné lekce (aby se mohl omluvit).
+drop policy if exists "klient cte sve recurring" on public.recurring_lessons;
+create policy "klient cte sve recurring" on public.recurring_lessons
+  for select to authenticated using (client_id = auth.uid());
+
 drop policy if exists "klient rusi svuj vyskyt" on public.recurring_cancellations;
 create policy "klient rusi svuj vyskyt" on public.recurring_cancellations
   for insert to authenticated
   with check (
+    exists (select 1 from public.recurring_lessons r where r.id = recurring_id and r.client_id = auth.uid())
+  );
+
+-- Klient vidí své storno záznamy (aby se nezobrazovaly už zrušené výskyty).
+drop policy if exists "klient cte sve storno" on public.recurring_cancellations;
+create policy "klient cte sve storno" on public.recurring_cancellations
+  for select to authenticated using (
     exists (select 1 from public.recurring_lessons r where r.id = recurring_id and r.client_id = auth.uid())
   );
 

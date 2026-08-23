@@ -21,9 +21,9 @@ import { FILTER_SYSTEMS } from "@/lib/filters";
 import { EMAIL_PREFS, prefEnabled } from "@/lib/email-prefs";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
 import { PersonalCalendar } from "@/components/PersonalCalendar";
-import { MonthlyChallenge } from "@/components/MonthlyChallenge";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
 import { Leaderboard } from "@/components/Leaderboard";
+import { MyRecurringLessons } from "@/components/MyRecurringLessons";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -494,12 +494,14 @@ export default function UcetPage() {
             })}
           </div>
 
-          {/* Novinky + Žebříček + Výzva (na bok) */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Novinky + Žebříček */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <NovinkyFeed />
             <Leaderboard />
-            <MonthlyChallenge />
           </div>
+
+          {/* Moje pravidelné lekce (stálí klienti) – omluva 24 h předem */}
+          <MyRecurringLessons />
 
           {/* Můj kalendář – osobní poznámky a události */}
           <div className="card p-6 mt-6">

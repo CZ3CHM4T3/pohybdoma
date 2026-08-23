@@ -165,6 +165,7 @@ export default function AdminPage() {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recClient, setRecClient] = useState("");
+  const [recEmail, setRecEmail] = useState("");
   const [recWeekday, setRecWeekday] = useState("1");
   const [recTime, setRecTime] = useState("15:00");
   const [recPrice, setRecPrice] = useState("1000");
@@ -539,14 +540,22 @@ export default function AdminPage() {
     if (!recClient.trim()) { setError("Zadej jméno stálého klienta."); return; }
     setError(null);
     const priceKc = recPrice.trim() === "" ? null : Number(recPrice);
+    // Volitelně propoj s účtem člena podle e-mailu → klient se pak může sám omluvit.
+    let clientId: string | null = null;
+    if (recEmail.trim()) {
+      const { data: prof } = await supabase.from("profiles").select("id").eq("email", recEmail.trim().toLowerCase()).maybeSingle();
+      if (!prof) { setError("Účet s e-mailem " + recEmail.trim() + " nenalezen. Nech pole prázdné, nebo ať se člen nejdřív zaregistruje."); return; }
+      clientId = prof.id as string;
+    }
     const { error } = await supabase.from("recurring_lessons").insert({
       client_name: recClient.trim(),
+      client_id: clientId,
       weekday: Number(recWeekday),
       time: recTime,
       price_kc: Number.isFinite(priceKc as number) ? priceKc : null,
     });
     if (error) { setError("Uložení selhalo (spustil jsi recurring.sql?): " + error.message); return; }
-    setRecClient("");
+    setRecClient(""); setRecEmail("");
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
     if (data) setRecurring(data as RecurringRow[]);
   }
@@ -1185,6 +1194,10 @@ export default function AdminPage() {
             <div className="flex-1 min-w-[140px]">
               <label className="block text-[11px] text-gray-500 mb-0.5">Stálý klient</label>
               <input value={recClient} onChange={(e) => setRecClient(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <label className="block text-[11px] text-gray-500 mb-0.5">E-mail účtu (nepovinné)</label>
+              <input value={recEmail} onChange={(e) => setRecEmail(e.target.value)} placeholder="aby se mohl sám omluvit" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
             </div>
             <div>
               <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
