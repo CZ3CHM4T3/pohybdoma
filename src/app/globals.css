@@ -318,3 +318,15 @@
     transform: none !important;
   }
 }
+
+/* ── Tisk: skryj navigaci/patičku a prvky s .no-print ── */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}
