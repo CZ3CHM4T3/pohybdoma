@@ -62,7 +62,7 @@ export default async function HomePage() {
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
             <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
           </span>
-          Web se právě dotváří – některé funkce ještě přibývají.
+          Nová videa a kurzy přibývají každý týden.
         </div>
 
         {/* Logo – dominanta */}

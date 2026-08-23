@@ -43,9 +43,9 @@ const FAQS: Faq[] = [
     links: [{ label: "Členství", href: "/clenstvi" }, { label: "Kontakt", href: "/kontakt" }],
   },
   {
-    keywords: ["spadova", "spádová", "kam jezdis", "kam jezdíš", "dojezd", "kde cvicis", "oblast", "osobne kde", "hradistko"],
+    keywords: ["spadova", "spádová", "kam jezdis", "kam jezdíš", "dojezd", "kde cvicis", "oblast", "osobne kde", "dobrichovice", "dobřichovice"],
     answer:
-      "Osobní lekce probíhají ve spádové oblasti kolem Hradištka; odkudkoliv jinud se spojíme online. Termíny a detaily najdeš u rezervace.",
+      "Osobní lekce probíhají ve spádové oblasti kolem Dobřichovic; odkudkoliv jinud se spojíme online. Termíny a detaily najdeš u rezervace.",
     links: [{ label: "Rezervace", href: "/rezervace" }],
   },
   {
@@ -57,7 +57,7 @@ const FAQS: Faq[] = [
   {
     keywords: ["daruj", "darovat", "darek", "dárek", "darovani", "darování"],
     answer:
-      "Členství jde darovat jako dárek – a ten, kdo daruje, dostává měsíc MEMBER zdarma. Detaily najdeš u členství.",
+      "Členství jde darovat jako dárek – zaplatíš a obdarovaný dostane kód, který si uplatní ve svém účtu. Detaily najdeš u členství.",
     links: [{ label: "Členství", href: "/clenstvi" }],
   },
   {

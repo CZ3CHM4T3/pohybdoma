@@ -85,7 +85,7 @@ export default function KuryPage() {
       <section className="bg-brand-dark text-white py-12">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-semibold mb-3">Než kurzy vyjdou, mrkni do knihovny</h2>
-          <p className="text-white/70 mb-6">Členství ti dá přístup k video-knihovně a VIP+ navíc 15% slevu na kurzy.</p>
+          <p className="text-white/70 mb-6">Členství ti dá přístup k video-knihovně a slevu na kurzy: VIP 10 %, VIP+ 20 %.</p>
           <Link href="/clenstvi" className="btn-primary">
             Zobrazit členství
           </Link>

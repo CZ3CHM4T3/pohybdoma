@@ -100,7 +100,7 @@ export default async function CourseDetailPage({ params }: Props) {
               </div>
 
               <p className="mt-5 pt-5 border-t border-gray-100 text-xs text-center text-gray-400">
-                Členové VIP+ budou mít slevu 15 % →{" "}
+                Sleva pro členy: VIP 10 %, VIP+ 20 % →{" "}
                 <Link href="/clenstvi" className="text-brand-blue hover:underline">
                   Zjistit více
                 </Link>
