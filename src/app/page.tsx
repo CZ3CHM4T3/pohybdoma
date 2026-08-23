@@ -152,12 +152,11 @@ export default async function HomePage() {
               <div>
                 <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Kdo tě povede</p>
                 <h2 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-3">
-                  Mgr. Jan „Honza" Schröffel
+                  Mgr. Jan Schröffel
                 </h2>
                 <p className="text-gray-600 leading-relaxed max-w-xl">
                   Lektor pohybu, pedagog, fitness trenér a sportovní masér.{" "}
-                  <strong className="text-brand-dark">Přes 10 let praxe</strong> – s některými klienty
-                  pracuju téměř od začátku. Provedu tě krok za krokem, vlastním tempem a s ohledem na tvé tělo.
+                  <strong className="text-brand-dark">Přes 10 let praxe.</strong>
                 </p>
                 <Link href="/o-mne" className="mt-4 inline-block btn-outline text-sm">
                   Víc o mně →

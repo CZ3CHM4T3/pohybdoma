@@ -19,7 +19,7 @@ function Stars({ rating }: { rating: number }) {
 
 function Card({ name, place, rating, text }: Review) {
   return (
-    <figure className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 transition-transform duration-300 ease-out hover:scale-[1.04] hover:shadow-xl">
+    <figure className="flex h-full flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5 transition-shadow duration-300 ease-out hover:shadow-lg">
       <Quote className="h-7 w-7 text-brand-light" strokeWidth={2} fill="currentColor" />
       <blockquote className="mt-3 flex-1 text-sm text-gray-700 leading-relaxed">{text}</blockquote>
       <figcaption className="mt-4 flex items-center justify-between gap-2">
@@ -85,10 +85,10 @@ export function Reviews({
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerLeave={onUp}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory px-1 py-6 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5 overflow-x-auto snap-x snap-proximity px-1 py-6 cursor-grab active:cursor-grabbing select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
       >
         {list.map((r, i) => (
-          <div key={i} className="snap-center shrink-0 w-[280px] sm:w-[340px] hover:z-10">
+          <div key={i} className="snap-start shrink-0 w-[280px] sm:w-[340px]">
             <Card {...r} />
           </div>
         ))}

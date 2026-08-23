@@ -49,20 +49,28 @@ export async function updateSession(request: NextRequest) {
     // ignorujeme – session se obnoví při dalším požadavku
   }
 
-  // Přihlašovací zeď: jen v „soukromém režimu" (když je nastaven SITE_ACCESS_CODE).
-  // Nepřihlášeného pošleme na /ucet (registrace/přihlášení), kromě veřejných stránek.
-  if (SITE_GATE_CODE && !user) {
+  // Soukromá brána (soft-launch): nepřihlášený návštěvník BEZ kódu → uvítací /vstup.
+  // Přihlášený uživatel i držitel kódu projdou vždy. Data chrání RLS – tady jen skrýváme
+  // rozpracovaný obsah. Když je auth pomalá/nejistá, raději pustíme (fail-open), ať to
+  // nikoho nevyhazuje.
+  if (SITE_GATE_CODE) {
     const { pathname } = request.nextUrl;
-    const isPublic =
+    const publicOK =
       isPublicPath(pathname) ||
       pathname.startsWith("/api") ||
       pathname.startsWith("/_next") ||
       /\.[a-zA-Z0-9]+$/.test(pathname);
-    if (!isPublic) {
-      const u = request.nextUrl.clone();
-      u.pathname = "/ucet";
-      u.search = "";
-      return NextResponse.redirect(u);
+    if (!publicOK) {
+      const hasCode = request.cookies.get("pd_access")?.value === SITE_GATE_CODE;
+      const hasAuthCookie = request.cookies
+        .getAll()
+        .some((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+      if (!user && !hasCode && !hasAuthCookie) {
+        const u = request.nextUrl.clone();
+        u.pathname = "/vstup";
+        u.search = "";
+        return NextResponse.rewrite(u);
+      }
     }
   }
 
