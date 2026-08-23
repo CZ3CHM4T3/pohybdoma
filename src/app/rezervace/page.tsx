@@ -191,6 +191,28 @@ export default function RezervacePage() {
     });
   }, []);
 
+  // Obnovení výběru po návratu z přihlášení (aby uživatel nezačínal znovu).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("pd_booking_sel");
+      if (!raw) return;
+      const sel = JSON.parse(raw) as { serviceId?: string; date?: string; time?: string };
+      if (sel.serviceId) setServiceId(sel.serviceId);
+      if (sel.date) setSelectedDate(new Date(sel.date + "T00:00:00"));
+      if (sel.time) setSelectedTime(sel.time);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Nepřihlášenému uložíme rozdělaný výběr, ať se po loginu vrátí, kde skončil.
+  useEffect(() => {
+    if (userId) return;
+    if (serviceId && selectedDate && selectedTime) {
+      try {
+        sessionStorage.setItem("pd_booking_sel", JSON.stringify({ serviceId, date: dateKey(selectedDate), time: selectedTime }));
+      } catch { /* ignore */ }
+    }
+  }, [userId, serviceId, selectedDate, selectedTime]);
+
   const service: Service | null =
     SERVICES.find((s) => s.id === serviceId) ?? null;
   const isInPerson = service?.mode === "inPerson";
@@ -295,6 +317,7 @@ export default function RezervacePage() {
       return;
     }
     setSubmitted(true);
+    try { sessionStorage.removeItem("pd_booking_sel"); } catch { /* ignore */ }
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -422,7 +445,7 @@ export default function RezervacePage() {
                     <span className="text-xl font-semibold text-brand-dark">
                       {isVipPlus && s.vipPlusDiscountKc ? (
                         <>
-                          <span className="text-sm text-gray-400 line-through mr-1.5">{s.priceKc} Kč</span>
+                          <span className="text-sm text-gray-500 line-through mr-1.5">{s.priceKc} Kč</span>
                           <span className="text-amber-700">{s.priceKc - s.vipPlusDiscountKc} Kč</span>
                           <span className="block text-[11px] font-semibold text-amber-700">VIP+ cena</span>
                         </>
@@ -430,7 +453,7 @@ export default function RezervacePage() {
                         s.priceLabel ?? `${s.priceKc} Kč`
                       )}
                     </span>
-                    <span className="text-xs text-gray-400">{s.durationLabel ?? `${s.durationMin} min`}</span>
+                    <span className="text-xs text-gray-500">{s.durationLabel ?? `${s.durationMin} min`}</span>
                   </div>
                   {s.inquiryOnly ? (
                     <a href="/kontakt" className="btn-primary w-full text-sm">
@@ -500,7 +523,7 @@ export default function RezervacePage() {
                   return (
                     <div key={d.toISOString()} className={`rounded-lg border p-2 ${isToday ? "border-brand-blue/40 bg-brand-light/40" : "border-gray-100"}`}>
                       <p className="text-center text-xs font-semibold text-brand-dark">
-                        {WEEKDAYS_CS[(d.getDay() + 6) % 7]} <span className="text-gray-400 font-normal">{d.getDate()}.{d.getMonth() + 1}.</span>
+                        {WEEKDAYS_CS[(d.getDay() + 6) % 7]} <span className="text-gray-500 font-normal">{d.getDate()}.{d.getMonth() + 1}.</span>
                       </p>
                       {past ? (
                         <p className="mt-2 text-center text-[11px] text-gray-300">—</p>
@@ -522,7 +545,7 @@ export default function RezervacePage() {
                                     ? "bg-emerald-600 text-white"
                                     : isFree
                                       ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                      : "bg-gray-100 text-gray-400 line-through cursor-not-allowed"
+                                      : "bg-gray-100 text-gray-500 line-through cursor-not-allowed"
                                 }`}
                               >
                                 {s.time}
@@ -535,15 +558,18 @@ export default function RezervacePage() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs text-gray-400">
+              <p className="mt-3 text-xs text-gray-500">
                 <span className="font-medium text-emerald-600">Zeleně</span> = volno (klikni a rezervuj) ·{" "}
                 <span className="line-through">přeškrtnuté</span> = obsazeno
               </p>
             </div>
 
-            <p className="mt-6 mb-1 text-center text-xs font-semibold uppercase tracking-wide text-gray-400">nebo vyber v kalendáři</p>
+            <details className="mt-6">
+              <summary className="cursor-pointer text-center text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-brand-dark">
+                nebo vyber v měsíčním kalendáři
+              </summary>
 
-            <div className={`mt-2 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
+            <div className={`mt-3 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
               {/* Navigace měsíců */}
               <div className="flex items-center justify-between mb-4">
                 <button
@@ -572,7 +598,7 @@ export default function RezervacePage() {
               {/* Hlavička dnů */}
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {WEEKDAYS_CS.map((w) => (
-                  <div key={w} className="text-center text-xs font-semibold text-gray-400 py-1">
+                  <div key={w} className="text-center text-xs font-semibold text-gray-500 py-1">
                     {w}
                   </div>
                 ))}
@@ -615,7 +641,7 @@ export default function RezervacePage() {
                 })}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                 <span className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                   Volný termín
@@ -691,7 +717,7 @@ export default function RezervacePage() {
                               ? "bg-emerald-600 border-emerald-600 text-white shadow-md"
                               : isFree
                                 ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                : "border-transparent bg-gray-100 text-gray-400 line-through cursor-not-allowed"
+                                : "border-transparent bg-gray-100 text-gray-500 line-through cursor-not-allowed"
                           }`}
                           aria-label={isFree ? `${slot.time} – volno` : `${slot.time} – obsazeno`}
                         >
@@ -709,6 +735,7 @@ export default function RezervacePage() {
                 )}
               </div>
             )}
+            </details>
           </div>
         </section>
       )}
@@ -726,8 +753,8 @@ export default function RezervacePage() {
                   Pro objednání lekce se prosím přihlas nebo si vytvoř účet – je to rychlé.
                   Členové <strong>VIP+</strong> navíc rovnou uvidí svoji zvýhodněnou cenu.
                 </p>
-                <a href="/ucet" className="btn-primary inline-block">Přihlásit se / registrovat</a>
-                <p className="mt-3 text-xs text-gray-400">Po přihlášení se vrať sem a dokonči rezervaci.</p>
+                <a href="/ucet?next=/rezervace" className="btn-primary inline-block">Přihlásit se / registrovat</a>
+                <p className="mt-3 text-xs text-gray-500">Neboj – tvůj výběr (služba, den i čas) ti zůstane a po přihlášení tě vrátíme sem.</p>
               </div>
             ) : (
             <form onSubmit={handleSubmit} className="mt-8 card p-6 lg:p-8">
@@ -737,7 +764,7 @@ export default function RezervacePage() {
                 {selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })} v {selectedTime} ·{" "}
                 {vipSaved > 0 ? (
                   <>
-                    <span className="text-gray-400 line-through">{fullPrice} Kč</span>{" "}
+                    <span className="text-gray-500 line-through">{fullPrice} Kč</span>{" "}
                     <strong className="text-amber-700">{price} Kč</strong>
                     <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                       VIP+ sleva −{vipSaved} Kč
@@ -852,7 +879,7 @@ export default function RezervacePage() {
                   <span className="text-white/70 font-normal text-xs ml-1">(platba zatím neaktivní)</span>
                 )}
               </button>
-              <p className="mt-3 text-xs text-center text-gray-400">
+              <p className="mt-3 text-xs text-center text-gray-500">
                 Termín ti potvrdím e-mailem. Zrušení / přesun možný 24 h předem.
               </p>
             </form>

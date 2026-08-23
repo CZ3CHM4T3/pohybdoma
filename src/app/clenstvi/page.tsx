@@ -52,7 +52,7 @@ export default function ClenstviPage() {
                 <p className="text-sm text-gray-500 mb-3">Na vyzkoušení</p>
                 <div className="flex items-baseline gap-1 mb-6">
                   <span className="text-4xl font-semibold text-brand-dark">0</span>
-                  <span className="text-sm text-gray-400">Kč / měsíc</span>
+                  <span className="text-sm text-gray-500">Kč / měsíc</span>
                 </div>
                 <ul className="space-y-3 mb-8">
                   {["Ukázková videa zdarma", "Základní přístup k webu", "Bez registrace, bez závazků"].map((f) => (
@@ -68,7 +68,7 @@ export default function ClenstviPage() {
                 >
                   Procházet zdarma
                 </Link>
-                <p className="mt-3 text-xs text-center text-gray-400">Žádná platba potřeba.</p>
+                <p className="mt-3 text-xs text-center text-gray-500">Žádná platba potřeba.</p>
               </div>
             </div>
 
@@ -102,7 +102,7 @@ export default function ClenstviPage() {
                     )}
                     <div className="flex items-baseline gap-1 mb-6">
                       <span className="text-4xl font-semibold text-brand-dark">{plan.priceKcMonth}</span>
-                      <span className="text-sm text-gray-400">Kč / měsíc</span>
+                      <span className="text-sm text-gray-500">Kč / měsíc</span>
                     </div>
 
                     <ul className="space-y-3 mb-8">
@@ -119,7 +119,7 @@ export default function ClenstviPage() {
                       name={plan.name}
                       className={`block w-full text-center rounded-lg px-6 py-3 font-semibold transition-opacity hover:opacity-90 disabled:opacity-60 ${t.solid}`}
                     />
-                    <p className="mt-3 text-xs text-center text-gray-400">
+                    <p className="mt-3 text-xs text-center text-gray-500">
                       Spouštím brzy – ozvi se a budeš u toho první.
                     </p>
                   </div>
@@ -167,7 +167,7 @@ export default function ClenstviPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-3 text-center text-xs text-gray-400">
+            <p className="mt-3 text-center text-xs text-gray-500">
               Členství zrušíš kdykoliv. Přístup trvá do konce zaplaceného období.
             </p>
           </div>

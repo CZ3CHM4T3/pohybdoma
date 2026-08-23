@@ -278,6 +278,9 @@ export default function UcetPage() {
       );
       return;
     }
+    // Návrat tam, odkud uživatel přišel (např. z rezervace) – jen interní cesty.
+    const next = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
+    if (next && next.startsWith("/") && !next.startsWith("//")) { window.location.href = next; return; }
     router.refresh();
   }
 

@@ -140,6 +140,34 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Kdo tě povede ── */}
+      <section className="bg-white py-14 lg:py-20 border-t border-gray-100">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <Reveal variant="up">
+            <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-8 items-center">
+              {/* Foto (placeholder – doplní se po focení) */}
+              <div className="mx-auto sm:mx-0 flex h-44 w-44 shrink-0 items-center justify-center rounded-2xl bg-brand-light text-brand-blue/50 ring-1 ring-brand-blue/10">
+                <span className="text-xs font-semibold">Foto brzy</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Kdo tě povede</p>
+                <h2 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-3">
+                  Mgr. Jan „Honza" Schröffel
+                </h2>
+                <p className="text-gray-600 leading-relaxed max-w-xl">
+                  Lektor pohybu, pedagog, fitness trenér a sportovní masér.{" "}
+                  <strong className="text-brand-dark">Přes 10 let praxe</strong> – s některými klienty
+                  pracuju téměř od začátku. Provedu tě krok za krokem, vlastním tempem a s ohledem na tvé tělo.
+                </p>
+                <Link href="/o-mne" className="mt-4 inline-block btn-outline text-sm">
+                  Víc o mně →
+                </Link>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* ── Recenze (nad videi) ── */}
       {reviews.length > 0 && (
         <section className="bg-brand-light py-16 lg:py-24">
