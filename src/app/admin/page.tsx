@@ -8,8 +8,11 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { TIER_STYLES, normalizeTier, tierToDb } from "@/lib/tiers";
+import QRCode from "qrcode";
 import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import { WeekCalendar } from "@/components/admin/WeekCalendar";
+import { INVOICE_SUPPLIER, INVOICE_SETTINGS, invoiceConfigured } from "@/lib/invoice-config";
+import { spdString } from "@/lib/qr-payment";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -69,6 +72,10 @@ const HOURS = [
   "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
   "14:00", "15:00", "16:00", "17:00", "18:00",
 ];
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
 // "2026-07-04" → "so 4. 7. 2026" (s názvem dne)
 function fmtDateCs(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -362,6 +369,62 @@ export default function AdminPage() {
     setExtAmount("");
     const { data } = await supabase.from("finance_entries").select("*").order("at", { ascending: false });
     if (data) setFinEntries(data as FinEntry[]);
+  }
+
+  // Vystaví fakturu pro klienta za vybraný měsíc – otevře ji v novém okně k tisku/PDF.
+  async function openInvoice(clientName: string, lines: { date: string; what: string; amount: number }[], seq: number) {
+    if (!invoiceConfigured()) {
+      setError("Nejdřív vyplň fakturační údaje v src/lib/invoice-config.ts (jméno + IBAN nebo číslo účtu).");
+      return;
+    }
+    const s = INVOICE_SUPPLIER;
+    const total = lines.reduce((a, l) => a + l.amount, 0);
+    const num = `${INVOICE_SETTINGS.numberPrefix}${invMonth.replace("-", "")}${String(seq).padStart(2, "0")}`;
+    const today = new Date();
+    const due = new Date(); due.setDate(due.getDate() + INVOICE_SETTINGS.dueDays);
+    const fmt = (d: Date) => d.toLocaleDateString("cs-CZ");
+    let qrImg = "";
+    if (s.iban) {
+      try {
+        qrImg = await QRCode.toDataURL(spdString({ iban: s.iban, amountKc: total, vs: num, message: `Faktura ${num}` }), { margin: 1, width: 220 });
+      } catch { /* QR se nepovedlo – faktura půjde i bez něj */ }
+    }
+    const rows = lines.map((l) =>
+      `<tr><td>${escapeHtml(fmtDateCs(l.date))}</td><td>${escapeHtml(l.what)}</td><td class="r">${l.amount.toLocaleString("cs-CZ")} Kč</td></tr>`
+    ).join("");
+    const dphNote = INVOICE_SETTINGS.vatPayer ? "" : "<p class=\"muted\">Neplátce DPH.</p>";
+    const html = `<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Faktura ${num}</title>
+<style>
+  *{box-sizing:border-box} body{font-family:system-ui,Arial,sans-serif;color:#1a2b4a;max-width:800px;margin:24px auto;padding:0 24px}
+  h1{font-size:22px;margin:0 0 4px} .muted{color:#667;font-size:13px}
+  .top{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-top:16px}
+  .box{font-size:14px;line-height:1.5} .box b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#889;margin-bottom:4px}
+  table{width:100%;border-collapse:collapse;margin-top:24px;font-size:14px}
+  th,td{padding:8px 6px;border-bottom:1px solid #e5e9f0;text-align:left} th{font-size:12px;text-transform:uppercase;color:#889}
+  td.r,th.r{text-align:right} .total{margin-top:12px;text-align:right;font-size:18px;font-weight:700}
+  .pay{display:flex;gap:24px;align-items:center;margin-top:24px;flex-wrap:wrap;border-top:1px solid #e5e9f0;padding-top:16px}
+  .btn{display:inline-block;margin:20px 0;padding:10px 18px;background:#1976FF;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+  @media print{.btn{display:none}}
+</style></head><body>
+  <button class="btn" onclick="window.print()">Tisk / uložit jako PDF</button>
+  <h1>Faktura ${num}</h1>
+  <p class="muted">Datum vystavení: ${fmt(today)} · Datum splatnosti: ${fmt(due)}</p>
+  <div class="top">
+    <div class="box"><b>Dodavatel</b>${escapeHtml(s.name)}<br>${escapeHtml(s.address)}<br>${escapeHtml(s.city)}<br>${s.ico ? "IČO: " + escapeHtml(s.ico) + "<br>" : ""}${s.dic ? "DIČ: " + escapeHtml(s.dic) + "<br>" : ""}${s.email ? escapeHtml(s.email) : ""}</div>
+    <div class="box"><b>Odběratel</b>${escapeHtml(clientName)}</div>
+  </div>
+  <table><thead><tr><th>Datum</th><th>Položka</th><th class="r">Cena</th></tr></thead><tbody>${rows}</tbody></table>
+  <p class="total">Celkem: ${total.toLocaleString("cs-CZ")} Kč</p>
+  ${dphNote}
+  <div class="pay">
+    ${qrImg ? `<img src="${qrImg}" alt="QR platba" width="160" height="160">` : ""}
+    <div class="box"><b>Platba převodem</b>${s.accountDisplay ? "Účet: " + escapeHtml(s.accountDisplay) + "<br>" : ""}${s.iban ? "IBAN: " + escapeHtml(s.iban) + "<br>" : ""}Variabilní symbol: ${escapeHtml(num.replace(/\D/g, ""))}<br>Částka: ${total.toLocaleString("cs-CZ")} Kč</div>
+  </div>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { setError("Prohlížeč zablokoval nové okno – povol vyskakovací okna a zkus znovu."); return; }
+    w.document.write(html);
+    w.document.close();
   }
 
   async function genGift() {
@@ -1507,13 +1570,22 @@ export default function AdminPage() {
               <p className="text-sm text-gray-400 mb-6">V tomto měsíci nejsou žádné lekce.</p>
             ) : (
               <div className="space-y-4 mb-6">
-                {clients.map(([client, lines]) => {
+                {clients.map(([client, lines], ci) => {
                   const sub = lines.reduce((s, x) => s + x.amount, 0);
                   return (
                     <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">
-                      <div className="flex items-center justify-between bg-gray-50 px-4 py-2">
+                      <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2">
                         <span className="font-semibold text-brand-dark">{client}</span>
-                        <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
+                          <button
+                            type="button"
+                            onClick={() => openInvoice(client, lines.map((l) => ({ date: l.date, what: l.what, amount: l.amount })), ci + 1)}
+                            className="inline-flex items-center gap-1 rounded-md bg-brand-dark px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90"
+                          >
+                            <Receipt className="h-3.5 w-3.5" /> Fakturu
+                          </button>
+                        </div>
                       </div>
                       <div className="divide-y divide-gray-50">
                         {lines.map((ln, i) => (
