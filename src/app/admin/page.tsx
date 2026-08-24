@@ -1362,7 +1362,7 @@ export default function AdminPage() {
                               <button type="button" onClick={() => updateBookingStatus(it.bookingId!, "cancelled")} className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-50">Zrušit</button>
                             </span>
                           ) : (
-                            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : "bg-teal-100 text-teal-700"}`}>{it.kind === "staly" ? "STÁLÝ KLIENT" : "moje lekce"}</span>
+                            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : "bg-teal-100 text-teal-700"}`}>{it.kind === "staly" ? "STÁLÝ KLIENT" : "jednorázová lekce"}</span>
                           )}
                         </div>
                       ))}
@@ -1898,7 +1898,7 @@ export default function AdminPage() {
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
-          type Line = { date: string; time: string; client: string; what: string; amount: number };
+          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" };
           // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           const recLines: Line[] = [];
@@ -1912,7 +1912,7 @@ export default function AdminPage() {
                 if (d.getDay() === r.weekday) {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                   if (!cancelSet.has(`${r.id}|${dk}`)) {
-                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0 });
+                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0, kind: "staly" });
                   }
                 }
                 d.setDate(d.getDate() + 1);
@@ -1922,8 +1922,8 @@ export default function AdminPage() {
           const lessonLines: Line[] = [
             // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
             ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
-              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0 })),
-            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0 })),
+              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const })),
+            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const })),
             ...recLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -2079,6 +2079,10 @@ export default function AdminPage() {
                       <div className="divide-y divide-gray-50">
                         {lines.map((ln, i) => (
                           <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                            <span
+                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : "bg-brand-blue"}`}
+                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : "rezervace z webu"}
+                            />
                             <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(ln.date)}</span>
                             <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
                             <span className="text-gray-600 truncate flex-1">{ln.what}</span>

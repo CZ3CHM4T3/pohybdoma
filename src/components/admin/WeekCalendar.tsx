@@ -93,14 +93,15 @@ export function WeekCalendar({
     const w = weeklyStatus(date.getDay(), time);
     return { status: w ?? "booked", overridden: false };
   }
-  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "rezervace" } | null {
+  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "rezervace" } | null {
     const key = dateKey(date);
     const l = lessons.find((x) => x.date === key && x.time === time);
-    if (l) return { name: l.client_name || "Lekce", kind: "lekce" };
+    if (l) return { name: l.client_name || "Lekce", kind: l.recurring ? "staly" : "lekce" };
     const b = bookings.find((x) => x.date === key && x.time === time);
     if (b) return { name: b.contact_name, kind: "rezervace" };
     return null;
   }
+  const KIND_LABEL: Record<string, string> = { staly: "stálý klient", lekce: "lekce", rezervace: "rezervace" };
 
   async function toggle(date: Date, time: string) {
     const key = `${dateKey(date)}-${time}`;
@@ -219,9 +220,9 @@ export function WeekCalendar({
                     return (
                       <td key={cellKey}>
                         <div
-                          title={`${taken.name} (${taken.kind})`}
+                          title={`${taken.name} (${KIND_LABEL[taken.kind]})`}
                           className={`h-9 min-w-[64px] rounded-md text-[10px] font-semibold text-white flex items-center justify-center px-1 truncate ${
-                            taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
+                            taken.kind === "staly" ? "bg-teal-600" : taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
                           }`}
                         >
                           {taken.name}
@@ -267,8 +268,9 @@ export function WeekCalendar({
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> volno</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-blue inline-block" /> rezervace</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-600 inline-block" /> moje lekce</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-600 inline-block" /> stálý klient</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-600 inline-block" /> jednorázová lekce</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-blue inline-block" /> rezervace z webu</span>
         <span className="flex items-center gap-1.5"><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">×</span> výjimka jen pro tento den</span>
       </div>
 
@@ -291,7 +293,7 @@ export function WeekCalendar({
                     <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
                   ) : (
                     <>
-                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
+                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">jednorázová lekce</span>
                       <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
                     </>
                   )}

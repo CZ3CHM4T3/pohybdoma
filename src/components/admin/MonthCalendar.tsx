@@ -308,7 +308,7 @@ export function MonthCalendar({
                     <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
                   ) : (
                     <>
-                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
+                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">jednorázová lekce</span>
                       <button
                         type="button"
                         onClick={() => onDeleteLesson(l.id)}
