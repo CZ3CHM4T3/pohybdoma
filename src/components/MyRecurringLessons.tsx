@@ -43,7 +43,8 @@ export function MyRecurringLessons() {
 
     const built: Occ[] = [];
     for (const r of list) {
-      for (const d of upcoming(r.weekday, 28)) {
+      // ~4 měsíce dopředu, ať se dá omluvit i dovolená v předstihu
+      for (const d of upcoming(r.weekday, 120)) {
         built.push({ recId: r.id, date: dateKey(d), time: r.time, label: r.note || r.client_name || "Lekce" });
       }
     }
@@ -77,8 +78,23 @@ export function MyRecurringLessons() {
         <span className="text-xs text-gray-500">Omluvit se jde nejpozději 24 h předem. Pak lekce propadá.</span>
       </div>
 
-      <div className="space-y-2">
-        {occs.map((o) => {
+      {(() => {
+        const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
+        const groups = new Map<string, Occ[]>();
+        for (const o of occs) {
+          const mk = o.date.slice(0, 7);
+          if (!groups.has(mk)) groups.set(mk, []);
+          groups.get(mk)!.push(o);
+        }
+        return [...groups.entries()].map(([mk, items]) => {
+          const md = new Date(mk + "-01T00:00:00");
+          return (
+            <div key={mk} className="mb-4">
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 capitalize">
+                {MONTHS[md.getMonth()]} {md.getFullYear()}
+              </p>
+              <div className="space-y-2">
+                {items.map((o) => {
           const key = `${o.recId}|${o.date}`;
           const isCancelled = cancelled.has(key);
           const dt = new Date(o.date + "T" + o.time + ":00");
@@ -108,8 +124,12 @@ export function MyRecurringLessons() {
               </span>
             </div>
           );
-        })}
-      </div>
+                })}
+              </div>
+            </div>
+          );
+        });
+      })()}
     </div>
   );
 }
