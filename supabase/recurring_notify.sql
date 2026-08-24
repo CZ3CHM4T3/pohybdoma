@@ -56,6 +56,7 @@ begin
         body := jsonb_build_object(
           'from', 'POHYB DOMA <noreply@pohybdoma.cz>',
           'to', cli_email,
+          'reply_to', 'schroffelh@seznam.cz',
           'subject', 'Omluva přijata – ' || datum,
           'html',
             '<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B">' ||

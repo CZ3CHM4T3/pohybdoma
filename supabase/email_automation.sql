@@ -26,6 +26,7 @@ begin
     body := jsonb_build_object(
       'from', 'POHYB DOMA <noreply@pohybdoma.cz>',
       'to', p_to,
+      'reply_to', 'schroffelh@seznam.cz',
       'subject', p_subject,
       'html', p_html
     )
