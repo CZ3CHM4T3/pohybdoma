@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2 } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -34,8 +34,17 @@ const ADMIN_TABS = [
   { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
   { k: "pruvodce", label: "Průvodce", Icon: Compass, active: "bg-fuchsia-600 text-white", icon: "text-fuchsia-500" },
   { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
+  { k: "produkty", label: "Produkty", Icon: Package, active: "bg-slate-700 text-white", icon: "text-slate-500" },
   { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
 ];
+// Barvy dlaždic produktů (klíč → třídy pozadí/ikony)
+const PRODUCT_ACCENTS: Record<string, { bg: string; icon: string }> = {
+  blue: { bg: "bg-blue-50", icon: "text-blue-600" },
+  violet: { bg: "bg-violet-50", icon: "text-violet-600" },
+  amber: { bg: "bg-amber-50", icon: "text-amber-600" },
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600" },
+  rose: { bg: "bg-rose-50", icon: "text-rose-600" },
+};
 // Stavy rezervace (životní cyklus)
 const BOOKING_STATUS: Record<string, { label: string; cls: string }> = {
   pending: { label: "Čeká na potvrzení", cls: "bg-amber-100 text-amber-700" },
@@ -153,6 +162,17 @@ type ReviewRow = {
   position: number | null;
   created_at: string;
 };
+type ProductRow = {
+  id: string;
+  slug: string | null;
+  name: string;
+  tagline: string;
+  description: string;
+  price: string;
+  accent: string;
+  published: boolean;
+  position: number;
+};
 
 export default function AdminPage() {
   const supabase = createClient();
@@ -235,6 +255,18 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [tab, setTab] = useState<string>("videa");
+
+  // Produkty (editace dlaždic na /produkty)
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [prEditId, setPrEditId] = useState<string | null>(null);
+  const [prName, setPrName] = useState("");
+  const [prSlug, setPrSlug] = useState("");
+  const [prTagline, setPrTagline] = useState("");
+  const [prDesc, setPrDesc] = useState("");
+  const [prPrice, setPrPrice] = useState("");
+  const [prAccent, setPrAccent] = useState("blue");
+  const [prPosition, setPrPosition] = useState("0");
+  const [prPublished, setPrPublished] = useState(false);
 
   // Formulář nového videa
   const [viTitle, setViTitle] = useState("");
@@ -342,6 +374,10 @@ export default function AdminPage() {
     });
     supabase.from("clients").select("id, name, email, note").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
+    });
+    // Produkty – samostatně, ať admin funguje i bez tabulky products
+    supabase.from("products").select("*").order("position").then(({ data }) => {
+      if (data) setProducts(data as ProductRow[]);
     });
 
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
@@ -768,6 +804,53 @@ export default function AdminPage() {
     if (error) setError("Uložení pořadí selhalo. Spustil jsi reviews_order.sql?");
   }
 
+  // ── Produkty ──
+  function resetProductForm() {
+    setPrEditId(null); setPrName(""); setPrSlug(""); setPrTagline("");
+    setPrDesc(""); setPrPrice(""); setPrAccent("blue"); setPrPosition("0"); setPrPublished(false);
+  }
+  function editProduct(p: ProductRow) {
+    setPrEditId(p.id);
+    setPrName(p.name); setPrSlug(p.slug ?? ""); setPrTagline(p.tagline);
+    setPrDesc(p.description); setPrPrice(p.price); setPrAccent(p.accent);
+    setPrPosition(String(p.position)); setPrPublished(p.published);
+  }
+  async function saveProduct(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!prName.trim()) return;
+    const payload = {
+      name: prName.trim(),
+      slug: prSlug.trim() || null,
+      tagline: prTagline.trim(),
+      description: prDesc.trim(),
+      price: prPrice.trim(),
+      accent: prAccent,
+      position: Number(prPosition) || 0,
+      published: prPublished,
+    };
+    const { error } = prEditId
+      ? await supabase.from("products").update(payload).eq("id", prEditId)
+      : await supabase.from("products").insert(payload);
+    if (error) { setError("Produkt se nepodařilo uložit (spustil jsi products.sql?): " + error.message); return; }
+    resetProductForm();
+    const { data } = await supabase.from("products").select("*").order("position");
+    if (data) setProducts(data as ProductRow[]);
+  }
+  async function deleteProduct(id: string) {
+    setError(null);
+    const { error } = await supabase.from("products").delete().eq("id", id);
+    if (error) { setError("Smazání produktu selhalo: " + error.message); return; }
+    setProducts((prev) => prev.filter((x) => x.id !== id));
+    if (prEditId === id) resetProductForm();
+  }
+  async function toggleProductPublished(id: string, published: boolean) {
+    setError(null);
+    const { error } = await supabase.from("products").update({ published: !published }).eq("id", id);
+    if (error) { setError("Změna zveřejnění selhala: " + error.message); return; }
+    setProducts((prev) => prev.map((x) => (x.id === id ? { ...x, published: !published } : x)));
+  }
+
   // ── Videa ──
   async function addVideo(e: React.FormEvent) {
     e.preventDefault();
@@ -946,15 +1029,7 @@ export default function AdminPage() {
         <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">
           Administrace
         </p>
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-semibold text-brand-dark">Správa</h1>
-          <Link
-            href="/produkty"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-dark px-3 py-2 text-sm font-semibold text-brand-dark hover:bg-brand-dark hover:text-white transition-colors"
-          >
-            Produkty →
-          </Link>
-        </div>
+        <h1 className="text-3xl font-semibold text-brand-dark mb-8">Správa</h1>
 
         {error && (
           <p className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -2090,6 +2165,91 @@ export default function AdminPage() {
             </div>
             <div className="sm:col-span-2">
               <button type="submit" className="btn-primary text-sm">Přidat recenzi</button>
+            </div>
+          </form>
+        </section>
+        )}
+
+        {tab === "produkty" && (
+        <section className="card p-6 mt-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+            <h2 className="text-lg font-semibold text-brand-dark">
+              Produkty <span className="text-gray-400 font-normal">({products.length})</span>
+            </h2>
+            <Link href="/produkty" className="text-xs font-semibold text-brand-blue hover:underline">
+              Otevřít stránku /produkty →
+            </Link>
+          </div>
+          <p className="text-sm text-gray-500 mb-5">
+            Tady upravíš dlaždice na stránce Produkty. Zveřejní se jen produkty se zapnutým „Zveřejnit". Menší pořadí = dřív. Pole „Slug" vyplň jen u produktu s vlastní detailní stránkou (např. <code className="text-xs">pohybovy-audit</code>).
+          </p>
+
+          {products.length > 0 && (
+            <div className="space-y-2 mb-6">
+              {products.map((p) => {
+                const tone = PRODUCT_ACCENTS[p.accent] ?? PRODUCT_ACCENTS.blue;
+                return (
+                  <div key={p.id} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
+                    <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone.bg} ${tone.icon}`}>
+                      <Package className="h-4 w-4" strokeWidth={2} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-brand-dark">
+                        {p.name}
+                        {p.price ? <span className="ml-2 text-xs font-medium text-gray-500">{p.price}</span> : null}
+                        {!p.published && (
+                          <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">skryté</span>
+                        )}
+                        <span className="ml-2 text-[11px] text-gray-300">#{p.position}</span>
+                      </p>
+                      {p.tagline && <p className="text-xs font-medium text-brand-blue">{p.tagline}</p>}
+                      {p.description && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{p.description}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button type="button" onClick={() => editProduct(p)} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">Upravit</button>
+                      <button type="button" onClick={() => toggleProductPublished(p.id, p.published)} className={`text-xs font-semibold ${p.published ? "text-gray-400 hover:text-gray-600" : "text-emerald-600 hover:text-emerald-700"}`}>
+                        {p.published ? "Skrýt" : "Zveřejnit"}
+                      </button>
+                      <button type="button" onClick={() => deleteProduct(p.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <form onSubmit={saveProduct} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-gray-100 pt-5">
+            <p className="sm:col-span-2 text-sm font-semibold text-brand-dark">
+              {prEditId ? "Upravit produkt" : "Přidat produkt"}
+            </p>
+            <AdminInput label="Název *" value={prName} onChange={setPrName} placeholder="Pohybový audit" required />
+            <AdminInput label="Cena (volný text)" value={prPrice} onChange={setPrPrice} placeholder="od 2 900 Kč – prázdné = Brzy" />
+            <AdminInput label="Podtitulek" value={prTagline} onChange={setPrTagline} placeholder="Najdi příčinu, ne jen symptom" />
+            <AdminInput label="Slug detailu (nepovinné)" value={prSlug} onChange={setPrSlug} placeholder="pohybovy-audit" />
+            <div>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Barva dlaždice</label>
+              <select value={prAccent} onChange={(e) => setPrAccent(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white">
+                <option value="blue">Modrá</option>
+                <option value="violet">Fialová</option>
+                <option value="amber">Oranžová</option>
+                <option value="emerald">Zelená</option>
+                <option value="rose">Růžová</option>
+              </select>
+            </div>
+            <AdminInput label="Pořadí (menší = dřív)" type="number" value={prPosition} onChange={setPrPosition} placeholder="0" />
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-brand-dark mb-1">Popis</label>
+              <textarea value={prDesc} onChange={(e) => setPrDesc(e.target.value)} rows={3} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none" placeholder="Komplexní pohybová diagnostika, osobní plán…" />
+            </div>
+            <label className="sm:col-span-2 inline-flex items-center gap-2 text-sm text-brand-dark">
+              <input type="checkbox" checked={prPublished} onChange={(e) => setPrPublished(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-blue" />
+              Zveřejnit na stránce /produkty
+            </label>
+            <div className="sm:col-span-2 flex items-center gap-3">
+              <button type="submit" className="btn-primary text-sm">{prEditId ? "Uložit změny" : "Přidat produkt"}</button>
+              {prEditId && (
+                <button type="button" onClick={resetProductForm} className="text-sm font-semibold text-gray-400 hover:text-gray-600">Zrušit úpravu</button>
+              )}
             </div>
           </form>
         </section>
