@@ -93,16 +93,16 @@ export function WeekCalendar({
     const w = weeklyStatus(date.getDay(), time);
     return { status: w ?? "booked", overridden: false };
   }
-  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "rezervace"; time: string } | null {
+  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "blok" | "rezervace"; time: string } | null {
     const key = dateKey(date);
     const hh = time.slice(0, 2); // řádek = celá hodina; napasujeme i lekce v tuto hodinu (8:15 → řádek 8:00)
     const l = lessons.find((x) => x.date === key && x.time.slice(0, 2) === hh);
-    if (l) return { name: l.client_name || "Lekce", kind: l.recurring ? "staly" : "lekce", time: l.time };
+    if (l) return { name: l.client_name || "Lekce", kind: l.block ? "blok" : l.recurring ? "staly" : "lekce", time: l.time };
     const b = bookings.find((x) => x.date === key && x.time.slice(0, 2) === hh);
     if (b) return { name: b.contact_name, kind: "rezervace", time: b.time };
     return null;
   }
-  const KIND_LABEL: Record<string, string> = { staly: "stálý klient", lekce: "lekce", rezervace: "rezervace" };
+  const KIND_LABEL: Record<string, string> = { staly: "stálý klient", lekce: "lekce", blok: "blok", rezervace: "rezervace" };
 
   async function toggle(date: Date, time: string) {
     const key = `${dateKey(date)}-${time}`;
@@ -223,7 +223,7 @@ export function WeekCalendar({
                         <div
                           title={`${taken.time} ${taken.name} (${KIND_LABEL[taken.kind]})`}
                           className={`h-9 min-w-[64px] rounded-md text-[10px] font-semibold text-white flex flex-col items-center justify-center px-1 leading-tight ${
-                            taken.kind === "staly" ? "bg-teal-600" : taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
+                            taken.kind === "blok" ? "bg-slate-500" : taken.kind === "staly" ? "bg-teal-600" : taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
                           }`}
                         >
                           {taken.time !== time && <span className="text-[9px] font-bold opacity-90">{taken.time}</span>}
@@ -272,6 +272,7 @@ export function WeekCalendar({
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> volno</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-600 inline-block" /> stálý klient</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-600 inline-block" /> jednorázová lekce</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-500 inline-block" /> blok (MS GEM…)</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-blue inline-block" /> rezervace z webu</span>
         <span className="flex items-center gap-1.5"><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">×</span> výjimka jen pro tento den</span>
       </div>
@@ -286,12 +287,14 @@ export function WeekCalendar({
           {(lessonsForDay(selectedDay).length > 0 || bookingsForDay(selectedDay).length > 0) ? (
             <div className="space-y-1.5 mb-4">
               {lessonsForDay(selectedDay).map((l) => (
-                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
-                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
+                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.block ? "bg-slate-50" : l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
+                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.block ? "bg-slate-500" : l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
                   <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
                   {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
                   {l.price_kc != null && <span className={`font-semibold ${l.recurring ? "text-teal-700" : "text-violet-700"}`}>· {l.price_kc} Kč</span>}
-                  {l.recurring ? (
+                  {l.block ? (
+                    <span className="ml-auto rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">blok</span>
+                  ) : l.recurring ? (
                     <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
                   ) : (
                     <>

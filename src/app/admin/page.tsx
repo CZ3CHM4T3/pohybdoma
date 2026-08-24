@@ -154,6 +154,7 @@ type LessonRow = {
   note: string | null;
   price_kc: number | null;
   recurring?: boolean;
+  block?: boolean; // pravidelný blok (MS GEM, kroužek…) – jen blokuje kalendář, nefakturuje se
 };
 type RecurringRow = {
   id: string;
@@ -165,6 +166,7 @@ type RecurringRow = {
   active: boolean;
 };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
+type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; note: string | null; active: boolean };
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -206,6 +208,12 @@ export default function AdminPage() {
   const [recWeekday, setRecWeekday] = useState("1");
   const [recTime, setRecTime] = useState("15:00");
   const [recPrice, setRecPrice] = useState("1000");
+  // Pravidelné bloky (MS GEM, kroužky…)
+  const [blocks, setBlocks] = useState<BlockRow[]>([]);
+  const [blkWeekday, setBlkWeekday] = useState("1");
+  const [blkStart, setBlkStart] = useState("14:00");
+  const [blkEnd, setBlkEnd] = useState("18:00");
+  const [blkLabel, setBlkLabel] = useState("");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -384,6 +392,9 @@ export default function AdminPage() {
     });
     supabase.from("recurring_cancellations").select("recurring_id, date").then(({ data }) => {
       if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+    });
+    supabase.from("recurring_blocks").select("*").order("weekday").order("start_time").then(({ data }) => {
+      if (data) setBlocks(data as BlockRow[]);
     });
     supabase.from("clients").select("id, name, email, note, bill_group").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
@@ -653,6 +664,28 @@ export default function AdminPage() {
     const { error } = await supabase.from("recurring_lessons").delete().eq("id", id);
     if (error) { setError("Smazání selhalo: " + error.message); return; }
     setRecurring((prev) => prev.filter((x) => x.id !== id));
+  }
+  // ── Pravidelné bloky (MS GEM, kroužky…) ──
+  async function addBlock() {
+    if (!blkLabel.trim()) { setError("Zadej název bloku (např. MS GEM – tenisová akademie)."); return; }
+    if (blkEnd <= blkStart) { setError("Konec bloku musí být později než začátek."); return; }
+    setError(null);
+    const { error } = await supabase.from("recurring_blocks").insert({
+      weekday: Number(blkWeekday),
+      start_time: blkStart,
+      end_time: blkEnd,
+      label: blkLabel.trim(),
+    });
+    if (error) { setError("Uložení bloku selhalo (spustil jsi recurring_blocks.sql?): " + error.message); return; }
+    setBlkLabel("");
+    const { data } = await supabase.from("recurring_blocks").select("*").order("weekday").order("start_time");
+    if (data) setBlocks(data as BlockRow[]);
+  }
+  async function deleteBlock(id: string) {
+    setError(null);
+    const { error } = await supabase.from("recurring_blocks").delete().eq("id", id);
+    if (error) { setError("Smazání bloku selhalo: " + error.message); return; }
+    setBlocks((prev) => prev.filter((x) => x.id !== id));
   }
   // Pravidelná lekce založená přímo z kalendáře (den → weekday). Propojí účet klienta, pokud sedí e-mail.
   async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null) {
@@ -1090,7 +1123,36 @@ export default function AdminPage() {
       }
     }
   }
-  const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows];
+  // Pravidelné bloky (MS GEM, kroužky…) → rozpad na celé hodiny výskytu (jen pro kalendář, nefakturuje se)
+  const blockRows: LessonRow[] = [];
+  {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7 * 78; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      const wd = d.getDay();
+      const key = d.toLocaleDateString("sv-SE");
+      for (const b of blocks) {
+        if (!b.active || b.weekday !== wd) continue;
+        const sh = parseInt(b.start_time.slice(0, 2), 10);
+        const em = parseInt(b.end_time.slice(3, 5), 10);
+        const eh = parseInt(b.end_time.slice(0, 2), 10) - (em === 0 ? 1 : 0);
+        for (let h = sh; h <= eh; h++) {
+          blockRows.push({
+            id: `blk:${b.id}:${key}:${h}`,
+            date: key,
+            time: `${String(h).padStart(2, "0")}:00`,
+            client_name: b.label,
+            note: null,
+            price_kc: null,
+            block: true,
+          });
+        }
+      }
+    }
+  }
+  const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows, ...blockRows];
 
   // ── Admin obsah ──
   return (
@@ -1492,6 +1554,51 @@ export default function AdminPage() {
             </div>
             <button type="button" onClick={addRecurring} disabled={!recClient} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
               Přidat lekci
+            </button>
+          </div>
+        </section>
+
+        {/* ── Pravidelné bloky (MS GEM, kroužky, akademie…) ── */}
+        <section className="card p-6 mb-8">
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Pravidelné bloky (MS GEM, kroužky, akademie…)</h2>
+          <p className="text-sm text-gray-500 mb-5">
+            Vyblokuj pravidelně obsazený čas (den + od–do), např. MS GEM, kruhový trénink, příprava tenistů, kroužek. Zablokuje kalendář (nikdo si tam nezarezervuje) a zobrazí se <span className="font-semibold text-slate-600">šedě jako blok</span>. Do faktur klientů se nepočítá – peníze si zapisuješ ve Faktury → Příjmy odjinud. <span className="text-gray-400">(Spusť recurring_blocks.sql.)</span>
+          </p>
+
+          {blocks.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {blocks.map((b) => (
+                <div key={b.id} className="flex items-center gap-2 rounded-lg border border-gray-100 p-3 text-sm">
+                  <span className="rounded bg-slate-600 px-2 py-0.5 font-bold text-white">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][b.weekday]}</span>
+                  <span className="font-medium text-gray-500">{b.start_time}–{b.end_time}</span>
+                  <span className="font-semibold text-brand-dark truncate">{b.label}</span>
+                  <button type="button" onClick={() => deleteBlock(b.id)} className="ml-auto shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
+              <select value={blkWeekday} onChange={(e) => setBlkWeekday(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                <option value="1">Po</option><option value="2">Út</option><option value="3">St</option><option value="4">Čt</option><option value="5">Pá</option><option value="6">So</option><option value="0">Ne</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-0.5">Od</label>
+              <input type="time" value={blkStart} onChange={(e) => setBlkStart(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-0.5">Do</label>
+              <input type="time" value={blkEnd} onChange={(e) => setBlkEnd(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
+              <input value={blkLabel} onChange={(e) => setBlkLabel(e.target.value)} placeholder="MS GEM – tenisová akademie" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <button type="button" onClick={addBlock} disabled={!blkLabel.trim()} className="rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+              Přidat blok
             </button>
           </div>
         </section>

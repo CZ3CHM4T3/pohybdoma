@@ -37,6 +37,7 @@ export type LessonRow = {
   note: string | null;
   price_kc: number | null;
   recurring?: boolean; // true = odvozený výskyt stálého klienta (nemazat jednotlivě)
+  block?: boolean; // true = pravidelný blok (MS GEM, kroužek…)
 };
 
 function startOfDay(d: Date): Date {
@@ -232,7 +233,7 @@ export function MonthCalendar({
           const freeCount = inMonth ? dayFreeCount(d) : 0;
           const eventDay = inMonth && eventsFor(d).length > 0;
           const dayBookings = inMonth ? bookingsFor(d).length : 0;
-          const dayLessons = inMonth ? lessonsFor(d).length : 0;
+          const dayLessons = inMonth ? lessonsFor(d).filter((l) => !l.block).length : 0;
           const taken = dayBookings + dayLessons;
           const clickable = inMonth;
           const isSelected = selectedDate && sameDay(d, selectedDate);
@@ -299,12 +300,14 @@ export function MonthCalendar({
           {(lessonsFor(selectedDate).length > 0 || bookingsFor(selectedDate).length > 0) ? (
             <div className="space-y-1.5 mb-4">
               {lessonsFor(selectedDate).map((l) => (
-                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
-                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
+                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.block ? "bg-slate-50" : l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
+                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.block ? "bg-slate-500" : l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
                   <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
                   {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
                   {l.price_kc != null && <span className={`font-semibold ${l.recurring ? "text-teal-700" : "text-violet-700"}`}>· {l.price_kc} Kč</span>}
-                  {l.recurring ? (
+                  {l.block ? (
+                    <span className="ml-auto rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">blok</span>
+                  ) : l.recurring ? (
                     <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
                   ) : (
                     <>
