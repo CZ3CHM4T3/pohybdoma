@@ -1154,6 +1154,22 @@ export default function AdminPage() {
   }
   const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows, ...blockRows];
 
+  // Odtrénované hodiny (každá lekce/blok-hodina = 1 h) – tento týden a tento měsíc, do dneška včetně
+  const hoursTodayKey = new Date().toLocaleDateString("sv-SE");
+  const hoursNow = new Date(); hoursNow.setHours(0, 0, 0, 0);
+  const hoursMonday = new Date(hoursNow); hoursMonday.setDate(hoursNow.getDate() - ((hoursNow.getDay() + 6) % 7));
+  const hoursSunday = new Date(hoursMonday); hoursSunday.setDate(hoursMonday.getDate() + 6);
+  const wkStartKey = hoursMonday.toLocaleDateString("sv-SE");
+  const wkEndKey = hoursSunday.toLocaleDateString("sv-SE");
+  const monthPrefix = hoursTodayKey.slice(0, 7);
+  function trainedHours(fromKey: string, toKey: string): number {
+    let h = allLessons.filter((l) => l.date >= fromKey && l.date <= toKey && l.date <= hoursTodayKey).length;
+    h += bookings.filter((b) => (b.status === "completed" || b.status === "no_show") && b.date >= fromKey && b.date <= toKey).length;
+    return h;
+  }
+  const weekHours = trainedHours(wkStartKey, wkEndKey);
+  const monthHours = trainedHours(`${monthPrefix}-01`, `${monthPrefix}-31`);
+
   // ── Admin obsah ──
   return (
     <div className="bg-brand-light min-h-screen py-12">
@@ -1378,6 +1394,17 @@ export default function AdminPage() {
 
         {tab === "dnes" && (
         <>
+        {/* ── Odtrénované hodiny ── */}
+        <div className="mb-6 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Odtrénováno tento týden</p>
+            <p className="text-2xl font-bold text-brand-dark">{weekHours} h</p>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Odtrénováno tento měsíc</p>
+            <p className="text-2xl font-bold text-brand-dark">{monthHours} h</p>
+          </div>
+        </div>
         {/* ── Agenda: Co mě čeká ── */}
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Co mě čeká</h2>
