@@ -946,7 +946,15 @@ export default function AdminPage() {
         <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">
           Administrace
         </p>
-        <h1 className="text-3xl font-semibold text-brand-dark mb-8">Správa</h1>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold text-brand-dark">Správa</h1>
+          <Link
+            href="/produkty"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-dark px-3 py-2 text-sm font-semibold text-brand-dark hover:bg-brand-dark hover:text-white transition-colors"
+          >
+            Produkty →
+          </Link>
+        </div>
 
         {error && (
           <p className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
