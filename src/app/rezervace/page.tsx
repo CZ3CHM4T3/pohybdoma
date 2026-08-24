@@ -123,6 +123,11 @@ export default function RezervacePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // Fakturační údaje
+  const [billName, setBillName] = useState("");
+  const [billAddress, setBillAddress] = useState("");
+  const [billIco, setBillIco] = useState("");
+  const [billDic, setBillDic] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [isVipPlus, setIsVipPlus] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -179,7 +184,7 @@ export default function RezervacePage() {
       setEmail((e) => e || user.email || "");
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, tier")
+        .select("full_name, tier, bill_name, bill_address, bill_ico, bill_dic")
         .eq("id", user.id)
         .maybeSingle();
       const fullName =
@@ -187,6 +192,13 @@ export default function RezervacePage() {
         (user.user_metadata?.full_name as string | undefined) ||
         "";
       if (fullName) setName((n) => n || fullName);
+      // Předvyplnění fakturačních údajů z profilu (jednou zadané se pamatuje)
+      const p = profile as { bill_name?: string; bill_address?: string; bill_ico?: string; bill_dic?: string } | null;
+      if (p?.bill_name) setBillName((v) => v || p.bill_name!);
+      else if (fullName) setBillName((v) => v || fullName);
+      if (p?.bill_address) setBillAddress((v) => v || p.bill_address!);
+      if (p?.bill_ico) setBillIco((v) => v || p.bill_ico!);
+      if (p?.bill_dic) setBillDic((v) => v || p.bill_dic!);
       setIsVipPlus(normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS");
     });
   }, []);
@@ -272,6 +284,8 @@ export default function RezervacePage() {
     reason.trim().length > 0 &&
     name.trim().length > 0 &&
     email.trim().length > 0 &&
+    billName.trim().length > 0 &&
+    billAddress.trim().length > 0 &&
     (!isInPerson || (municipality !== "" && municipality !== OTHER && address.trim().length > 0));
 
   function resetDateTime() {
@@ -307,6 +321,10 @@ export default function RezervacePage() {
       contact_name: name,
       contact_email: email,
       contact_phone: phone || null,
+      bill_name: billName.trim(),
+      bill_address: billAddress.trim(),
+      bill_ico: billIco.trim() || null,
+      bill_dic: billDic.trim() || null,
       price_kc: price,
       status: "pending",
     });
@@ -315,6 +333,15 @@ export default function RezervacePage() {
     if (error) {
       setSaveError("Rezervaci se nepodařilo odeslat. Zkus to prosím znovu.");
       return;
+    }
+    // Zapamatuj fakturační údaje do profilu přihlášeného klienta (pro příště)
+    if (userId) {
+      supabase.from("profiles").update({
+        bill_name: billName.trim(),
+        bill_address: billAddress.trim(),
+        bill_ico: billIco.trim() || null,
+        bill_dic: billDic.trim() || null,
+      }).eq("id", userId).then(() => { /* tiché – neblokuje potvrzení */ });
     }
     setSubmitted(true);
     try { sessionStorage.removeItem("pd_booking_sel"); } catch { /* ignore */ }
@@ -861,6 +888,41 @@ export default function RezervacePage() {
                   <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="phone">Telefon</label>
                   <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
+                </div>
+              </div>
+
+              {/* Fakturační údaje */}
+              <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-brand-dark mb-1">Fakturační údaje</p>
+                <p className="text-xs text-gray-500 mb-4">
+                  Z těchto údajů vystavím fakturu. Fyzická osoba vyplní jméno a adresu; firma navíc IČO (a DIČ).
+                  {userId ? " Uloží se ti do účtu, příště je mít předvyplněné." : ""}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billName">Jméno / název na faktuře *</label>
+                    <input id="billName" type="text" value={billName} onChange={(e) => setBillName(e.target.value)} required
+                      placeholder="Jan Novák / Firma s.r.o."
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billAddress">Fakturační adresa *</label>
+                    <textarea id="billAddress" value={billAddress} onChange={(e) => setBillAddress(e.target.value)} required rows={2}
+                      placeholder="Ulice a číslo, PSČ, město"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billIco">IČO <span className="font-normal text-gray-400">(firmy)</span></label>
+                    <input id="billIco" type="text" inputMode="numeric" value={billIco} onChange={(e) => setBillIco(e.target.value)}
+                      placeholder="např. 04531817"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billDic">DIČ <span className="font-normal text-gray-400">(nepovinné)</span></label>
+                    <input id="billDic" type="text" value={billDic} onChange={(e) => setBillDic(e.target.value)}
+                      placeholder="CZ…"
+                      className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
+                  </div>
                 </div>
               </div>
 

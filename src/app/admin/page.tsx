@@ -130,6 +130,10 @@ type Booking = {
   contact_name: string;
   contact_email: string;
   contact_phone: string | null;
+  bill_name: string | null;
+  bill_address: string | null;
+  bill_ico: string | null;
+  bill_dic: string | null;
   price_kc: number;
   status: string;
   created_at: string;
@@ -1750,6 +1754,14 @@ export default function AdminPage() {
                     )}
                     {b.reason && (
                       <span className="sm:col-span-2 text-gray-500">„{b.reason}"</span>
+                    )}
+                    {(b.bill_name || b.bill_address || b.bill_ico) && (
+                      <span className="sm:col-span-2 mt-1 rounded-md bg-gray-50 px-2 py-1.5 text-[11px] text-gray-600">
+                        🧾 <strong>Fakturace:</strong> {b.bill_name}
+                        {b.bill_address ? ` · ${b.bill_address.replace(/\s+/g, " ")}` : ""}
+                        {b.bill_ico ? ` · IČO ${b.bill_ico}` : ""}
+                        {b.bill_dic ? ` · DIČ ${b.bill_dic}` : ""}
+                      </span>
                     )}
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">

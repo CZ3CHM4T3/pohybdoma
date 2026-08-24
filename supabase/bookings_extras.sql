@@ -65,6 +65,12 @@ begin
         '<tr><td><strong>Telefon:</strong></td><td>' || coalesce(new.contact_phone, '—') || '</td></tr>' ||
         '<tr><td><strong>Cena:</strong></td><td>' || new.price_kc || ' Kč</td></tr>' ||
         '<tr><td valign="top"><strong>Důvod:</strong></td><td>' || coalesce(new.reason, '—') || '</td></tr>' ||
+        '<tr><td valign="top"><strong>Fakturace:</strong></td><td>' ||
+          coalesce(new.bill_name, '—') ||
+          case when new.bill_address is not null then '<br>' || replace(new.bill_address, chr(10), '<br>') else '' end ||
+          case when new.bill_ico is not null then '<br>IČO: ' || new.bill_ico else '' end ||
+          case when new.bill_dic is not null then '<br>DIČ: ' || new.bill_dic else '' end ||
+        '</td></tr>' ||
         '</table></div>'
     )
   );
