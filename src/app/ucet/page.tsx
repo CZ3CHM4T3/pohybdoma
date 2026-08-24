@@ -24,6 +24,7 @@ import { PersonalCalendar } from "@/components/PersonalCalendar";
 import { NovinkyFeed } from "@/components/NovinkyFeed";
 import { Leaderboard } from "@/components/Leaderboard";
 import { MyRecurringLessons } from "@/components/MyRecurringLessons";
+import { MyMakeupOffers } from "@/components/MyMakeupOffers";
 import type { UserTier, AccessLevel } from "@/types";
 
 type Tab = "prihlaseni" | "registrace";
@@ -504,6 +505,7 @@ export default function UcetPage() {
           </div>
 
           {/* Moje pravidelné lekce (stálí klienti) – omluva 24 h předem */}
+          <MyMakeupOffers />
           <MyRecurringLessons />
 
           {/* Můj kalendář – osobní poznámky a události */}
