@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -36,6 +36,14 @@ const ADMIN_TABS = [
   { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
   { k: "produkty", label: "Produkty", Icon: Package, active: "bg-slate-700 text-white", icon: "text-slate-500" },
   { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
+];
+// Hlavní skupiny (2. úroveň = podzáložky). Denní provoz první.
+const ADMIN_GROUPS = [
+  { k: "dnes", label: "Dnešek", Icon: LayoutDashboard, active: "bg-brand-dark text-white", icon: "text-gray-500", tabs: ["dnes"] },
+  { k: "provoz", label: "Provoz", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500", tabs: ["rozvrh", "rezervace"] },
+  { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika"] },
+  { k: "obsah", label: "Obsah", Icon: Film, active: "bg-violet-600 text-white", icon: "text-violet-500", tabs: ["videa", "live", "vyzva", "blog", "produkty"] },
+  { k: "lide", label: "Lidé", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500", tabs: ["clenove", "recenze", "newsletter", "pruvodce"] },
 ];
 // Barvy dlaždic produktů (klíč → třídy pozadí/ikony)
 const PRODUCT_ACCENTS: Record<string, { bg: string; icon: string }> = {
@@ -259,7 +267,7 @@ export default function AdminPage() {
   const [extAmount, setExtAmount] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
-  const [tab, setTab] = useState<string>("videa");
+  const [tab, setTab] = useState<string>("dnes");
 
   // Produkty (editace dlaždic na /produkty)
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -1070,22 +1078,49 @@ export default function AdminPage() {
           </p>
         )}
 
-        {/* Záložky */}
-        <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm sticky top-2 z-10">
-          {ADMIN_TABS.map((t) => (
-            <button
-              key={t.k}
-              type="button"
-              onClick={() => setTab(t.k)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                tab === t.k ? t.active : "text-gray-500 hover:bg-gray-50"
-              }`}
-            >
-              <t.Icon className={`h-4 w-4 ${tab === t.k ? "" : t.icon}`} strokeWidth={2} />
-              {t.label}
-            </button>
-          ))}
+        {/* Záložky – 1. úroveň: hlavní skupiny */}
+        <div className="mb-2 flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm sticky top-2 z-10">
+          {ADMIN_GROUPS.map((g) => {
+            const activeG = g.tabs.includes(tab);
+            return (
+              <button
+                key={g.k}
+                type="button"
+                onClick={() => setTab(g.tabs[0])}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  activeG ? g.active : "text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                <g.Icon className={`h-4 w-4 ${activeG ? "" : g.icon}`} strokeWidth={2} />
+                {g.label}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Záložky – 2. úroveň: podzáložky aktivní skupiny */}
+        {(() => {
+          const g = ADMIN_GROUPS.find((x) => x.tabs.includes(tab));
+          if (!g || g.tabs.length <= 1) return <div className="mb-6" />;
+          const subs = ADMIN_TABS.filter((t) => g.tabs.includes(t.k));
+          return (
+            <div className="mb-6 flex flex-wrap gap-1 pl-1">
+              {subs.map((t) => (
+                <button
+                  key={t.k}
+                  type="button"
+                  onClick={() => setTab(t.k)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                    tab === t.k ? t.active : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  <t.Icon className={`h-4 w-4 ${tab === t.k ? "" : t.icon}`} strokeWidth={2} />
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
         {tab === "videa" && (
         <section className="card p-6 mb-8">
@@ -1245,21 +1280,27 @@ export default function AdminPage() {
         </section>
         )}
 
-        {tab === "rozvrh" && (
+        {tab === "dnes" && (
         <>
+        {/* ── Rychlé zkratky ── */}
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setTab("rozvrh")} className="rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white hover:opacity-90">+ Přidat lekci</button>
+          <button type="button" onClick={() => setTab("rezervace")} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Rezervace</button>
+          <button type="button" onClick={() => setTab("faktury")} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Faktury</button>
+        </div>
         {/* ── Agenda: Co mě čeká ── */}
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Co mě čeká</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Tvoje lekce a rezervace klientů dopředu, den po dni.
+            Tvoje lekce a rezervace klientů dopředu, den po dni. U rezervací můžeš rovnou potvrdit / označit proběhlé / zrušit.
           </p>
           {(() => {
             const todayKey = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD lokálně
-            type AgendaItem = { date: string; time: string; who: string; what: string; kind: "lekce" | "rezervace" | "staly" };
+            type AgendaItem = { date: string; time: string; who: string; what: string; kind: "lekce" | "rezervace" | "staly"; bookingId?: string; status?: string };
             const items: AgendaItem[] = [
               ...lessons.map((l) => ({ date: l.date, time: l.time, who: l.client_name || "Lekce", what: l.note || "vlastní lekce", kind: "lekce" as const })),
               ...recurringLessonRows.map((l) => ({ date: l.date, time: l.time, who: l.client_name, what: l.note || "pravidelná lekce", kind: "staly" as const })),
-              ...bookings.map((b) => ({ date: b.date, time: b.time, who: b.contact_name, what: b.service_name, kind: "rezervace" as const })),
+              ...bookings.filter((b) => b.status !== "cancelled" && b.status !== "no_show").map((b) => ({ date: b.date, time: b.time, who: b.contact_name, what: b.service_name, kind: "rezervace" as const, bookingId: b.id, status: b.status })),
             ]
               .filter((x) => x.date >= todayKey)
               .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -1284,7 +1325,17 @@ export default function AdminPage() {
                           <span className={`rounded px-1.5 py-0.5 font-bold text-white ${it.kind === "lekce" ? "bg-violet-600" : it.kind === "staly" ? "bg-teal-600" : "bg-brand-blue"}`}>{it.time}</span>
                           <span className="font-semibold text-brand-dark">{it.who}</span>
                           <span className="text-gray-500 truncate">· {it.what}</span>
-                          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : it.kind === "staly" ? "bg-teal-100 text-teal-700" : "bg-amber-100 text-amber-700"}`}>{it.kind === "staly" ? "STÁLÝ KLIENT" : it.kind}</span>
+                          {it.kind === "rezervace" && it.bookingId ? (
+                            <span className="ml-auto flex items-center gap-1">
+                              {it.status === "pending" && (
+                                <button type="button" onClick={() => updateBookingStatus(it.bookingId!, "confirmed")} className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-blue-700">Potvrdit</button>
+                              )}
+                              <button type="button" onClick={() => updateBookingStatus(it.bookingId!, "completed")} className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white hover:bg-emerald-700">Proběhla</button>
+                              <button type="button" onClick={() => updateBookingStatus(it.bookingId!, "cancelled")} className="rounded border border-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-50">Zrušit</button>
+                            </span>
+                          ) : (
+                            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : "bg-teal-100 text-teal-700"}`}>{it.kind === "staly" ? "STÁLÝ KLIENT" : "moje lekce"}</span>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1294,7 +1345,11 @@ export default function AdminPage() {
             );
           })()}
         </section>
+        </>
+        )}
 
+        {tab === "rozvrh" && (
+        <>
         {/* ── Moje volné hodiny (po týdnech, s daty) ── */}
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Moje volné hodiny</h2>
