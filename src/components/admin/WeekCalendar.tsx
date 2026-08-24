@@ -271,13 +271,19 @@ export function WeekCalendar({
           {(lessonsForDay(selectedDay).length > 0 || bookingsForDay(selectedDay).length > 0) ? (
             <div className="space-y-1.5 mb-4">
               {lessonsForDay(selectedDay).map((l) => (
-                <div key={l.id} className="flex items-center gap-2 rounded-lg bg-violet-50 px-2.5 py-1.5 text-xs">
-                  <span className="rounded bg-violet-600 px-1.5 py-0.5 font-bold text-white">{l.time}</span>
+                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
+                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
                   <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
                   {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
-                  {l.price_kc != null && <span className="text-violet-700 font-semibold">· {l.price_kc} Kč</span>}
-                  <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
-                  <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
+                  {l.price_kc != null && <span className={`font-semibold ${l.recurring ? "text-teal-700" : "text-violet-700"}`}>· {l.price_kc} Kč</span>}
+                  {l.recurring ? (
+                    <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
+                  ) : (
+                    <>
+                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">moje lekce</span>
+                      <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
+                    </>
+                  )}
                 </div>
               ))}
               {bookingsForDay(selectedDay).map((b) => (

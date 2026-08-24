@@ -141,6 +141,7 @@ type LessonRow = {
   client_name: string;
   note: string | null;
   price_kc: number | null;
+  recurring?: boolean;
 };
 type RecurringRow = {
   id: string;
@@ -1022,6 +1023,34 @@ export default function AdminPage() {
   const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "MS GEM", "Fitness lekce", "Jiné"];
   const finExpenseCats = ["Cloudflare", "Supabase", "Vercel", "Doména", "Marketing", "Jiné"];
 
+  // ── Opakované lekce stálých klientů → konkrétní výskyty (pro kalendář i agendu) ──
+  const recCancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
+  const recurringLessonRows: LessonRow[] = [];
+  {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7 * 78; i++) { // ~18 měsíců dopředu (jako týdenní kalendář)
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      const wd = d.getDay(); // 0=Ne … 6=So (stejně jako recurring.weekday)
+      const key = d.toLocaleDateString("sv-SE"); // YYYY-MM-DD lokálně
+      for (const r of recurring) {
+        if (!r.active || r.weekday !== wd) continue;
+        if (recCancelSet.has(`${r.id}|${key}`)) continue;
+        recurringLessonRows.push({
+          id: `rec:${r.id}:${key}`,
+          date: key,
+          time: r.time,
+          client_name: r.client_name || "Stálý klient",
+          note: r.note,
+          price_kc: r.price_kc,
+          recurring: true,
+        });
+      }
+    }
+  }
+  const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows];
+
   // ── Admin obsah ──
   return (
     <div className="bg-brand-light min-h-screen py-12">
@@ -1222,9 +1251,10 @@ export default function AdminPage() {
           </p>
           {(() => {
             const todayKey = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD lokálně
-            type AgendaItem = { date: string; time: string; who: string; what: string; kind: "lekce" | "rezervace" };
+            type AgendaItem = { date: string; time: string; who: string; what: string; kind: "lekce" | "rezervace" | "staly" };
             const items: AgendaItem[] = [
               ...lessons.map((l) => ({ date: l.date, time: l.time, who: l.client_name || "Lekce", what: l.note || "vlastní lekce", kind: "lekce" as const })),
+              ...recurringLessonRows.map((l) => ({ date: l.date, time: l.time, who: l.client_name, what: l.note || "pravidelná lekce", kind: "staly" as const })),
               ...bookings.map((b) => ({ date: b.date, time: b.time, who: b.contact_name, what: b.service_name, kind: "rezervace" as const })),
             ]
               .filter((x) => x.date >= todayKey)
@@ -1246,11 +1276,11 @@ export default function AdminPage() {
                     </p>
                     <div className="space-y-1.5">
                       {dayItems.map((it, i) => (
-                        <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${it.kind === "lekce" ? "bg-violet-50" : "bg-brand-light"}`}>
-                          <span className={`rounded px-1.5 py-0.5 font-bold text-white ${it.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"}`}>{it.time}</span>
+                        <div key={i} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${it.kind === "lekce" ? "bg-violet-50" : it.kind === "staly" ? "bg-teal-50" : "bg-brand-light"}`}>
+                          <span className={`rounded px-1.5 py-0.5 font-bold text-white ${it.kind === "lekce" ? "bg-violet-600" : it.kind === "staly" ? "bg-teal-600" : "bg-brand-blue"}`}>{it.time}</span>
                           <span className="font-semibold text-brand-dark">{it.who}</span>
                           <span className="text-gray-500 truncate">· {it.what}</span>
-                          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700"}`}>{it.kind}</span>
+                          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${it.kind === "lekce" ? "bg-violet-100 text-violet-700" : it.kind === "staly" ? "bg-teal-100 text-teal-700" : "bg-amber-100 text-amber-700"}`}>{it.kind === "staly" ? "STÁLÝ KLIENT" : it.kind}</span>
                         </div>
                       ))}
                     </div>
@@ -1273,7 +1303,7 @@ export default function AdminPage() {
             weekly={weekly}
             overrides={overrides}
             bookings={bookings}
-            lessons={lessons}
+            lessons={allLessons}
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}
@@ -1382,7 +1412,7 @@ export default function AdminPage() {
             overrides={overrides}
             events={events}
             bookings={bookings}
-            lessons={lessons}
+            lessons={allLessons}
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}
