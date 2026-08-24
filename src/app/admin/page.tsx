@@ -175,6 +175,7 @@ export default function AdminPage() {
   const [recPrice, setRecPrice] = useState("1000");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
+  const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [archClient, setArchClient] = useState("");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -1586,18 +1587,39 @@ export default function AdminPage() {
         </section>
         )}
 
-        {tab === "rezervace" && (
-        <section className="card p-6">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">
-            Rezervace <span className="text-gray-400 font-normal">({bookings.length})</span>
-          </h2>
-          <p className="text-sm text-gray-500 mb-5">Příchozí rezervace od klientů.</p>
+        {tab === "rezervace" && (() => {
+          // Zrušené včas se neukazují. Podzáložky: aktivní / proběhlé / propadlé.
+          const shown = bookings.filter((b) =>
+            bookView === "aktivni" ? (b.status === "pending" || b.status === "confirmed")
+            : bookView === "probehle" ? b.status === "completed"
+            : b.status === "no_show"
+          );
+          return (
+          <section className="card p-6">
+            <h2 className="text-lg font-semibold text-brand-dark mb-1">Rezervace</h2>
+            <p className="text-sm text-gray-500 mb-4">Příchozí rezervace od klientů. Zrušené včas se nezobrazují.</p>
 
-          {bookings.length === 0 ? (
-            <p className="text-sm text-gray-400">Zatím žádné rezervace.</p>
+            <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
+              {([["aktivni", "Aktivní"], ["probehle", "Proběhlé"], ["propadle", "Propadlé (storno)"]] as const).map(([k, l]) => {
+                const cnt = bookings.filter((b) =>
+                  k === "aktivni" ? (b.status === "pending" || b.status === "confirmed")
+                  : k === "probehle" ? b.status === "completed"
+                  : b.status === "no_show"
+                ).length;
+                return (
+                  <button key={k} type="button" onClick={() => setBookView(k)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${bookView === k ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"}`}>
+                    {l} ({cnt})
+                  </button>
+                );
+              })}
+            </div>
+
+          {shown.length === 0 ? (
+            <p className="text-sm text-gray-400">Nic tu není.</p>
           ) : (
             <div className="space-y-3">
-              {bookings.map((b) => (
+              {shown.map((b) => (
                 <div key={b.id} className="rounded-xl border border-gray-100 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                     <span className="font-semibold text-brand-dark">
@@ -1651,8 +1673,9 @@ export default function AdminPage() {
               ))}
             </div>
           )}
-        </section>
-        )}
+          </section>
+          );
+        })()}
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
