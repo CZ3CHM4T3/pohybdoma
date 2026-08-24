@@ -12,10 +12,12 @@ create table if not exists public.recurring_blocks (
   start_time  text not null,   -- "HH:MM"
   end_time    text not null,   -- "HH:MM"
   label       text not null default 'Blok',
+  category    text not null default 'jine', -- msgem | tenis | skolka | krouzek | kruhac | jine
   note        text,
   active      boolean not null default true,
   created_at  timestamptz not null default now()
 );
+alter table public.recurring_blocks add column if not exists category text not null default 'jine';
 create index if not exists recurring_blocks_wd_idx on public.recurring_blocks (weekday);
 
 alter table public.recurring_blocks enable row level security;

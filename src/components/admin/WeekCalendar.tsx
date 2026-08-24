@@ -1,72 +1,60 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { WeeklyRow, OverrideRow, BookingLite, LessonRow } from "./MonthCalendar";
+import type { BookingLite, LessonRow } from "./MonthCalendar";
 
-const HOURS = [
-  "08:00", "09:00", "10:00", "11:00", "12:00", "13:00",
-  "14:00", "15:00", "16:00", "17:00", "18:00",
-];
+export type BlockOcc = { id: string; date: string; start_time: string; end_time: string; label: string; category: string };
+
+const START_H = 7;
+const END_H = 22;
+const HOUR_PX = 46;
+const TOTAL_PX = (END_H - START_H) * HOUR_PX;
+const HOURS = Array.from({ length: END_H - START_H }, (_, i) => START_H + i);
 const WD_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
+function startOfDay(d: Date): Date { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function dateKey(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-/** Pondělí daného týdne. */
 function startOfWeek(d: Date): Date {
   const x = startOfDay(d);
-  const offset = (x.getDay() + 6) % 7; // pondělí = 0
-  x.setDate(x.getDate() - offset);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); // pondělí
   return x;
 }
-function addDays(d: Date, n: number): Date {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
+function addDays(d: Date, n: number): Date { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3, 5) || "0", 10); }
 
-type EffStatus = "free" | "booked";
+type Item = {
+  id: string; startMin: number; endMin: number; name: string; time: string;
+  color: string; kind: "fitness" | "block" | "rezervace"; deletable: boolean; lane: number; lanes: number;
+};
 
 export function WeekCalendar({
-  weekly,
-  overrides,
   bookings,
   lessons,
+  blocks,
+  catColors,
   clientNames = [],
-  onSetOverride,
-  onResetOverride,
   onAddLesson,
   onAddRecurring,
   onDeleteLesson,
 }: {
-  weekly: WeeklyRow[];
-  overrides: OverrideRow[];
   bookings: BookingLite[];
   lessons: LessonRow[];
+  blocks: BlockOcc[];
+  catColors: Record<string, string>;
   clientNames?: string[];
-  onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
-  onResetOverride: (date: string, time: string) => Promise<void>;
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => startOfWeek(today), [today]);
-  const maxWeek = useMemo(() => addDays(minWeek, 7 * 77), [minWeek]); // ~18 měsíců
-
+  const maxWeek = useMemo(() => addDays(minWeek, 7 * 77), [minWeek]);
   const [weekStart, setWeekStart] = useState<Date>(minWeek);
-  const [savingCell, setSavingCell] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
-  // Formulář na vlastní lekci
+  // Formulář na lekci
   const [lTime, setLTime] = useState("15:00");
   const [lName, setLName] = useState("");
   const [lNote, setLNote] = useState("");
@@ -74,242 +62,137 @@ export function WeekCalendar({
   const [lRepeat, setLRepeat] = useState(false);
   const [lSaving, setLSaving] = useState(false);
 
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart]
-  );
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const canPrev = weekStart > minWeek;
   const canNext = weekStart < maxWeek;
 
-  function weeklyStatus(wd: number, time: string): EffStatus | null {
-    const r = weekly.find((x) => x.weekday === wd && x.time === time);
-    if (!r) return null;
-    return r.is_free ? "free" : "booked";
-  }
-  function effective(date: Date, time: string): { status: EffStatus; overridden: boolean } {
-    const key = dateKey(date);
-    const ov = overrides.find((o) => o.date === key && o.time === time);
-    if (ov) return { status: ov.status, overridden: true };
-    const w = weeklyStatus(date.getDay(), time);
-    return { status: w ?? "booked", overridden: false };
-  }
-  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "blok" | "rezervace"; time: string } | null {
-    const key = dateKey(date);
-    const hh = time.slice(0, 2); // řádek = celá hodina; napasujeme i lekce v tuto hodinu (8:15 → řádek 8:00)
-    const l = lessons.find((x) => x.date === key && x.time.slice(0, 2) === hh);
-    if (l) return { name: l.client_name || "Lekce", kind: l.block ? "blok" : l.recurring ? "staly" : "lekce", time: l.time };
-    const b = bookings.find((x) => x.date === key && x.time.slice(0, 2) === hh);
-    if (b) return { name: b.contact_name, kind: "rezervace", time: b.time };
-    return null;
-  }
-  const KIND_LABEL: Record<string, string> = { staly: "stálý klient", lekce: "lekce", blok: "blok", rezervace: "rezervace" };
-
-  async function toggle(date: Date, time: string) {
-    const key = `${dateKey(date)}-${time}`;
-    const eff = effective(date, time);
-    const next: EffStatus = eff.status === "free" ? "booked" : "free";
-    setSavingCell(key);
-    await onSetOverride(dateKey(date), time, next);
-    setSavingCell(null);
-  }
-  async function reset(date: Date, time: string) {
-    const key = `${dateKey(date)}-${time}`;
-    setSavingCell(key);
-    await onResetOverride(dateKey(date), time);
-    setSavingCell(null);
+  function itemsForDay(d: Date): Item[] {
+    const key = dateKey(d);
+    const raw: Omit<Item, "lane" | "lanes">[] = [];
+    for (const l of lessons) {
+      if (l.date !== key) continue;
+      const s = toMin(l.time);
+      raw.push({ id: l.id, startMin: s, endMin: s + 60, name: l.client_name || "Lekce", time: l.time, color: catColors.fitness, kind: "fitness", deletable: !l.recurring });
+    }
+    for (const b of blocks) {
+      if (b.date !== key) continue;
+      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false });
+    }
+    for (const bk of bookings) {
+      if (bk.date !== key || bk.status === "cancelled" || bk.status === "no_show") continue;
+      const s = toMin(bk.time);
+      raw.push({ id: bk.id, startMin: s, endMin: s + 60, name: bk.contact_name, time: bk.time, color: catColors.rezervace, kind: "rezervace", deletable: false });
+    }
+    // Rozvržení do sloupců (lanes) při překryvu
+    raw.sort((a, b) => a.startMin - b.startMin);
+    const laneEnds: number[] = [];
+    const withLane = raw.map((it) => {
+      let lane = laneEnds.findIndex((end) => end <= it.startMin);
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.endMin); }
+      else laneEnds[lane] = it.endMin;
+      return { ...it, lane };
+    });
+    const lanes = Math.max(1, laneEnds.length);
+    return withLane.map((it) => ({ ...it, lanes }));
   }
 
-  function lessonsForDay(date: Date) {
-    const key = dateKey(date);
-    return lessons.filter((l) => l.date === key).sort((a, b) => a.time.localeCompare(b.time));
-  }
-  function bookingsForDay(date: Date) {
-    const key = dateKey(date);
-    return bookings.filter((b) => b.date === key).sort((a, b) => a.time.localeCompare(b.time));
-  }
   async function submitLesson() {
     if (!selectedDay || !lName.trim() || !lTime) return;
     setLSaving(true);
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
     const p = Number.isFinite(priceKc as number) ? priceKc : null;
-    if (lRepeat && onAddRecurring) {
-      await onAddRecurring(selectedDay.getDay(), lTime, lName.trim(), lNote.trim(), p);
-    } else {
-      await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), p);
-    }
+    if (lRepeat && onAddRecurring) await onAddRecurring(selectedDay.getDay(), lTime, lName.trim(), lNote.trim(), p);
+    else await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), p);
     setLSaving(false);
-    setLName("");
-    setLNote("");
-    setLRepeat(false);
+    setLName(""); setLNote(""); setLRepeat(false);
   }
 
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
+  const dayItems = selectedDay ? itemsForDay(selectedDay) : [];
 
   return (
     <div>
-      {/* Navigace týdnů */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          type="button"
-          disabled={!canPrev}
-          onClick={() => setWeekStart(addDays(weekStart, -7))}
-          className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Předchozí týden"
-        >
-          ←
-        </button>
+      {/* Navigace */}
+      <div className="flex items-center justify-between mb-3">
+        <button type="button" disabled={!canPrev} onClick={() => setWeekStart(addDays(weekStart, -7))} className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30" aria-label="Předchozí týden">←</button>
         <h3 className="font-semibold text-brand-dark text-sm">{rangeLabel}</h3>
-        <button
-          type="button"
-          disabled={!canNext}
-          onClick={() => setWeekStart(addDays(weekStart, 7))}
-          className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
-          aria-label="Další týden"
-        >
-          →
-        </button>
+        <button type="button" disabled={!canNext} onClick={() => setWeekStart(addDays(weekStart, 7))} className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30" aria-label="Další týden">→</button>
       </div>
 
-      <p className="text-xs text-gray-500 mb-3">
-        Naklikej, které hodiny jsou <span className="text-emerald-600 font-medium">tento týden volné</span> pro
-        klienty. Platí jen pro tato data – příští týden si přepneš a nastavíš jinak. Obsazené hodiny
-        (lekce/rezervace) jsou označené a nejdou přepnout.
-      </p>
+      <p className="text-xs text-gray-500 mb-3">Přehled celého týdne na časové ose – výška = délka lekce, mezery = volno. Klikni na <strong>datum dne</strong> a přidej lekci.</p>
 
-      {/* Mřížka: hodiny × dny */}
+      {/* Časová osa */}
       <div className="overflow-x-auto">
-        <table className="border-separate border-spacing-1">
-          <thead>
-            <tr>
-              <th className="w-12"></th>
-              {days.map((d) => {
-                const isToday = dateKey(d) === dateKey(today);
-                const isSel = selectedDay && dateKey(d) === dateKey(selectedDay);
-                return (
-                  <th key={d.toISOString()} className="min-w-[64px] pb-1">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDay(d)}
-                      title="Otevřít den (přidat lekci)"
-                      className={`w-full rounded-md py-1 transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}
-                    >
-                      <div className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>
-                        {WD_CS[(d.getDay() + 6) % 7]}
-                      </div>
-                      <div className={`text-[11px] ${isSel ? "text-white/80" : "text-gray-400"}`}>
-                        {d.getDate()}.{d.getMonth() + 1}.
-                      </div>
-                    </button>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {HOURS.map((time) => (
-              <tr key={time}>
-                <td className="text-[11px] text-gray-400 pr-1 text-right align-middle">{time}</td>
-                {days.map((d) => {
-                  const past = startOfDay(d) < today;
-                  const taken = takenAt(d, time);
-                  const { status, overridden } = effective(d, time);
-                  const free = status === "free";
-                  const cellKey = `${dateKey(d)}-${time}`;
-                  const saving = savingCell === cellKey;
+        <div className="flex" style={{ minWidth: 700 }}>
+          {/* Osa hodin */}
+          <div className="w-10 shrink-0">
+            <div className="h-7" />
+            <div className="relative" style={{ height: TOTAL_PX }}>
+              {HOURS.map((h, i) => (
+                <div key={h} className="absolute right-1 text-[10px] text-gray-400" style={{ top: i * HOUR_PX - 6 }}>{h}:00</div>
+              ))}
+            </div>
+          </div>
 
-                  if (taken) {
+          {/* Dny */}
+          {days.map((d) => {
+            const isToday = dateKey(d) === dateKey(today);
+            const isSel = selectedDay && dateKey(d) === dateKey(selectedDay);
+            const items = itemsForDay(d);
+            return (
+              <div key={d.toISOString()} className="flex-1 min-w-[86px] border-l border-gray-100">
+                <button type="button" onClick={() => setSelectedDay(d)} className={`h-7 w-full text-center transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}>
+                  <span className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</span>
+                </button>
+                <div className="relative" style={{ height: TOTAL_PX }}>
+                  {HOURS.map((h, i) => (
+                    <div key={h} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: i * HOUR_PX }} />
+                  ))}
+                  {items.map((it) => {
+                    const top = ((it.startMin - START_H * 60) / 60) * HOUR_PX;
+                    const height = Math.max(15, ((it.endMin - it.startMin) / 60) * HOUR_PX - 2);
+                    const w = 100 / it.lanes;
                     return (
-                      <td key={cellKey}>
-                        <div
-                          title={`${taken.time} ${taken.name} (${KIND_LABEL[taken.kind]})`}
-                          className={`h-9 min-w-[64px] rounded-md text-[10px] font-semibold text-white flex flex-col items-center justify-center px-1 leading-tight ${
-                            taken.kind === "blok" ? "bg-slate-500" : taken.kind === "staly" ? "bg-teal-600" : taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
-                          }`}
-                        >
-                          {taken.time !== time && <span className="text-[9px] font-bold opacity-90">{taken.time}</span>}
-                          <span className="w-full truncate text-center">{taken.name}</span>
-                        </div>
-                      </td>
-                    );
-                  }
-                  return (
-                    <td key={cellKey} className="relative">
-                      <button
-                        type="button"
-                        onClick={() => toggle(d, time)}
-                        disabled={saving || past}
-                        className={`h-9 w-full min-w-[64px] rounded-md text-xs font-semibold transition-all ${
-                          past
-                            ? "bg-gray-50 text-gray-300 cursor-not-allowed"
-                            : free
-                              ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                        } ${saving ? "opacity-50" : ""}`}
+                      <div
+                        key={it.id}
+                        title={`${it.time} ${it.name}`}
+                        className="absolute rounded px-1 py-0.5 text-[9px] font-semibold text-white overflow-hidden leading-tight"
+                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.color }}
                       >
-                        {free ? "volno" : "—"}
-                      </button>
-                      {overridden && !past && (
-                        <button
-                          type="button"
-                          onClick={() => reset(d, time)}
-                          disabled={saving}
-                          title="Vrátit na běžné volné hodiny"
-                          className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white shadow"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                        <span className="block opacity-90">{it.time}</span>
+                        <span className="block truncate">{it.name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500 inline-block" /> volno</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-teal-600 inline-block" /> stálý klient</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-violet-600 inline-block" /> jednorázová lekce</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-slate-500 inline-block" /> blok (MS GEM…)</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-brand-blue inline-block" /> rezervace z webu</span>
-        <span className="flex items-center gap-1.5"><span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">×</span> výjimka jen pro tento den</span>
+      {/* Legenda */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400">
+        {[["fitness", "fitness (klient)"], ["rezervace", "rezervace z webu"], ["msgem", "MS GEM"], ["tenis", "příprava tenistů"], ["skolka", "školka"], ["krouzek", "kroužek"], ["kruhac", "kruhový trénink"], ["jine", "jiné"]].map(([k, label]) => (
+          <span key={k} className="flex items-center gap-1"><span className="h-3 w-3 rounded inline-block" style={{ background: catColors[k] }} /> {label}</span>
+        ))}
       </div>
 
-      {/* Panel vybraného dne – lekce + přidání */}
+      {/* Panel dne */}
       {selectedDay && (
         <div className="mt-5 rounded-xl border border-gray-100 p-4">
           <p className="text-sm font-semibold text-brand-dark capitalize mb-3">
             {selectedDay.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
-
-          {(lessonsForDay(selectedDay).length > 0 || bookingsForDay(selectedDay).length > 0) ? (
+          {dayItems.length > 0 ? (
             <div className="space-y-1.5 mb-4">
-              {lessonsForDay(selectedDay).map((l) => (
-                <div key={l.id} className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${l.block ? "bg-slate-50" : l.recurring ? "bg-teal-50" : "bg-violet-50"}`}>
-                  <span className={`rounded px-1.5 py-0.5 font-bold text-white ${l.block ? "bg-slate-500" : l.recurring ? "bg-teal-600" : "bg-violet-600"}`}>{l.time}</span>
-                  <span className="font-semibold text-brand-dark">{l.client_name || "Lekce"}</span>
-                  {l.note && <span className="text-gray-500 truncate">· {l.note}</span>}
-                  {l.price_kc != null && <span className={`font-semibold ${l.recurring ? "text-teal-700" : "text-violet-700"}`}>· {l.price_kc} Kč</span>}
-                  {l.block ? (
-                    <span className="ml-auto rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-700">blok</span>
-                  ) : l.recurring ? (
-                    <span className="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700">STÁLÝ KLIENT</span>
-                  ) : (
-                    <>
-                      <span className="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">jednorázová lekce</span>
-                      <button type="button" onClick={() => onDeleteLesson(l.id)} title="Smazat lekci" className="text-gray-300 hover:text-red-500">×</button>
-                    </>
+              {dayItems.map((it) => (
+                <div key={it.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs" style={{ background: it.color + "18" }}>
+                  <span className="rounded px-1.5 py-0.5 font-bold text-white" style={{ background: it.color }}>{it.time}</span>
+                  <span className="font-semibold text-brand-dark">{it.name}</span>
+                  {it.deletable && (
+                    <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
                   )}
-                </div>
-              ))}
-              {bookingsForDay(selectedDay).map((b) => (
-                <div key={b.id} className="flex items-center gap-2 rounded-lg bg-brand-light px-2.5 py-1.5 text-xs">
-                  <span className="rounded bg-brand-blue px-1.5 py-0.5 font-bold text-white">{b.time}</span>
-                  <span className="font-semibold text-brand-dark">{b.contact_name}</span>
-                  <span className="text-gray-500 truncate">· {b.service_name}</span>
-                  <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">{b.status}</span>
                 </div>
               ))}
             </div>
@@ -319,7 +202,7 @@ export function WeekCalendar({
 
           {startOfDay(selectedDay) >= today && (
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-brand-dark mb-2">+ Přidat vlastní lekci</p>
+              <p className="text-xs font-semibold text-brand-dark mb-2">+ Přidat lekci</p>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label className="block text-[11px] text-gray-400 mb-0.5">Čas</label>
@@ -328,19 +211,17 @@ export function WeekCalendar({
                 <div className="flex-1 min-w-[120px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
                   <input type="text" list="wc-client-names" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-                  <datalist id="wc-client-names">
-                    {clientNames.map((n) => <option key={n} value={n} />)}
-                  </datalist>
+                  <datalist id="wc-client-names">{clientNames.map((n) => <option key={n} value={n} />)}</datalist>
                 </div>
                 <div className="flex-1 min-w-[110px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
-                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="např. masáž zad" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="např. záda" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
                 </div>
                 <div className="w-20">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Cena Kč</label>
                   <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="1000" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
                 </div>
-                <button type="button" onClick={submitLesson} disabled={lSaving || !lName.trim()} className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-40">
+                <button type="button" onClick={submitLesson} disabled={lSaving || !lName.trim()} className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40">
                   {lSaving ? "Ukládám…" : "Přidat"}
                 </button>
               </div>

@@ -166,7 +166,21 @@ type RecurringRow = {
   active: boolean;
 };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
-type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; note: string | null; active: boolean };
+type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean };
+// Barvy typů lekcí/bloků v rozvrhu (hex kvůli inline stylu na časové ose)
+const CAT_COLORS: Record<string, string> = {
+  fitness: "#0f766e",   // klientská lekce – tyrkysová
+  rezervace: "#1976ff", // web rezervace – modrá
+  msgem: "#c2410c",     // MS GEM – oranžová
+  tenis: "#b45309",     // příprava tenistů – jantarová
+  skolka: "#be185d",    // tenis s EMESKOU (MŠ) – růžová
+  krouzek: "#4d7c0f",   // kroužek – zelená
+  kruhac: "#6d28d9",    // kruhový trénink – fialová
+  jine: "#475569",      // ostatní – šedá
+};
+const CAT_LABELS: Record<string, string> = {
+  msgem: "MS GEM", tenis: "Příprava tenistů", skolka: "Tenis s EMESKOU (MŠ)", krouzek: "Kroužek", kruhac: "Kruhový trénink", jine: "Jiné",
+};
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -214,6 +228,7 @@ export default function AdminPage() {
   const [blkStart, setBlkStart] = useState("14:00");
   const [blkEnd, setBlkEnd] = useState("18:00");
   const [blkLabel, setBlkLabel] = useState("");
+  const [blkCategory, setBlkCategory] = useState("msgem");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -675,6 +690,7 @@ export default function AdminPage() {
       start_time: blkStart,
       end_time: blkEnd,
       label: blkLabel.trim(),
+      category: blkCategory,
     });
     if (error) { setError("Uložení bloku selhalo (spustil jsi recurring_blocks.sql?): " + error.message); return; }
     setBlkLabel("");
@@ -1154,6 +1170,25 @@ export default function AdminPage() {
   }
   const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows, ...blockRows];
 
+  // Bloky jako CELÉ boxy (start–end) pro proporční časovou osu
+  const blockOccs: { id: string; date: string; start_time: string; end_time: string; label: string; category: string }[] = [];
+  {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7 * 78; i++) {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      const wd = d.getDay();
+      const key = d.toLocaleDateString("sv-SE");
+      for (const b of blocks) {
+        if (!b.active || b.weekday !== wd) continue;
+        blockOccs.push({ id: `blk:${b.id}:${key}`, date: key, start_time: b.start_time, end_time: b.end_time, label: b.label, category: b.category });
+      }
+    }
+  }
+  // Klientské lekce (stálé + jednorázové) pro časovou osu – každá 60 min
+  const timelineLessons: LessonRow[] = [...lessons, ...recurringLessonRows];
+
   // Odtrénované hodiny (každá lekce/blok-hodina = 1 h) – tento týden a tento měsíc, do dneška včetně
   const hoursTodayKey = new Date().toLocaleDateString("sv-SE");
   const hoursNow = new Date(); hoursNow.setHours(0, 0, 0, 0);
@@ -1476,13 +1511,11 @@ export default function AdminPage() {
             otevřeš den a můžeš přidat vlastní lekci.
           </p>
           <WeekCalendar
-            weekly={weekly}
-            overrides={overrides}
             bookings={bookings}
-            lessons={allLessons}
+            lessons={timelineLessons}
+            blocks={blockOccs}
+            catColors={CAT_COLORS}
             clientNames={clients.map((c) => c.name)}
-            onSetOverride={setOverrideAt}
-            onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
@@ -1596,9 +1629,10 @@ export default function AdminPage() {
             <div className="space-y-2 mb-4">
               {blocks.map((b) => (
                 <div key={b.id} className="flex items-center gap-2 rounded-lg border border-gray-100 p-3 text-sm">
-                  <span className="rounded bg-slate-600 px-2 py-0.5 font-bold text-white">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][b.weekday]}</span>
+                  <span className="rounded px-2 py-0.5 font-bold text-white" style={{ background: CAT_COLORS[b.category] || CAT_COLORS.jine }}>{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][b.weekday]}</span>
                   <span className="font-medium text-gray-500">{b.start_time}–{b.end_time}</span>
                   <span className="font-semibold text-brand-dark truncate">{b.label}</span>
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{CAT_LABELS[b.category] || "Jiné"}</span>
                   <button type="button" onClick={() => deleteBlock(b.id)} className="ml-auto shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
                 </div>
               ))}
@@ -1620,7 +1654,18 @@ export default function AdminPage() {
               <label className="block text-[11px] text-gray-500 mb-0.5">Do</label>
               <input type="time" value={blkEnd} onChange={(e) => setBlkEnd(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
             </div>
-            <div className="flex-1 min-w-[180px]">
+            <div>
+              <label className="block text-[11px] text-gray-500 mb-0.5">Typ</label>
+              <select value={blkCategory} onChange={(e) => setBlkCategory(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                <option value="msgem">MS GEM</option>
+                <option value="tenis">Příprava tenistů</option>
+                <option value="skolka">Tenis s EMESKOU (MŠ)</option>
+                <option value="krouzek">Kroužek</option>
+                <option value="kruhac">Kruhový trénink</option>
+                <option value="jine">Jiné</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
               <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
               <input value={blkLabel} onChange={(e) => setBlkLabel(e.target.value)} placeholder="MS GEM – tenisová akademie" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
             </div>
