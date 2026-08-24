@@ -93,12 +93,13 @@ export function WeekCalendar({
     const w = weeklyStatus(date.getDay(), time);
     return { status: w ?? "booked", overridden: false };
   }
-  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "rezervace" } | null {
+  function takenAt(date: Date, time: string): { name: string; kind: "lekce" | "staly" | "rezervace"; time: string } | null {
     const key = dateKey(date);
-    const l = lessons.find((x) => x.date === key && x.time === time);
-    if (l) return { name: l.client_name || "Lekce", kind: l.recurring ? "staly" : "lekce" };
-    const b = bookings.find((x) => x.date === key && x.time === time);
-    if (b) return { name: b.contact_name, kind: "rezervace" };
+    const hh = time.slice(0, 2); // řádek = celá hodina; napasujeme i lekce v tuto hodinu (8:15 → řádek 8:00)
+    const l = lessons.find((x) => x.date === key && x.time.slice(0, 2) === hh);
+    if (l) return { name: l.client_name || "Lekce", kind: l.recurring ? "staly" : "lekce", time: l.time };
+    const b = bookings.find((x) => x.date === key && x.time.slice(0, 2) === hh);
+    if (b) return { name: b.contact_name, kind: "rezervace", time: b.time };
     return null;
   }
   const KIND_LABEL: Record<string, string> = { staly: "stálý klient", lekce: "lekce", rezervace: "rezervace" };
@@ -220,12 +221,13 @@ export function WeekCalendar({
                     return (
                       <td key={cellKey}>
                         <div
-                          title={`${taken.name} (${KIND_LABEL[taken.kind]})`}
-                          className={`h-9 min-w-[64px] rounded-md text-[10px] font-semibold text-white flex items-center justify-center px-1 truncate ${
+                          title={`${taken.time} ${taken.name} (${KIND_LABEL[taken.kind]})`}
+                          className={`h-9 min-w-[64px] rounded-md text-[10px] font-semibold text-white flex flex-col items-center justify-center px-1 leading-tight ${
                             taken.kind === "staly" ? "bg-teal-600" : taken.kind === "lekce" ? "bg-violet-600" : "bg-brand-blue"
                           }`}
                         >
-                          {taken.name}
+                          {taken.time !== time && <span className="text-[9px] font-bold opacity-90">{taken.time}</span>}
+                          <span className="w-full truncate text-center">{taken.name}</span>
                         </div>
                       </td>
                     );

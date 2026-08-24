@@ -644,7 +644,7 @@ export default function AdminPage() {
       price_kc: Number.isFinite(priceKc as number) ? priceKc : null,
     });
     if (error) { setError("Uložení selhalo (spustil jsi recurring.sql?): " + error.message); return; }
-    setRecClient("");
+    // Klienta necháme vybraného, ať můžeš rovnou přidat další hodinu v týdnu (jiný den/čas).
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
     if (data) setRecurring(data as RecurringRow[]);
   }
