@@ -30,7 +30,7 @@ begin
       body := jsonb_build_object(
         'from', 'POHYB DOMA <noreply@pohybdoma.cz>',
         'to', new.contact_email,
-        'reply_to', 'schroffelh@seznam.cz',
+        'reply_to', 'pohybdoma@seznam.cz',
         'subject', 'Přijal jsem tvoji rezervaci – POHYB DOMA',
         'html',
           '<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B">' ||
