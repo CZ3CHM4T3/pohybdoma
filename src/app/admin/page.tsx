@@ -1241,6 +1241,29 @@ export default function AdminPage() {
   // Klientské lekce (stálé + jednorázové) pro časovou osu – každá 60 min
   const timelineLessons: LessonRow[] = [...lessons, ...recurringLessonRows];
 
+  // Volné (otevřené) hodiny pro časovou osu: pevně otevřené (weekly is_free) + uvolněné od stálých klientů (omluvy)
+  const openOccs: { date: string; time: string }[] = [];
+  {
+    const base = new Date();
+    base.setHours(0, 0, 0, 0);
+    base.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const freeWeekly = weekly.filter((w) => w.is_free);
+    if (freeWeekly.length > 0) {
+      for (let i = 0; i < 7 * 79; i++) {
+        const d = new Date(base);
+        d.setDate(base.getDate() + i);
+        const wd = d.getDay();
+        const key = d.toLocaleDateString("sv-SE");
+        for (const w of freeWeekly) if (w.weekday === wd) openOccs.push({ date: key, time: w.time });
+      }
+    }
+    const recById = new Map(recurring.map((r) => [r.id, r] as const));
+    for (const c of recCancels) {
+      const r = recById.get(c.recurring_id);
+      if (r?.active) openOccs.push({ date: c.date, time: r.time });
+    }
+  }
+
   // Odtrénované hodiny (každá lekce/blok-hodina = 1 h) – tento týden a tento měsíc, do dneška včetně
   const hoursTodayKey = new Date().toLocaleDateString("sv-SE");
   const hoursNow = new Date(); hoursNow.setHours(0, 0, 0, 0);
@@ -1566,6 +1589,7 @@ export default function AdminPage() {
             bookings={bookings}
             lessons={timelineLessons}
             blocks={blockOccs}
+            open={openOccs}
             catColors={CAT_COLORS}
             clientNames={clients.map((c) => c.name)}
             onAddLesson={addLesson}

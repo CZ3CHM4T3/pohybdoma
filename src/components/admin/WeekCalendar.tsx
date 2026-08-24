@@ -26,13 +26,14 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace"; deletable: boolean; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno"; deletable: boolean; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
   bookings,
   lessons,
   blocks,
+  open = [],
   catColors,
   clientNames = [],
   onAddLesson,
@@ -42,6 +43,7 @@ export function WeekCalendar({
   bookings: BookingLite[];
   lessons: LessonRow[];
   blocks: BlockOcc[];
+  open?: { date: string; time: string }[];
   catColors: Record<string, string>;
   clientNames?: string[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -82,6 +84,13 @@ export function WeekCalendar({
       if (bk.date !== key || bk.status === "cancelled" || bk.status === "no_show") continue;
       const s = toMin(bk.time);
       raw.push({ id: bk.id, startMin: s, endMin: s + 60, name: bk.contact_name, time: bk.time, color: catColors.rezervace, kind: "rezervace", deletable: false });
+    }
+    const seenOpen = new Set<string>();
+    for (const o of open) {
+      if (o.date !== key || seenOpen.has(o.time)) continue;
+      seenOpen.add(o.time);
+      const s = toMin(o.time);
+      raw.push({ id: `open:${key}:${o.time}`, startMin: s, endMin: s + 60, name: "volno", time: o.time, color: "#10b981", kind: "volno", deletable: false });
     }
     // Rozvržení do sloupců (lanes) při překryvu
     raw.sort((a, b) => a.startMin - b.startMin);
@@ -183,6 +192,7 @@ export function WeekCalendar({
 
       {/* Legenda */}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400">
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded inline-block" style={{ background: "#10b981" }} /> volno</span>
         {[["fitness", "fitness (klient)"], ["rezervace", "rezervace z webu"], ["msgem", "MS GEM"], ["tenis", "příprava tenistů"], ["skolka", "školka"], ["krouzek", "kroužek"], ["kruhac", "kruhový trénink"], ["jine", "jiné"]].map(([k, label]) => (
           <span key={k} className="flex items-center gap-1"><span className="h-3 w-3 rounded inline-block" style={{ background: catColors[k] }} /> {label}</span>
         ))}
