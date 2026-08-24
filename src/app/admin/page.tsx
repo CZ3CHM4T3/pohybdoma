@@ -142,6 +142,7 @@ type RecurringRow = {
   note: string | null;
   active: boolean;
 };
+type ClientRow = { id: string; name: string; email: string | null; note: string | null };
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -165,8 +166,10 @@ export default function AdminPage() {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string }[]>([]);
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
   const [recClient, setRecClient] = useState("");
-  const [recEmail, setRecEmail] = useState("");
   const [recWeekday, setRecWeekday] = useState("1");
   const [recTime, setRecTime] = useState("15:00");
   const [recPrice, setRecPrice] = useState("1000");
@@ -335,6 +338,9 @@ export default function AdminPage() {
     });
     supabase.from("recurring_cancellations").select("recurring_id, date").then(({ data }) => {
       if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+    });
+    supabase.from("clients").select("id, name, email, note").order("name").then(({ data }) => {
+      if (data) setClients(data as ClientRow[]);
     });
 
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
@@ -541,27 +547,47 @@ export default function AdminPage() {
     setLessons((prev) => prev.filter((x) => x.id !== id));
   }
 
+  // ── Kartotéka klientů ──
+  async function addClient() {
+    if (!newClientName.trim()) { setError("Zadej jméno klienta."); return; }
+    setError(null);
+    const { error } = await supabase.from("clients").insert({
+      name: newClientName.trim(),
+      email: newClientEmail.trim() ? newClientEmail.trim().toLowerCase() : null,
+    });
+    if (error) { setError("Uložení klienta selhalo (spustil jsi clients.sql?): " + error.message); return; }
+    setNewClientName(""); setNewClientEmail("");
+    const { data } = await supabase.from("clients").select("id, name, email, note").order("name");
+    if (data) setClients(data as ClientRow[]);
+  }
+  async function deleteClient(id: string) {
+    setError(null);
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) { setError("Smazání klienta selhalo: " + error.message); return; }
+    setClients((prev) => prev.filter((x) => x.id !== id));
+  }
+
   // ── Stálí klienti (opakované lekce) ──
   async function addRecurring() {
-    if (!recClient.trim()) { setError("Zadej jméno stálého klienta."); return; }
+    if (!recClient.trim()) { setError("Vyber klienta z kartotéky."); return; }
     setError(null);
     const priceKc = recPrice.trim() === "" ? null : Number(recPrice);
-    // Volitelně propoj s účtem člena podle e-mailu → klient se pak může sám omluvit.
+    // Když má klient v kartotéce e-mail a účet, propoj → může se pak sám omluvit.
+    const roster = clients.find((c) => c.name === recClient);
     let clientId: string | null = null;
-    if (recEmail.trim()) {
-      const { data: prof } = await supabase.from("profiles").select("id").eq("email", recEmail.trim().toLowerCase()).maybeSingle();
-      if (!prof) { setError("Účet s e-mailem " + recEmail.trim() + " nenalezen. Nech pole prázdné, nebo ať se člen nejdřív zaregistruje."); return; }
-      clientId = prof.id as string;
+    if (roster?.email) {
+      const { data: prof } = await supabase.from("profiles").select("id").eq("email", roster.email).maybeSingle();
+      if (prof) clientId = prof.id as string;
     }
     const { error } = await supabase.from("recurring_lessons").insert({
-      client_name: recClient.trim(),
+      client_name: recClient,
       client_id: clientId,
       weekday: Number(recWeekday),
       time: recTime,
       price_kc: Number.isFinite(priceKc as number) ? priceKc : null,
     });
     if (error) { setError("Uložení selhalo (spustil jsi recurring.sql?): " + error.message); return; }
-    setRecClient(""); setRecEmail("");
+    setRecClient("");
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
     if (data) setRecurring(data as RecurringRow[]);
   }
@@ -1171,16 +1197,50 @@ export default function AdminPage() {
           />
         </section>
 
-        {/* ── Stálí klienti (opakované lekce) ── */}
+        {/* ── Stálí klienti: kartotéka + pravidelné lekce ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Stálí klienti (opakované lekce)</h2>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Stálí klienti</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Lekce, se kterými počítáš každý týden. Automaticky obsazují termín. Když se klient
-            <strong> včas omluví (24 h předem)</strong>, termín se uvolní ostatním. <span className="text-gray-400">(Spusť recurring.sql.)</span>
+            Kartotéka klientů a jejich pravidelné lekce. Lekce automaticky obsazují termín a počítají se
+            do Faktur. <span className="text-gray-400">(Spusť clients.sql a recurring.sql.)</span>
           </p>
 
+          {/* Přidat klienta do kartotéky */}
+          <div className="flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3 mb-3">
+            <div className="flex-1 min-w-[160px]">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Jméno klienta</label>
+              <input value={newClientName} onChange={(e) => setNewClientName(e.target.value)} placeholder="Jméno a příjmení" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="flex-1 min-w-[180px]">
+              <label className="block text-[11px] text-gray-500 mb-0.5">E-mail účtu (nepovinné)</label>
+              <input value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)} placeholder="aby se mohl sám omluvit" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <button type="button" onClick={addClient} disabled={!newClientName.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+              Přidat klienta
+            </button>
+          </div>
+
+          {/* Seznam klientů */}
+          {clients.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {clients.map((c) => {
+                const recCount = recurring.filter((r) => r.client_name === c.name).length;
+                return (
+                  <span key={c.id} className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-3 py-1 text-xs font-medium text-brand-dark">
+                    {c.name}
+                    {c.email && <span className="text-gray-400">· účet</span>}
+                    {recCount > 0 && <span className="font-semibold text-brand-blue">· {recCount}× týdně</span>}
+                    <button type="button" onClick={() => deleteClient(c.id)} title="Smazat z kartotéky" className="text-gray-300 hover:text-red-500">×</button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Pravidelné lekce */}
+          <h3 className="text-sm font-semibold text-brand-dark mb-2">Pravidelné lekce</h3>
           {recurring.length > 0 && (
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-4">
               {recurring.map((r) => (
                 <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
                   <span className="text-sm text-brand-dark">
@@ -1197,13 +1257,12 @@ export default function AdminPage() {
           )}
 
           <div className="flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3">
-            <div className="flex-1 min-w-[140px]">
-              <label className="block text-[11px] text-gray-500 mb-0.5">Stálý klient</label>
-              <input value={recClient} onChange={(e) => setRecClient(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
-            </div>
             <div className="flex-1 min-w-[160px]">
-              <label className="block text-[11px] text-gray-500 mb-0.5">E-mail účtu (nepovinné)</label>
-              <input value={recEmail} onChange={(e) => setRecEmail(e.target.value)} placeholder="aby se mohl sám omluvit" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+              <label className="block text-[11px] text-gray-500 mb-0.5">Klient</label>
+              <select value={recClient} onChange={(e) => setRecClient(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                <option value="">— vyber z kartotéky —</option>
+                {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
@@ -1221,8 +1280,8 @@ export default function AdminPage() {
               <label className="block text-[11px] text-gray-500 mb-0.5">Cena Kč</label>
               <input type="number" value={recPrice} onChange={(e) => setRecPrice(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
             </div>
-            <button type="button" onClick={addRecurring} disabled={!recClient.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
-              Přidat
+            <button type="button" onClick={addRecurring} disabled={!recClient} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+              Přidat lekci
             </button>
           </div>
         </section>
