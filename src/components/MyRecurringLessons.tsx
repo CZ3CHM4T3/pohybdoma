@@ -31,6 +31,7 @@ export function MyRecurringLessons() {
   const [cancelled, setCancelled] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -58,11 +59,17 @@ export function MyRecurringLessons() {
   async function cancel(o: Occ) {
     const key = `${o.recId}|${o.date}`;
     setBusyKey(key);
+    setErr(null);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("recurring_cancellations").insert({ recurring_id: o.recId, date: o.date, cancelled_by: user?.id ?? null });
     setBusyKey(null);
-    if (!error) setCancelled((prev) => new Set(prev).add(key));
+    if (error) {
+      console.error("Omluva selhala:", error);
+      setErr("Omluvu se nepodařilo uložit: " + error.message);
+      return;
+    }
+    setCancelled((prev) => new Set(prev).add(key));
   }
 
   if (!loaded) return null;
@@ -77,6 +84,10 @@ export function MyRecurringLessons() {
         <h2 className="mt-2 text-xl font-bold text-brand-dark">Moje pravidelné lekce</h2>
         <span className="text-xs text-gray-500">Omluvit se jde nejpozději 24 h předem. Pak lekce propadá.</span>
       </div>
+
+      {err && (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{err}</p>
+      )}
 
       {(() => {
         const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];

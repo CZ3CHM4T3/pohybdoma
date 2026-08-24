@@ -69,6 +69,9 @@ begin
   end if;
 
   return new;
+exception when others then
+  -- Notifikace nesmí NIKDY shodit omluvu klienta – chybu spolkneme.
+  return new;
 end;
 $$;
 
@@ -116,6 +119,9 @@ begin
     )
   );
 
+  return new;
+exception when others then
+  -- Notifikace nesmí shodit zrušení rezervace – chybu spolkneme.
   return new;
 end;
 $$;
