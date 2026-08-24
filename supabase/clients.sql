@@ -20,6 +20,11 @@ drop policy if exists "admin clients" on public.clients;
 create policy "admin clients" on public.clients
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
+-- Zkušební klientka s propojeným účtem (aby šlo otestovat self-storno).
+insert into public.clients (name, email)
+select 'Magdalena Schröffelová', 'magnem13@gmail.com'
+where not exists (select 1 from public.clients c where c.name = 'Magdalena Schröffelová');
+
 -- Předvyplnění seznamu (přidá jen jména, která ještě nejsou).
 insert into public.clients (name)
 select v.name from (values
