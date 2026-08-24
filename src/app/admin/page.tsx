@@ -164,7 +164,7 @@ type RecurringRow = {
   note: string | null;
   active: boolean;
 };
-type ClientRow = { id: string; name: string; email: string | null; note: string | null };
+type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
 type ReviewRow = {
   id: string;
   author_name: string;
@@ -385,7 +385,7 @@ export default function AdminPage() {
     supabase.from("recurring_cancellations").select("recurring_id, date").then(({ data }) => {
       if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
     });
-    supabase.from("clients").select("id, name, email, note").order("name").then(({ data }) => {
+    supabase.from("clients").select("id, name, email, note, bill_group").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
     });
     // Produkty – samostatně, ať admin funguje i bez tabulky products
@@ -607,7 +607,7 @@ export default function AdminPage() {
     });
     if (error) { setError("Uložení klienta selhalo (spustil jsi clients.sql?): " + error.message); return; }
     setNewClientName(""); setNewClientEmail("");
-    const { data } = await supabase.from("clients").select("id, name, email, note").order("name");
+    const { data } = await supabase.from("clients").select("id, name, email, note, bill_group").order("name");
     if (data) setClients(data as ClientRow[]);
   }
   async function deleteClient(id: string) {
@@ -615,6 +615,13 @@ export default function AdminPage() {
     const { error } = await supabase.from("clients").delete().eq("id", id);
     if (error) { setError("Smazání klienta selhalo: " + error.message); return; }
     setClients((prev) => prev.filter((x) => x.id !== id));
+  }
+  // Fakturační skupina (rodina) – stejný název u dvou klientů = jedna společná faktura
+  async function updateClientGroup(id: string, group: string) {
+    const val = group.trim() || null;
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, bill_group: val } : c)));
+    const { error } = await supabase.from("clients").update({ bill_group: val }).eq("id", id);
+    if (error) setError("Uložení skupiny selhalo (spustil jsi client_billing_group.sql?): " + error.message);
   }
 
   // ── Stálí klienti (opakované lekce) ──
@@ -646,6 +653,28 @@ export default function AdminPage() {
     const { error } = await supabase.from("recurring_lessons").delete().eq("id", id);
     if (error) { setError("Smazání selhalo: " + error.message); return; }
     setRecurring((prev) => prev.filter((x) => x.id !== id));
+  }
+  // Pravidelná lekce založená přímo z kalendáře (den → weekday). Propojí účet klienta, pokud sedí e-mail.
+  async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null) {
+    if (!clientName.trim()) return;
+    setError(null);
+    const roster = clients.find((c) => c.name === clientName.trim());
+    let clientId: string | null = null;
+    if (roster?.email) {
+      const { data: prof } = await supabase.from("profiles").select("id").eq("email", roster.email).maybeSingle();
+      if (prof) clientId = prof.id as string;
+    }
+    const { error } = await supabase.from("recurring_lessons").insert({
+      client_name: clientName.trim(),
+      client_id: clientId,
+      weekday,
+      time,
+      price_kc: priceKc,
+      note: note.trim() || null,
+    });
+    if (error) { setError("Uložení pravidelné lekce selhalo (spustil jsi recurring.sql?): " + error.message); return; }
+    const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
+    if (data) setRecurring(data as RecurringRow[]);
   }
 
   // ── Členové (úroveň přístupu) ──
@@ -1282,12 +1311,6 @@ export default function AdminPage() {
 
         {tab === "dnes" && (
         <>
-        {/* ── Rychlé zkratky ── */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          <button type="button" onClick={() => setTab("rozvrh")} className="rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white hover:opacity-90">+ Přidat lekci</button>
-          <button type="button" onClick={() => setTab("rezervace")} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Rezervace</button>
-          <button type="button" onClick={() => setTab("faktury")} className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50">Faktury</button>
-        </div>
         {/* ── Agenda: Co mě čeká ── */}
         <section className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Co mě čeká</h2>
@@ -1367,6 +1390,7 @@ export default function AdminPage() {
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}
+            onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
           />
         </section>
@@ -1404,6 +1428,13 @@ export default function AdminPage() {
                     {c.name}
                     {c.email && <span className="text-gray-400">· účet</span>}
                     {recCount > 0 && <span className="font-semibold text-brand-blue">· {recCount}× týdně</span>}
+                    <input
+                      defaultValue={c.bill_group ?? ""}
+                      onBlur={(e) => { if ((e.target.value.trim() || null) !== (c.bill_group ?? null)) updateClientGroup(c.id, e.target.value); }}
+                      placeholder="rodina"
+                      title="Fakturovat dohromady: zadej stejný název u obou (např. Kremsovi)"
+                      className="w-16 rounded border border-gray-200 bg-white px-1 py-0.5 text-[11px] text-brand-dark placeholder:text-gray-300"
+                    />
                     <button type="button" onClick={() => deleteClient(c.id)} title="Smazat z kartotéky" className="text-gray-300 hover:text-red-500">×</button>
                   </span>
                 );
@@ -1477,6 +1508,7 @@ export default function AdminPage() {
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}
+            onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
           />
         </section>
@@ -1890,12 +1922,16 @@ export default function AdminPage() {
             ...recLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+          // Fakturační skupiny (rodiny): klienti se stejným bill_group se sečtou do jedné faktury
+          const groupOf = new Map<string, string>();
+          for (const c of clients) { if (c.bill_group && c.bill_group.trim()) groupOf.set(c.name, c.bill_group.trim()); }
           const byClient = new Map<string, Line[]>();
           for (const ln of monthLines) {
-            if (!byClient.has(ln.client)) byClient.set(ln.client, []);
-            byClient.get(ln.client)!.push(ln);
+            const key = groupOf.get(ln.client) || ln.client;
+            if (!byClient.has(key)) byClient.set(key, []);
+            byClient.get(key)!.push(ln);
           }
-          const clients = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+          const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
 
           // Příjmy odjinud (ručně – fitko apod.) pro vybraný měsíc
@@ -2014,11 +2050,11 @@ export default function AdminPage() {
             {/* INDIVIDUÁLY – vyúčtování lekcí po klientech */}
             {finView === "individualy" && (<>
             <h3 className="text-sm font-semibold text-brand-dark mb-2">Lekce – komu naúčtovat</h3>
-            {clients.length === 0 ? (
+            {invGroups.length === 0 ? (
               <p className="text-sm text-gray-400 mb-6">V tomto měsíci nejsou žádné lekce.</p>
             ) : (
               <div className="space-y-4 mb-6">
-                {clients.map(([client, lines], ci) => {
+                {invGroups.map(([client, lines], ci) => {
                   const sub = lines.reduce((s, x) => s + x.amount, 0);
                   return (
                     <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">

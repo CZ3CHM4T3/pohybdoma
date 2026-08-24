@@ -44,6 +44,7 @@ export function WeekCalendar({
   onSetOverride,
   onResetOverride,
   onAddLesson,
+  onAddRecurring,
   onDeleteLesson,
 }: {
   weekly: WeeklyRow[];
@@ -54,6 +55,7 @@ export function WeekCalendar({
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
+  onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -69,6 +71,7 @@ export function WeekCalendar({
   const [lName, setLName] = useState("");
   const [lNote, setLNote] = useState("");
   const [lPrice, setLPrice] = useState("1000");
+  const [lRepeat, setLRepeat] = useState(false);
   const [lSaving, setLSaving] = useState(false);
 
   const days = useMemo(
@@ -126,10 +129,16 @@ export function WeekCalendar({
     if (!selectedDay || !lName.trim() || !lTime) return;
     setLSaving(true);
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
-    await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), Number.isFinite(priceKc as number) ? priceKc : null);
+    const p = Number.isFinite(priceKc as number) ? priceKc : null;
+    if (lRepeat && onAddRecurring) {
+      await onAddRecurring(selectedDay.getDay(), lTime, lName.trim(), lNote.trim(), p);
+    } else {
+      await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), p);
+    }
     setLSaving(false);
     setLName("");
     setLNote("");
+    setLRepeat(false);
   }
 
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
@@ -328,6 +337,12 @@ export function WeekCalendar({
                   {lSaving ? "Ukládám…" : "Přidat"}
                 </button>
               </div>
+              {onAddRecurring && (
+                <label className="mt-2 flex items-center gap-2 text-xs text-brand-dark">
+                  <input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" />
+                  Opakovat každý týden (stálý klient)
+                </label>
+              )}
             </div>
           )}
         </div>
