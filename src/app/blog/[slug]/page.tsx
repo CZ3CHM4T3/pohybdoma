@@ -21,10 +21,25 @@ async function getPost(slug: string): Promise<Post | null> {
   return (data as Post) ?? null;
 }
 
+function excerpt(html: string, n = 155): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
-  return { title: post?.title ?? "Článek nenalezen" };
+  if (!post) return { title: "Článek nenalezen" };
+  const desc = excerpt(post.content);
+  return {
+    title: post.title,
+    description: desc,
+    openGraph: {
+      title: post.title,
+      description: desc,
+      type: "article",
+      images: post.cover_url ? [post.cover_url] : undefined,
+    },
+  };
 }
 
 export default async function BlogPostPage({ params }: Props) {
@@ -32,8 +47,22 @@ export default async function BlogPostPage({ params }: Props) {
   const post = await getPost(slug);
   if (!post) notFound();
 
+  const articleLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    datePublished: post.created_at,
+    dateModified: post.created_at,
+    image: post.cover_url ? [post.cover_url] : undefined,
+    description: excerpt(post.content),
+    author: { "@type": "Person", name: "Mgr. Jan Schröffel" },
+    publisher: { "@type": "Organization", name: "POHYB DOMA", logo: { "@type": "ImageObject", url: "https://pohybdoma.cz/LOGO.png" } },
+    mainEntityOfPage: `https://pohybdoma.cz/blog/${post.slug}`,
+  };
+
   return (
     <div className="min-h-screen bg-white py-12 lg:py-16">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }} />
       <article className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <Link href="/blog" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-brand-blue hover:underline">
           <ArrowLeft className="h-4 w-4" /> Zpět na blog

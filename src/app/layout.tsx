@@ -52,14 +52,27 @@ export const viewport: Viewport = {
 // Strukturovaná data pro Google (bohatší výsledky). Aktivní hlavně po spuštění naveřejno.
 const JSON_LD = {
   "@context": "https://schema.org",
-  "@type": "LocalBusiness",
+  "@type": "HealthAndBeautyBusiness",
   name: "POHYB DOMA",
   description: "Osobní lektor pohybu. Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
   url: "https://pohybdoma.cz",
   logo: "https://pohybdoma.cz/LOGO.png",
   image: "https://pohybdoma.cz/og.png",
   email: "pohybdoma@seznam.cz",
-  areaServed: "Hradištko, Dobřichovice a okolí (a online po celé ČR)",
+  priceRange: "199–1500 Kč",
+  areaServed: "Dobřichovice a okolí (a online po celé ČR)",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Dobřichovice",
+    addressRegion: "Středočeský kraj",
+    addressCountry: "CZ",
+  },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: 49.9265,
+    longitude: 14.271,
+  },
+  knowsAbout: ["pohybová náprava", "cvičení doma", "bolesti zad", "osobní trénink", "sportovní masáž"],
   sameAs: ["https://www.instagram.com/pohybdoma/"],
   founder: {
     "@type": "Person",
