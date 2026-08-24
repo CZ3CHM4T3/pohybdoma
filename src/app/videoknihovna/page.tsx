@@ -34,6 +34,17 @@ const GROUPS: Group[] = [
   { key: "suitability", title: "Vhodnost (skryje nevhodné)", options: opt(FILTER_SUITABILITY) },
 ];
 
+// Rychlé předvolby – jedno kliknutí místo skládání filtrů
+const QUICK_CHIPS: { label: string; patch: Record<string, string[]> }[] = [
+  { label: "Bolesti zad", patch: { body: ["záda"], goal: ["bolest"] } },
+  { label: "Ztuhlý krk a ramena", patch: { body: ["krk", "ramena"], goal: ["ztuhlost"] } },
+  { label: "Bolavá kolena", patch: { body: ["kolena"] } },
+  { label: "Kyčle", patch: { body: ["kyčle"] } },
+  { label: "Do 10 minut", patch: { duration: ["do 10 min"] } },
+  { label: "Pro začátečníky", patch: { difficulty: ["začátečník"] } },
+];
+const COLLAPSED_GROUPS = ["system", "props", "suitability"];
+
 function durationBucket(sec: number): string {
   if (sec < 600) return "do 10 min";
   if (sec <= 1200) return "10–20 min";
@@ -85,6 +96,14 @@ export default function VideoknihovnaPage() {
     setSel(Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()])));
     setOnlyNew(false);
     setSearch("");
+  }
+  function applyChip(patch: Record<string, string[]>) {
+    setSel(() => {
+      const next = Object.fromEntries(GROUPS.map((g) => [g.key, new Set<string>()])) as Record<string, Set<string>>;
+      for (const [k, vals] of Object.entries(patch)) next[k] = new Set(vals);
+      return next;
+    });
+    setOnlyNew(false);
   }
 
   const activeCount = GROUPS.reduce((n, g) => n + sel[g.key].size, 0) + (onlyNew ? 1 : 0);
@@ -199,9 +218,16 @@ export default function VideoknihovnaPage() {
                   </button>
                 )}
               </div>
-              {GROUPS.map((g) => (
-                <div key={g.key}>
-                  <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">{g.title}</h3>
+              {/* Rychlé předvolby */}
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_CHIPS.map((c) => (
+                  <button key={c.label} type="button" onClick={() => applyChip(c.patch)} className="rounded-full bg-brand-blue/10 px-2.5 py-1 text-xs font-semibold text-brand-blue hover:bg-brand-blue/20">
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              {GROUPS.map((g) => {
+                const optionsList = (
                   <div className="space-y-1">
                     {g.options.map((o) => {
                       const checked = sel[g.key].has(o.value);
@@ -221,8 +247,19 @@ export default function VideoknihovnaPage() {
                       );
                     })}
                   </div>
-                </div>
-              ))}
+                );
+                return COLLAPSED_GROUPS.includes(g.key) ? (
+                  <details key={g.key}>
+                    <summary className="mb-1.5 cursor-pointer text-xs font-bold uppercase tracking-wide text-gray-400">{g.title}</summary>
+                    {optionsList}
+                  </details>
+                ) : (
+                  <div key={g.key}>
+                    <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-gray-400">{g.title}</h3>
+                    {optionsList}
+                  </div>
+                );
+              })}
             </div>
           </aside>
           )}

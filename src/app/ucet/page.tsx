@@ -613,6 +613,9 @@ export default function UcetPage() {
                 </div>
               </div>
 
+              <details className="rounded-xl border border-gray-100 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-brand-dark">Oblíbená aktivita a e-mailová upozornění</summary>
+                <div className="mt-4 space-y-5">
               {/* Oblíbená aktivita (ukáže se na profilu) */}
               <div>
                 <label className="block text-sm font-semibold text-brand-dark mb-1.5">Oblíbená aktivita</label>
@@ -655,6 +658,8 @@ export default function UcetPage() {
                   })}
                 </div>
               </div>
+                </div>
+              </details>
 
               {/* Heslo + odhlášení */}
               <div className="flex flex-wrap items-center gap-4 border-t border-gray-100 pt-4">
