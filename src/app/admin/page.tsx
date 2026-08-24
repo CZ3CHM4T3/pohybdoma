@@ -1149,7 +1149,8 @@ export default function AdminPage() {
   {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 7 * 78; i++) { // ~18 měsíců dopředu (jako týdenní kalendář)
+    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne (ať je vidět i dřívější dny týdne)
+    for (let i = 0; i < 7 * 79; i++) { // ~18 měsíců dopředu (jako týdenní kalendář)
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay(); // 0=Ne … 6=So (stejně jako recurring.weekday)
@@ -1174,7 +1175,8 @@ export default function AdminPage() {
   {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 7 * 78; i++) {
+    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne
+    for (let i = 0; i < 7 * 79; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay();
@@ -1205,7 +1207,8 @@ export default function AdminPage() {
   {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
-    for (let i = 0; i < 7 * 78; i++) {
+    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne
+    for (let i = 0; i < 7 * 79; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay();
