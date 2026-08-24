@@ -245,6 +245,15 @@ export default function RezervacePage() {
       overrides
         .filter((r) => r.date === key)
         .forEach((r) => map.set(r.time, r.status));
+      // Reálně obsazené hodiny (stálí klienti, bloky, rezervace) ukaž jako „obsazeno",
+      // i když tam nemám nastavenou dostupnost – ať je vidět, že jsem vytížený.
+      const prefix = `${key} `;
+      for (const b of busy) {
+        if (b.startsWith(prefix)) {
+          const t = b.slice(prefix.length);
+          if (!map.has(t)) map.set(t, "booked");
+        }
+      }
       return [...map.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
         // Obsazený termín (rezervace/lekce) přebije volno.
