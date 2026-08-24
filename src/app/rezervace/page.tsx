@@ -51,9 +51,6 @@ const SERVICE_ICONS: Record<string, LucideIcon> = {
   "svc-video-rozbor": Video,
 };
 
-// Řádky z databáze
-type WeeklyRow = { weekday: number; time: string; is_free: boolean };
-type OverrideRow = { date: string; time: string; status: SlotStatus };
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -135,8 +132,7 @@ export default function RezervacePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // ── Data z databáze (rozvrh, výjimky, akce) ──
-  const [weekly, setWeekly] = useState<WeeklyRow[]>([]);
-  const [overrides, setOverrides] = useState<OverrideRow[]>([]);
+  const [open, setOpen] = useState<Set<string>>(new Set()); // "YYYY-MM-DD HH:MM" volné termíny
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [busy, setBusy] = useState<Set<string>>(new Set()); // "YYYY-MM-DD HH:MM" obsazené termíny
   const [loadingData, setLoadingData] = useState(true);
@@ -146,15 +142,13 @@ export default function RezervacePage() {
     (async () => {
       const from = dateKey(today);
       const to = dateKey(new Date(today.getFullYear(), today.getMonth() + 4, 0));
-      const [w, o, e, bt] = await Promise.all([
-        supabase.from("availability_weekly").select("weekday,time,is_free"),
-        supabase.from("availability_overrides").select("date,time,status"),
+      const [e, bt, ot] = await Promise.all([
         supabase.from("events").select("*").order("date"),
         supabase.rpc("busy_times", { p_from: from, p_to: to }),
+        supabase.rpc("open_times", { p_from: from, p_to: to }),
       ]);
-      if (w.data) setWeekly(w.data as WeeklyRow[]);
-      if (o.data) setOverrides(o.data as OverrideRow[]);
       if (bt.data) setBusy(new Set((bt.data as { date: string; time: string }[]).map((r) => `${r.date} ${r.time}`)));
+      if (ot.data) setOpen(new Set((ot.data as { date: string; time: string }[]).map((r) => `${r.date} ${r.time}`)));
       if (e.data) {
         setEvents(
           (e.data as Record<string, unknown>[]).map((r) => ({
@@ -239,27 +233,20 @@ export default function RezervacePage() {
       const wd = date.getDay();
       const key = dateKey(date);
       const map = new Map<string, SlotStatus>();
-      weekly
-        .filter((r) => r.weekday === wd)
-        .forEach((r) => map.set(r.time, r.is_free ? "free" : "booked"));
-      overrides
-        .filter((r) => r.date === key)
-        .forEach((r) => map.set(r.time, r.status));
-      // Reálně obsazené hodiny (stálí klienti, bloky, rezervace) ukaž jako „obsazeno",
-      // i když tam nemám nastavenou dostupnost – ať je vidět, že jsem vytížený.
       const prefix = `${key} `;
+      // Obsazené hodiny (stálí klienti, bloky, rezervace) = zatmavené „obsazeno".
       for (const b of busy) {
-        if (b.startsWith(prefix)) {
-          const t = b.slice(prefix.length);
-          if (!map.has(t)) map.set(t, "booked");
-        }
+        if (b.startsWith(prefix)) map.set(b.slice(prefix.length), "booked");
+      }
+      // Volné hodiny (uvolněné od stálých klientů + pevně otevřené) = zeleně, klikací.
+      for (const o of open) {
+        if (o.startsWith(prefix)) map.set(o.slice(prefix.length), "free");
       }
       return [...map.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
-        // Obsazený termín (rezervace/lekce) přebije volno.
-        .map(([time, status]) => ({ time, status: busy.has(`${key} ${time}`) ? "booked" : status }));
+        .map(([time, status]) => ({ time, status }));
     },
-    [weekly, overrides, busy, today]
+    [busy, open, today]
   );
   const dayHasFree = useCallback(
     (date: Date) => slotsFor(date).some((s) => s.status === "free"),

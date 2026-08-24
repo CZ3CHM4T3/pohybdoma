@@ -236,6 +236,9 @@ export default function AdminPage() {
   const [mkDate, setMkDate] = useState("");
   const [mkTime, setMkTime] = useState("15:00");
   const [mkSlots, setMkSlots] = useState<{ date: string; time: string }[]>([]);
+  // Pevně otevřené hodiny (volné pro veřejnost)
+  const [ohWeekday, setOhWeekday] = useState("4"); // Čt
+  const [ohTime, setOhTime] = useState("15:00");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -614,6 +617,22 @@ export default function AdminPage() {
       .eq("time", time);
     if (error) { setError("Smazání výjimky selhalo: " + error.message); return; }
     await loadData();
+  }
+  // ── Pevně otevřené hodiny (volné pro veřejnost) ──
+  async function addOpenHour() {
+    setError(null);
+    const { error } = await supabase
+      .from("availability_weekly")
+      .upsert({ weekday: Number(ohWeekday), time: ohTime, is_free: true }, { onConflict: "weekday,time" });
+    if (error) { setError("Uložení otevřené hodiny selhalo: " + error.message); return; }
+    const { data } = await supabase.from("availability_weekly").select("weekday,time,is_free");
+    if (data) setWeekly(data as WeeklyRow[]);
+  }
+  async function deleteOpenHour(weekday: number, time: string) {
+    setError(null);
+    const { error } = await supabase.from("availability_weekly").delete().eq("weekday", weekday).eq("time", time);
+    if (error) { setError("Smazání otevřené hodiny selhalo: " + error.message); return; }
+    setWeekly((prev) => prev.filter((w) => !(w.weekday === weekday && w.time === time)));
   }
 
   // ── Vlastní lekce (plánovač) ──
@@ -1537,13 +1556,11 @@ export default function AdminPage() {
 
         {tab === "rozvrh" && (
         <>
-        {/* ── Moje volné hodiny (po týdnech, s daty) ── */}
+        {/* ── Můj rozvrh (týdenní časová osa) ── */}
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Moje volné hodiny</h2>
+          <h2 className="text-lg font-semibold text-brand-dark mb-1">Můj rozvrh</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Tady nastavuješ, <strong>které hodiny jsou volné pro klienty</strong>. Listuj po týdnech
-            (← →) klidně na měsíce dopředu a u konkrétních dnů naklikej volno. Kliknutím na <strong>datum dne</strong>
-            otevřeš den a můžeš přidat vlastní lekci.
+            Celý týden na časové ose. Klikni do prázdného místa a přidej lekci. Pro veřejnost jsou <strong>volné</strong> jen hodiny, které se uvolní od stálých klientů (omluvy) a hodiny, které si otevřeš níže.
           </p>
           <WeekCalendar
             bookings={bookings}
@@ -1555,6 +1572,37 @@ export default function AdminPage() {
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
           />
+
+          {/* Otevřené hodiny pro veřejnost */}
+          <div className="mt-6 border-t border-gray-100 pt-5">
+            <h3 className="text-sm font-semibold text-brand-dark mb-1">Otevřené hodiny pro veřejnost</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Pevně volné hodiny, které se na webu nabízejí k rezervaci (např. Čt 15:00). Uvolněné hodiny po omluvě stálého klienta se nabízejí automaticky – ty nemusíš řešit.
+            </p>
+            {weekly.filter((w) => w.is_free).length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {weekly.filter((w) => w.is_free).sort((a, b) => a.weekday - b.weekday || a.time.localeCompare(b.time)).map((w) => (
+                  <span key={`${w.weekday}-${w.time}`} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                    {["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][w.weekday]} {w.time}
+                    <button type="button" onClick={() => deleteOpenHour(w.weekday, w.time)} className="text-emerald-400 hover:text-red-500">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
+                <select value={ohWeekday} onChange={(e) => setOhWeekday(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                  <option value="1">Po</option><option value="2">Út</option><option value="3">St</option><option value="4">Čt</option><option value="5">Pá</option><option value="6">So</option><option value="0">Ne</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-0.5">Čas</label>
+                <input type="time" value={ohTime} onChange={(e) => setOhTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+              </div>
+              <button type="button" onClick={addOpenHour} className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">+ Otevřít hodinu</button>
+            </div>
+          </div>
         </section>
 
         {/* ── Stálí klienti: kartotéka + pravidelné lekce ── */}
