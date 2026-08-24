@@ -170,6 +170,8 @@ export default function AdminPage() {
   const [recTime, setRecTime] = useState("15:00");
   const [recPrice, setRecPrice] = useState("1000");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
+  const [archClient, setArchClient] = useState("");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [kickId, setKickId] = useState<string | null>(null);
@@ -391,14 +393,14 @@ export default function AdminPage() {
   }
 
   // Vystaví fakturu pro klienta za vybraný měsíc – otevře ji v novém okně k tisku/PDF.
-  async function openInvoice(clientName: string, lines: { date: string; what: string; amount: number }[], seq: number) {
+  async function openInvoice(clientName: string, lines: { date: string; what: string; amount: number }[], seq: number, monthKey?: string) {
     if (!invoiceConfigured()) {
       setError("Nejdřív vyplň fakturační údaje v src/lib/invoice-config.ts (jméno + IBAN nebo číslo účtu).");
       return;
     }
     const s = INVOICE_SUPPLIER;
     const total = lines.reduce((a, l) => a + l.amount, 0);
-    const num = `${INVOICE_SETTINGS.numberPrefix}${invMonth.replace("-", "")}${String(seq).padStart(2, "0")}`;
+    const num = `${INVOICE_SETTINGS.numberPrefix}${(monthKey ?? invMonth).replace("-", "")}${String(seq).padStart(2, "0")}`;
     const today = new Date();
     const due = new Date(); due.setDate(due.getDate() + INVOICE_SETTINGS.dueDays);
     const fmt = (d: Date) => d.toLocaleDateString("cs-CZ");
@@ -1642,6 +1644,24 @@ export default function AdminPage() {
           const orderedCats = Object.keys(yearByCat).sort((a, b) => yearByCat[b] - yearByCat[a]);
           const pieSlices = orderedCats.map((c) => ({ label: c, value: yearByCat[c], color: catColor(c) }));
 
+          // ── ARCHIV: celá historie lekcí po klientech (napříč všemi měsíci) ──
+          const archByClient = new Map<string, Line[]>();
+          for (const ln of lessonLines) {
+            if (!archByClient.has(ln.client)) archByClient.set(ln.client, []);
+            archByClient.get(ln.client)!.push(ln);
+          }
+          const archClients = [...archByClient.keys()].sort((a, b) => a.localeCompare(b, "cs"));
+          const archLines = (archClient && archByClient.get(archClient)
+            ? [...archByClient.get(archClient)!].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
+            : []);
+          const archByMonth = new Map<string, Line[]>();
+          for (const ln of archLines) {
+            const mk = ln.date.slice(0, 7);
+            if (!archByMonth.has(mk)) archByMonth.set(mk, []);
+            archByMonth.get(mk)!.push(ln);
+          }
+          const archTotal = archLines.reduce((s, x) => s + x.amount, 0);
+
           return (
           <section className="card p-6">
             <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
@@ -1650,7 +1670,22 @@ export default function AdminPage() {
               až poběží Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
             </p>
 
-            {/* Výběr měsíce + celkový příjem */}
+            {/* Subzáložky */}
+            <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
+              {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setFinView(k)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${finView === k ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+
+            {/* Výběr měsíce + celkový příjem (Měsíc + Individuály) */}
+            {finView !== "archiv" && (
             <div className="flex flex-wrap items-end gap-3 mb-6">
               <div>
                 <label className="block text-xs font-semibold text-brand-dark mb-1">Měsíc</label>
@@ -1669,8 +1704,10 @@ export default function AdminPage() {
                 )}
               </div>
             </div>
+            )}
 
-            {/* Vyúčtování lekcí po klientech */}
+            {/* INDIVIDUÁLY – vyúčtování lekcí po klientech */}
+            {finView === "individualy" && (<>
             <h3 className="text-sm font-semibold text-brand-dark mb-2">Lekce – komu naúčtovat</h3>
             {clients.length === 0 ? (
               <p className="text-sm text-gray-400 mb-6">V tomto měsíci nejsou žádné lekce.</p>
@@ -1708,7 +1745,10 @@ export default function AdminPage() {
                 })}
               </div>
             )}
+            </>)}
 
+            {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
+            {finView === "mesic" && (<>
             {/* Příjmy odjinud (MS GEM, fitness lekce) */}
             <h3 className="text-sm font-semibold text-brand-dark mb-2 mt-6">Příjmy odjinud (MS GEM, fitness lekce…)</h3>
             {monthFin.length > 0 && (
@@ -1791,6 +1831,60 @@ export default function AdminPage() {
               <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Příjmy podle zdroje · {year}</p>
               <Pie slices={pieSlices} />
             </div>
+            </>)}
+
+            {/* ARCHIV – historie lekcí podle klienta */}
+            {finView === "archiv" && (
+              <div>
+                <p className="text-sm text-gray-500 mb-4">Vyber klienta a uvidíš všechny jeho lekce po měsících (data + částky), včetně součtu.</p>
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-brand-dark mb-1">Klient</label>
+                  <select value={archClient} onChange={(e) => setArchClient(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white min-w-[220px]">
+                    <option value="">— vyber klienta —</option>
+                    {archClients.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {!archClient ? null : archLines.length === 0 ? (
+                  <p className="text-sm text-gray-400">Žádné lekce.</p>
+                ) : (
+                  <>
+                    <div className="mb-4 inline-block rounded-lg bg-green-50 px-4 py-2">
+                      <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Celkem za celou dobu</p>
+                      <p className="text-xl font-bold text-green-800">{archTotal.toLocaleString("cs-CZ")} Kč</p>
+                    </div>
+                    <div className="space-y-4">
+                      {[...archByMonth.entries()].map(([mk, lns]) => {
+                        const sub = lns.reduce((s, x) => s + x.amount, 0);
+                        const ml = new Date(mk + "-01T00:00:00").toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
+                        return (
+                          <div key={mk} className="rounded-xl border border-gray-100 overflow-hidden">
+                            <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2">
+                              <span className="font-semibold text-brand-dark capitalize">{ml}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
+                                <button type="button" onClick={() => openInvoice(archClient, lns.map((l) => ({ date: l.date, what: l.what, amount: l.amount })), 1, mk)} className="inline-flex items-center gap-1 rounded-md bg-brand-dark px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90">
+                                  <Receipt className="h-3.5 w-3.5" /> Fakturu
+                                </button>
+                              </div>
+                            </div>
+                            <div className="divide-y divide-gray-50">
+                              {lns.map((ln, i) => (
+                                <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                                  <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(ln.date)}</span>
+                                  <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
+                                  <span className="text-gray-600 truncate flex-1">{ln.what}</span>
+                                  <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </section>
           );
         })()}
