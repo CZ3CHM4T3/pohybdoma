@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Crown } from "lucide-react";
+import { MemberNav } from "@/components/layout/MemberNav";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
@@ -67,7 +68,11 @@ export function Header() {
       );
   }, [authUser]);
 
+  const MEMBER_PREFIXES = ["/ucet", "/videoknihovna", "/kurzy", "/kruhy", "/denik", "/odznaky", "/chlubirna", "/buddies", "/klub"];
+  const showMemberNav = signedIn && MEMBER_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
+
   return (
+    <>
     <header
       className={`sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b transition-shadow duration-300 ${
         scrolled
@@ -214,5 +219,13 @@ export function Header() {
         )}
       </div>
     </header>
+    {showMemberNav && (
+      <div className="border-b border-gray-100 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-2">
+          <MemberNav />
+        </div>
+      </div>
+    )}
+    </>
   );
 }

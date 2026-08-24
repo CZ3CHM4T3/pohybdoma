@@ -387,7 +387,7 @@ export default function UcetPage() {
       <div className="min-h-screen bg-brand-light py-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           {/* Název stránky */}
-          <div className="mb-6">
+          <div className="mb-4">
             <h1 className="text-3xl lg:text-4xl font-semibold text-brand-dark">Moje cesta</h1>
             <p className="mt-1 text-gray-500">
               Vítej zpět{displayName ? `, ${displayName}` : ""}! Tvoje základna na jednom místě.

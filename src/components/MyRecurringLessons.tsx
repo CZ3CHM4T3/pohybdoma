@@ -130,7 +130,7 @@ export function MyRecurringLessons() {
                     {busyKey === key ? "Omlouvám…" : "Omluvit se"}
                   </button>
                 ) : (
-                  <span className="text-xs text-gray-400">nelze zrušit (méně než 24 h)</span>
+                  <span className="text-xs text-gray-400">nelze omluvit (méně než 24 h)</span>
                 )}
               </span>
             </div>

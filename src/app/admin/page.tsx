@@ -1197,9 +1197,11 @@ export default function AdminPage() {
   const wkStartKey = hoursMonday.toLocaleDateString("sv-SE");
   const wkEndKey = hoursSunday.toLocaleDateString("sv-SE");
   const monthPrefix = hoursTodayKey.slice(0, 7);
+  const HOURS_COUNT_FROM = "2026-09-01"; // odtrénované hodiny počítáme až od září
   function trainedHours(fromKey: string, toKey: string): number {
-    let h = allLessons.filter((l) => l.date >= fromKey && l.date <= toKey && l.date <= hoursTodayKey).length;
-    h += bookings.filter((b) => (b.status === "completed" || b.status === "no_show") && b.date >= fromKey && b.date <= toKey).length;
+    const from = fromKey < HOURS_COUNT_FROM ? HOURS_COUNT_FROM : fromKey;
+    let h = allLessons.filter((l) => l.date >= from && l.date <= toKey && l.date <= hoursTodayKey).length;
+    h += bookings.filter((b) => (b.status === "completed" || b.status === "no_show") && b.date >= from && b.date <= toKey).length;
     return h;
   }
   const weekHours = trainedHours(wkStartKey, wkEndKey);

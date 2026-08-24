@@ -96,6 +96,15 @@ export function WeekCalendar({
     return withLane.map((it) => ({ ...it, lanes }));
   }
 
+  function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, d: Date) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    let min = START_H * 60 + Math.round(((y / HOUR_PX) * 60) / 15) * 15; // zaokrouhli na 15 min
+    min = Math.max(START_H * 60, Math.min(END_H * 60 - 15, min));
+    setSelectedDay(d);
+    setLTime(`${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`);
+  }
+
   async function submitLesson() {
     if (!selectedDay || !lName.trim() || !lTime) return;
     setLSaving(true);
@@ -119,7 +128,7 @@ export function WeekCalendar({
         <button type="button" disabled={!canNext} onClick={() => setWeekStart(addDays(weekStart, 7))} className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30" aria-label="Další týden">→</button>
       </div>
 
-      <p className="text-xs text-gray-500 mb-3">Přehled celého týdne na časové ose – výška = délka lekce, mezery = volno. Klikni na <strong>datum dne</strong> a přidej lekci.</p>
+      <p className="text-xs text-gray-500 mb-3">Přehled celého týdne na časové ose – výška = délka lekce, mezery = volno. <strong>Klikni do prázdného místa v ose</strong> (nebo na datum dne) a dole přidáš lekci na ten čas.</p>
 
       {/* Časová osa */}
       <div className="overflow-x-auto">
@@ -144,7 +153,7 @@ export function WeekCalendar({
                 <button type="button" onClick={() => setSelectedDay(d)} className={`h-7 w-full text-center transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}>
                   <span className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</span>
                 </button>
-                <div className="relative" style={{ height: TOTAL_PX }}>
+                <div className="relative cursor-pointer" style={{ height: TOTAL_PX }} onClick={(e) => handleColumnClick(e, d)} title="Klikni pro přidání lekce na tento čas">
                   {HOURS.map((h, i) => (
                     <div key={h} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: i * HOUR_PX }} />
                   ))}
@@ -156,7 +165,8 @@ export function WeekCalendar({
                       <div
                         key={it.id}
                         title={`${it.time} ${it.name}`}
-                        className="absolute rounded px-1 py-0.5 text-[9px] font-semibold text-white overflow-hidden leading-tight"
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute rounded px-1 py-0.5 text-[9px] font-semibold text-white overflow-hidden leading-tight cursor-default"
                         style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.color }}
                       >
                         <span className="block opacity-90">{it.time}</span>
