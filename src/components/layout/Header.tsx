@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Crown, UserCircle } from "lucide-react";
+import { Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
@@ -142,14 +142,7 @@ export function Header() {
 
           {/* CTA + hamburger */}
           <div className="flex items-center gap-3">
-            {signedIn ? (
-              <Link
-                href="/ucet"
-                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-brand-blue px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-light transition-colors"
-              >
-                <UserCircle className="h-4 w-4" strokeWidth={2} /> Můj účet
-              </Link>
-            ) : (
+            {!signedIn && (
               <Link
                 href="/clenstvi"
                 className="hidden sm:inline-flex items-center rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"

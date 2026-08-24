@@ -40,6 +40,7 @@ export function WeekCalendar({
   overrides,
   bookings,
   lessons,
+  clientNames = [],
   onSetOverride,
   onResetOverride,
   onAddLesson,
@@ -49,6 +50,7 @@ export function WeekCalendar({
   overrides: OverrideRow[];
   bookings: BookingLite[];
   lessons: LessonRow[];
+  clientNames?: string[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -309,7 +311,10 @@ export function WeekCalendar({
                 </div>
                 <div className="flex-1 min-w-[120px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
-                  <input type="text" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                  <input type="text" list="wc-client-names" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                  <datalist id="wc-client-names">
+                    {clientNames.map((n) => <option key={n} value={n} />)}
+                  </datalist>
                 </div>
                 <div className="flex-1 min-w-[110px]">
                   <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>

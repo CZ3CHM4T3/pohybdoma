@@ -308,13 +308,16 @@ export default function UcetPage() {
     setLoading(true);
     setError(null);
     setInfo(null);
+    // Návrat tam, odkud uživatel přišel (např. z rozjeté rezervace) – přes /auth/callback jako u resetu hesla.
+    const rawNext = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
+    const safeNext = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/ucet";
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: name },
         emailRedirectTo:
-          typeof window !== "undefined" ? `${window.location.origin}/ucet` : undefined,
+          typeof window !== "undefined" ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}` : undefined,
       },
     });
     setLoading(false);

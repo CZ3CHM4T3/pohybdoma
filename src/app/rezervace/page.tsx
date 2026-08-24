@@ -284,8 +284,6 @@ export default function RezervacePage() {
     reason.trim().length > 0 &&
     name.trim().length > 0 &&
     email.trim().length > 0 &&
-    billName.trim().length > 0 &&
-    billAddress.trim().length > 0 &&
     (!isInPerson || (municipality !== "" && municipality !== OTHER && address.trim().length > 0));
 
   function resetDateTime() {
@@ -321,8 +319,8 @@ export default function RezervacePage() {
       contact_name: name,
       contact_email: email,
       contact_phone: phone || null,
-      bill_name: billName.trim(),
-      bill_address: billAddress.trim(),
+      bill_name: billName.trim() || null,
+      bill_address: billAddress.trim() || null,
       bill_ico: billIco.trim() || null,
       bill_dic: billDic.trim() || null,
       price_kc: price,
@@ -337,8 +335,8 @@ export default function RezervacePage() {
     // Zapamatuj fakturační údaje do profilu přihlášeného klienta (pro příště)
     if (userId) {
       supabase.from("profiles").update({
-        bill_name: billName.trim(),
-        bill_address: billAddress.trim(),
+        bill_name: billName.trim() || null,
+        bill_address: billAddress.trim() || null,
         bill_ico: billIco.trim() || null,
         bill_dic: billDic.trim() || null,
       }).eq("id", userId).then(() => { /* tiché – neblokuje potvrzení */ });
@@ -893,21 +891,21 @@ export default function RezervacePage() {
 
               {/* Fakturační údaje */}
               <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-sm font-semibold text-brand-dark mb-1">Fakturační údaje</p>
+                <p className="text-sm font-semibold text-brand-dark mb-1">Fakturační údaje <span className="font-normal text-gray-400">(nepovinné)</span></p>
                 <p className="text-xs text-gray-500 mb-4">
-                  Z těchto údajů vystavím fakturu. Fyzická osoba vyplní jméno a adresu; firma navíc IČO (a DIČ).
+                  Můžeš vyplnit teď, nebo to dořešíme před fakturací. Fyzická osoba: jméno a adresa; firma navíc IČO (a DIČ).
                   {userId ? " Uloží se ti do účtu, příště je mít předvyplněné." : ""}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billName">Jméno / název na faktuře *</label>
-                    <input id="billName" type="text" value={billName} onChange={(e) => setBillName(e.target.value)} required
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billName">Jméno / název na faktuře</label>
+                    <input id="billName" type="text" value={billName} onChange={(e) => setBillName(e.target.value)}
                       placeholder="Jan Novák / Firma s.r.o."
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billAddress">Fakturační adresa *</label>
-                    <textarea id="billAddress" value={billAddress} onChange={(e) => setBillAddress(e.target.value)} required rows={2}
+                    <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billAddress">Fakturační adresa</label>
+                    <textarea id="billAddress" value={billAddress} onChange={(e) => setBillAddress(e.target.value)} rows={2}
                       placeholder="Ulice a číslo, PSČ, město"
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none" />
                   </div>
