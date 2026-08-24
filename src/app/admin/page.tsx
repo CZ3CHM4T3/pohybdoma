@@ -164,6 +164,7 @@ export default function AdminPage() {
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
+  const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string }[]>([]);
   const [recClient, setRecClient] = useState("");
   const [recEmail, setRecEmail] = useState("");
   const [recWeekday, setRecWeekday] = useState("1");
@@ -331,6 +332,9 @@ export default function AdminPage() {
     // Stálí klienti (opakované lekce) – samostatně kvůli odolnosti.
     supabase.from("recurring_lessons").select("*").order("weekday").order("time").then(({ data }) => {
       if (data) setRecurring(data as RecurringRow[]);
+    });
+    supabase.from("recurring_cancellations").select("recurring_id, date").then(({ data }) => {
+      if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
     });
 
     // Volitelné novější sloupce – když ještě nejsou v DB, prostě se přeskočí.
@@ -1594,11 +1598,32 @@ export default function AdminPage() {
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
           type Line = { date: string; time: string; client: string; what: string; amount: number };
+          // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
+          const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
+          const recLines: Line[] = [];
+          {
+            const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+            const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
+            for (const r of recurring) {
+              if (!r.active) continue;
+              const d = new Date(start0);
+              while (d <= today0) {
+                if (d.getDay() === r.weekday) {
+                  const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                  if (!cancelSet.has(`${r.id}|${dk}`)) {
+                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0 });
+                  }
+                }
+                d.setDate(d.getDate() + 1);
+              }
+            }
+          }
           const lessonLines: Line[] = [
             // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
             ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
               .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0 })),
             ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0 })),
+            ...recLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
           const byClient = new Map<string, Line[]>();
