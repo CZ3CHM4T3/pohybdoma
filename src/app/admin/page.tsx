@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -28,6 +28,7 @@ const ADMIN_TABS = [
   { k: "vyzva", label: "Výzva", Icon: Flame, active: "bg-amber-500 text-white", icon: "text-amber-500" },
   { k: "rozvrh", label: "Rozvrh", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500" },
   { k: "rezervace", label: "Rezervace", Icon: CalendarCheck, active: "bg-emerald-600 text-white", icon: "text-emerald-500" },
+  { k: "dochazka", label: "Docházka", Icon: ClipboardList, active: "bg-cyan-600 text-white", icon: "text-cyan-500" },
   { k: "faktury", label: "Faktury", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600" },
   { k: "clenove", label: "Členové", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500" },
   { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
@@ -40,7 +41,7 @@ const ADMIN_TABS = [
 // Hlavní skupiny (2. úroveň = podzáložky). Denní provoz první.
 const ADMIN_GROUPS = [
   { k: "dnes", label: "Dnešek", Icon: LayoutDashboard, active: "bg-brand-dark text-white", icon: "text-gray-500", tabs: ["dnes"] },
-  { k: "provoz", label: "Provoz", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500", tabs: ["rozvrh", "rezervace"] },
+  { k: "provoz", label: "Provoz", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500", tabs: ["rozvrh", "rezervace", "dochazka"] },
   { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika"] },
   { k: "obsah", label: "Obsah", Icon: Film, active: "bg-violet-600 text-white", icon: "text-violet-500", tabs: ["videa", "live", "vyzva", "blog", "produkty"] },
   { k: "lide", label: "Lidé", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500", tabs: ["clenove", "recenze", "newsletter", "pruvodce"] },
@@ -242,6 +243,7 @@ export default function AdminPage() {
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
+  const [dochView, setDochView] = useState<"klienti" | "dny">("klienti");
   const [archClient, setArchClient] = useState("");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -2249,6 +2251,110 @@ export default function AdminPage() {
             </div>
           )}
           </section>
+          );
+        })()}
+
+        {tab === "dochazka" && (() => {
+          const todayKey = new Date().toLocaleDateString("sv-SE");
+          const startD = new Date(); startD.setDate(startD.getDate() - 180);
+          const startKey = startD.toLocaleDateString("sv-SE");
+          const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
+          type Att = { date: string; time: string; client: string; status: "probehla" | "omluva" | "no_show" | "zruseno" };
+          const items: Att[] = [];
+          // Pravidelné lekce (minulé výskyty)
+          for (const r of recurring) {
+            if (!r.active) continue;
+            const d = new Date(startD); d.setHours(0, 0, 0, 0);
+            const end = new Date(); end.setHours(0, 0, 0, 0);
+            while (d <= end) {
+              if (d.getDay() === r.weekday) {
+                const dk = d.toLocaleDateString("sv-SE");
+                items.push({ date: dk, time: r.time, client: r.client_name || "—", status: cancelSet.has(`${r.id}|${dk}`) ? "omluva" : "probehla" });
+              }
+              d.setDate(d.getDate() + 1);
+            }
+          }
+          // Jednorázové lekce (minulé)
+          for (const l of lessons) {
+            if (l.date >= startKey && l.date <= todayKey) items.push({ date: l.date, time: l.time, client: l.client_name || "—", status: "probehla" });
+          }
+          // Rezervace z webu
+          for (const b of bookings) {
+            if (b.date < startKey || b.date > todayKey) continue;
+            const status: Att["status"] = b.status === "no_show" ? "no_show" : b.status === "cancelled" ? "zruseno" : "probehla";
+            items.push({ date: b.date, time: b.time, client: b.contact_name || "—", status });
+          }
+          const STATUS: Record<Att["status"], { label: string; cls: string }> = {
+            probehla: { label: "proběhla", cls: "bg-emerald-100 text-emerald-700" },
+            omluva: { label: "omluvil se", cls: "bg-gray-100 text-gray-500" },
+            no_show: { label: "nedostavil se", cls: "bg-red-100 text-red-600" },
+            zruseno: { label: "zrušeno", cls: "bg-gray-100 text-gray-400" },
+          };
+          const byClient = new Map<string, Att[]>();
+          for (const it of items) { if (!byClient.has(it.client)) byClient.set(it.client, []); byClient.get(it.client)!.push(it); }
+          const clientsSorted = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+          const byDay = new Map<string, Att[]>();
+          for (const it of items) { if (!byDay.has(it.date)) byDay.set(it.date, []); byDay.get(it.date)!.push(it); }
+          const daysSorted = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+          return (
+            <section className="card p-6 mb-8">
+              <h2 className="text-lg font-semibold text-brand-dark mb-1">Docházka</h2>
+              <p className="text-sm text-gray-500 mb-4">Kdo kdy byl, kdo se omluvil, kdo nedorazil (posledních ~6 měsíců). Peníze počítají Faktury.</p>
+              <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
+                {([["klienti", "Po klientech"], ["dny", "Den po dni"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setDochView(k)} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
+                ))}
+              </div>
+
+              {items.length === 0 ? (
+                <p className="text-sm text-gray-400">Zatím žádné záznamy.</p>
+              ) : dochView === "klienti" ? (
+                <div className="space-y-3">
+                  {clientsSorted.map(([client, list]) => {
+                    const done = list.filter((x) => x.status === "probehla").length;
+                    const oml = list.filter((x) => x.status === "omluva").length;
+                    const ns = list.filter((x) => x.status === "no_show").length;
+                    const sorted = [...list].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+                    return (
+                      <details key={client} className="rounded-xl border border-gray-100">
+                        <summary className="flex flex-wrap items-center gap-2 cursor-pointer px-4 py-2.5">
+                          <span className="font-semibold text-brand-dark">{client}</span>
+                          <span className="text-xs text-emerald-600 font-semibold">{done}× proběhlo</span>
+                          {oml > 0 && <span className="text-xs text-gray-400">· {oml}× omluva</span>}
+                          {ns > 0 && <span className="text-xs text-red-500">· {ns}× nedorazil</span>}
+                        </summary>
+                        <div className="divide-y divide-gray-50 border-t border-gray-100">
+                          {sorted.map((it, i) => (
+                            <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                              <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(it.date)}</span>
+                              <span className="text-gray-400 w-12 shrink-0">{it.time}</span>
+                              <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[it.status].cls}`}>{STATUS[it.status].label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {daysSorted.map(([date, list]) => (
+                    <div key={date}>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5 capitalize">{fmtDateCs(date)}</p>
+                      <div className="space-y-1.5">
+                        {[...list].sort((a, b) => a.time.localeCompare(b.time)).map((it, i) => (
+                          <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                            <span className="text-gray-400 w-12 shrink-0">{it.time}</span>
+                            <span className="font-semibold text-brand-dark">{it.client}</span>
+                            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS[it.status].cls}`}>{STATUS[it.status].label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           );
         })()}
 
