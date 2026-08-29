@@ -41,6 +41,11 @@ export const metadata: Metadata = {
     title: "POHYB DOMA",
   },
   icons: {
+    icon: [
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    shortcut: "/icon-192.png",
     apple: "/apple-touch-icon.png",
   },
 };
@@ -59,6 +64,7 @@ const JSON_LD = {
   logo: "https://pohybdoma.cz/LOGO.png",
   image: "https://pohybdoma.cz/og.png",
   email: "pohybdoma@seznam.cz",
+  telephone: "+420721327545",
   priceRange: "199–1500 Kč",
   areaServed: "Dobřichovice a okolí (a online po celé ČR)",
   address: {
