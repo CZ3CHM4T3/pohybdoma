@@ -51,8 +51,8 @@ export function WeekCalendar({
   onDeleteLesson: (id: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
-  const minWeek = useMemo(() => startOfWeek(today), [today]);
-  const maxWeek = useMemo(() => addDays(minWeek, 7 * 77), [minWeek]);
+  const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
+  const maxWeek = useMemo(() => addDays(startOfWeek(today), 7 * 77), [today]);
   const [weekStart, setWeekStart] = useState<Date>(minWeek);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
@@ -220,9 +220,11 @@ export function WeekCalendar({
             <p className="text-xs text-gray-400 mb-4">Tento den zatím nikoho nemáš.</p>
           )}
 
-          {startOfDay(selectedDay) >= today && (
+          {(
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-brand-dark mb-2">+ Přidat lekci</p>
+              <p className="text-xs font-semibold text-brand-dark mb-2">
+                + Přidat lekci{startOfDay(selectedDay) < today ? " (zpětně)" : ""}
+              </p>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label className="block text-[11px] text-gray-400 mb-0.5">Čas</label>

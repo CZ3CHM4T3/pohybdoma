@@ -2257,7 +2257,8 @@ export default function AdminPage() {
         {tab === "dochazka" && (() => {
           const todayKey = new Date().toLocaleDateString("sv-SE");
           const startD = new Date(); startD.setDate(startD.getDate() - 180);
-          const startKey = startD.toLocaleDateString("sv-SE");
+          const startRaw = startD.toLocaleDateString("sv-SE");
+          const startKey = startRaw < "2026-09-01" ? "2026-09-01" : startRaw; // docházku počítáme až od září 2026
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           type Att = { date: string; time: string; client: string; status: "probehla" | "omluva" | "no_show" | "zruseno" };
           const items: Att[] = [];
@@ -2269,7 +2270,7 @@ export default function AdminPage() {
             while (d <= end) {
               if (d.getDay() === r.weekday) {
                 const dk = d.toLocaleDateString("sv-SE");
-                items.push({ date: dk, time: r.time, client: r.client_name || "—", status: cancelSet.has(`${r.id}|${dk}`) ? "omluva" : "probehla" });
+                if (dk >= startKey) items.push({ date: dk, time: r.time, client: r.client_name || "—", status: cancelSet.has(`${r.id}|${dk}`) ? "omluva" : "probehla" });
               }
               d.setDate(d.getDate() + 1);
             }
@@ -2373,7 +2374,8 @@ export default function AdminPage() {
               while (d <= today0) {
                 if (d.getDay() === r.weekday) {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                  if (!cancelSet.has(`${r.id}|${dk}`)) {
+                  // Pravidelné lekce počítáme do faktur až od září 2026 (dřív se netrénovalo).
+                  if (dk >= "2026-09-01" && !cancelSet.has(`${r.id}|${dk}`)) {
                     recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0, kind: "staly" });
                   }
                 }
@@ -2636,6 +2638,27 @@ export default function AdminPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Ruční položky vybraného měsíce – ke smazání */}
+            <div className="rounded-xl border border-gray-100 p-4 mb-5">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Ruční položky za <span className="capitalize">{monthLabel}</span> (příjmy odjinud) — klikni v grafu na měsíc</p>
+              {monthFin.length === 0 ? (
+                <p className="text-xs text-gray-400">Za tento měsíc nemáš žádnou ruční položku. Lekce (Web/pravidelné) se počítají automaticky – ty se mažou u konkrétní lekce nebo rezervace, ne tady.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {monthFin.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-brand-dark">
+                        <span className="h-2 w-2 rounded-full" style={{ background: catColor(e.category) }} />{e.category}
+                      </span>
+                      {e.note && <span className="text-gray-400 truncate">· {e.note}</span>}
+                      <span className="ml-auto font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                      <button type="button" onClick={() => delFinance(e.id)} title="Smazat položku" className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Koláč podle zdroje + legenda */}
