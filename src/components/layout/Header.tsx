@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Crown } from "lucide-react";
 import { MemberNav } from "@/components/layout/MemberNav";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
@@ -147,6 +148,7 @@ export function Header() {
 
           {/* CTA + hamburger */}
           <div className="flex items-center gap-3">
+            {signedIn && <NotificationBell />}
             {!signedIn && (
               <Link
                 href="/clenstvi"

@@ -49,6 +49,7 @@ begin
           '<p style="color:#888;font-size:12px;margin-top:16px">Termín se uvolnil a může si ho vzít někdo jiný. POHYB DOMA</p></div>'
       )
     );
+    perform public.pd_notify(public.admin_uid(), 'Omluva z lekce', coalesce(cli, 'Klient') || ' – ' || datum || ' ' || coalesce(tm, ''));
     if cli_email is not null then
       perform net.http_post(
         url := 'https://api.resend.com/emails',
@@ -81,6 +82,7 @@ begin
         )
       );
     end if;
+    perform public.pd_notify(cid, 'Zrušená lekce', 'Lektor zrušil termín ' || datum || ' ' || coalesce(tm, ''));
   end if;
 
   return new;
@@ -133,6 +135,8 @@ begin
         '<p style="color:#888;font-size:12px;margin-top:16px">POHYB DOMA</p></div>'
     )
   );
+
+  perform public.pd_notify(public.admin_uid(), stav, new.service_name || ' · ' || datum || ' v ' || new.time);
 
   return new;
 exception when others then

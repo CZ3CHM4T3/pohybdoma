@@ -72,6 +72,7 @@ begin
       '<p style="color:#888;font-size:12px">Vyber si v účtu jeden termín, nebo dej vědět, že nevyhovuje žádný.</p></div>'
     );
   end if;
+  perform public.pd_notify(p_client_id, 'Nabídka náhradních termínů', 'Vyber si termín ve svém účtu.');
   return oid;
 end;
 $$;
@@ -100,6 +101,7 @@ begin
     '<p style="color:#444"><strong>' || o.client_name || '</strong> si vybral termín <strong>' ||
       to_char(sl.date, 'DD.MM.YYYY') || ' v ' || sl.time || '</strong>. Přidal jsem ho do rozvrhu.</p></div>'
   );
+  perform public.pd_notify(public.admin_uid(), 'Náhrada vybrána', o.client_name || ' – ' || to_char(sl.date, 'DD.MM.YYYY') || ' v ' || sl.time);
   return true;
 end;
 $$;
@@ -119,6 +121,7 @@ begin
     '<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B">' ||
     '<p style="color:#444"><strong>' || o.client_name || '</strong> odmítl(a) nabídnuté náhradní termíny (nevyhovoval žádný).</p></div>'
   );
+  perform public.pd_notify(public.admin_uid(), 'Náhrada odmítnuta', o.client_name || ' – nevyhovoval žádný termín');
   return true;
 end;
 $$;
