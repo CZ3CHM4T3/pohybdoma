@@ -83,6 +83,10 @@ export function WeekCalendar({
   const [moveOccId, setMoveOccId] = useState<string | null>(null);
   const [moveOccDate, setMoveOccDate] = useState("");
   const [moveOccTime, setMoveOccTime] = useState("15:00");
+  // Bublinové menu na kalendáři (klik na políčko/lekci)
+  const [pop, setPop] = useState<{ x: number; y: number; date: string; time: string; item: Item | null } | null>(null);
+  const [addMode, setAddMode] = useState(false);
+  function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); }
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const canPrev = weekStart > minWeek;
@@ -135,23 +139,26 @@ export function WeekCalendar({
     const y = e.clientY - rect.top;
     let min = START_H * 60 + Math.round(((y / HOUR_PX) * 60) / 15) * 15; // zaokrouhli na 15 min
     min = Math.max(START_H * 60, Math.min(END_H * 60 - 15, min));
-    setSelectedDay(d);
-    setLTime(`${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`);
+    const time = `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+    setLTime(time); setAddMode(false); setMoveOccId(null);
+    setPop({ x: e.clientX, y: e.clientY, date: dateKey(d), time, item: null });
   }
-
-  async function submitLesson() {
-    if (!selectedDay || !lName.trim() || !lTime) return;
+  function openItemPop(e: React.MouseEvent, d: Date, it: Item) {
+    e.stopPropagation();
+    setAddMode(false); setMoveOccId(null); setMoveOccDate(""); setMoveOccTime(it.time);
+    setPop({ x: e.clientX, y: e.clientY, date: dateKey(d), time: it.time, item: it });
+  }
+  async function submitLessonPop() {
+    if (!pop || !lName.trim() || !lTime) return;
     setLSaving(true);
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
     const p = Number.isFinite(priceKc as number) ? priceKc : null;
-    if (lRepeat && onAddRecurring) await onAddRecurring(selectedDay.getDay(), lTime, lName.trim(), lNote.trim(), p);
-    else await onAddLesson(dateKey(selectedDay), lTime, lName.trim(), lNote.trim(), p);
-    setLSaving(false);
-    setLName(""); setLNote(""); setLRepeat(false);
+    if (lRepeat && onAddRecurring) await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p);
+    else await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p);
+    setLSaving(false); setLName(""); setLNote(""); setLRepeat(false); closePop();
   }
 
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
-  const dayItems = selectedDay ? itemsForDay(selectedDay) : [];
 
   return (
     <div>
@@ -199,8 +206,8 @@ export function WeekCalendar({
                       <div
                         key={it.id}
                         title={it.kind === "zruseno" ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
-                        onClick={(e) => { e.stopPropagation(); if (it.kind === "zruseno" && onOfferMakeup) { setSelectedDay(d); } }}
-                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight ${it.kind === "zruseno" ? "border border-dashed border-gray-400 text-gray-600 cursor-pointer" : "text-white cursor-default"}`}
+                        onClick={(e) => openItemPop(e, d, it)}
+                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${it.kind === "zruseno" ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
                         style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.kind === "zruseno" ? "#f3f4f6" : it.color }}
                       >
                         <span className="block opacity-90">{it.kind === "zruseno" ? "zrušeno" : it.time}</span>
@@ -223,149 +230,103 @@ export function WeekCalendar({
         ))}
       </div>
 
-      {/* Panel dne */}
-      {selectedDay && (
-        <div className="mt-5 rounded-xl border border-gray-100 p-4">
-          <p className="text-sm font-semibold text-brand-dark capitalize mb-3">
-            {selectedDay.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          </p>
-          {dayItems.length > 0 ? (
-            <div className="space-y-1.5 mb-4">
-              {dayItems.map((it) => (
-                <div key={it.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs" style={{ background: it.color + "18" }}>
-                  <span className="rounded px-1.5 py-0.5 font-bold text-white" style={{ background: it.color }}>{it.time}</span>
-                  <span className="font-semibold text-brand-dark">{it.name}</span>
-                  {it.recurring && onCancelOccurrence ? (
-                    <span className="ml-auto flex items-center gap-1.5">
-                      {onMoveOccurrence && (
-                        <button
-                          type="button"
-                          onClick={() => { setMoveOccId(it.id); setMoveOccDate(""); setMoveOccTime(it.time); }}
-                          className="rounded border border-brand-blue px-2 py-0.5 text-[10px] font-semibold text-brand-blue hover:bg-brand-light"
-                        >
-                          Přesunout
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => { const p = it.id.split(":"); onCancelOccurrence(p[1], p[2]); }}
-                        title="Zrušit tento termín (uvolní se + klientovi přijde mail)"
-                        className="rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
-                      >
-                        Zrušit
-                      </button>
-                    </span>
-                  ) : it.kind === "block" && onCancelBlock ? (
-                    <button
-                      type="button"
-                      onClick={() => { const p = it.id.split(":"); onCancelBlock(p[1], p[2]); }}
-                      title="Tento den blok není – zrušit (nebude se počítat)"
-                      className="ml-auto rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      Zrušit tento den
-                    </button>
-                  ) : it.kind === "volno" && onCloseOpen && selectedDay ? (
-                    <button
-                      type="button"
-                      onClick={() => onCloseOpen(dateKey(selectedDay), it.time)}
-                      title="Zavřít – přestat nabízet veřejnosti"
-                      className="ml-auto rounded border border-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-50"
-                    >
-                      Zavřít
-                    </button>
-                  ) : it.kind === "zruseno" ? (
-                    <span className="ml-auto flex items-center gap-2">
-                      <span className="text-[10px] text-gray-400">zrušeno ({it.byClient ? "klient" : "já"})</span>
-                      {onOfferMakeup && (
-                        <button type="button" onClick={() => onOfferMakeup(it.name)} className="rounded border border-teal-300 px-2 py-0.5 text-[10px] font-semibold text-teal-700 hover:bg-teal-50">
-                          Nabídnout náhradu
-                        </button>
-                      )}
-                    </span>
-                  ) : it.deletable ? (
-                    <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 mb-4">Tento den zatím nikoho nemáš.</p>
-          )}
+      <p className="mt-3 text-[11px] text-gray-400">Klikni na políčko (přidat / otevřít pro veřejnost) nebo na lekci (přesunout / zrušit / nabídnout náhradu).</p>
 
-          {moveOccId && onMoveOccurrence && (
-            <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-brand-blue/30 bg-brand-light/40 p-3">
-              <span className="w-full text-xs font-semibold text-brand-dark">Přesunout lekci kam?</span>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">Nový den</label>
-                <input type="date" value={moveOccDate} onChange={(e) => setMoveOccDate(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">Čas (1 h)</label>
-                <input type="time" value={moveOccTime} onChange={(e) => setMoveOccTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-              </div>
-              <button
-                type="button"
-                disabled={!moveOccDate}
-                onClick={async () => { const p = moveOccId.split(":"); await onMoveOccurrence(p[1], p[2], moveOccDate, moveOccTime); setMoveOccId(null); setMoveOccDate(""); }}
-                className="rounded-md bg-brand-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
-              >
-                Přesunout sem
-              </button>
-              <button type="button" onClick={() => setMoveOccId(null)} className="text-xs font-semibold text-gray-400 hover:text-gray-600">Zpět</button>
+      {/* Bublinové menu (klik na kalendář) */}
+      {pop && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={closePop} />
+          <div
+            className="fixed z-50 w-60 rounded-xl border border-gray-200 bg-white p-3 shadow-xl text-xs"
+            style={{ left: Math.max(8, Math.min(pop.x, (typeof window !== "undefined" ? window.innerWidth : 1000) - 260)), top: Math.max(8, Math.min(pop.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 320)) }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-semibold text-brand-dark capitalize">
+                {new Date(pop.date + "T00:00:00").toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric" })} · {pop.item ? pop.item.time : pop.time}
+                {pop.item ? ` · ${pop.item.name}` : ""}
+              </span>
+              <button type="button" onClick={closePop} className="text-gray-300 hover:text-gray-600">✕</button>
             </div>
-          )}
 
-          {(
-            <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-xs font-semibold text-brand-dark mb-2">
-                + Přidat lekci{startOfDay(selectedDay) < today ? " (zpětně)" : ""}
-              </p>
-              <div className="flex flex-wrap items-end gap-2">
-                <div>
-                  <label className="block text-[11px] text-gray-400 mb-0.5">Čas</label>
-                  <input type="time" value={lTime} onChange={(e) => setLTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-                </div>
-                <div className="flex-1 min-w-[120px]">
-                  <label className="block text-[11px] text-gray-400 mb-0.5">Klient</label>
-                  <input type="text" list="wc-client-names" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-                  <datalist id="wc-client-names">{clientNames.map((n) => <option key={n} value={n} />)}</datalist>
-                </div>
-                <div className="flex-1 min-w-[110px]">
-                  <label className="block text-[11px] text-gray-400 mb-0.5">Poznámka (nepovinné)</label>
-                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="např. záda" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-                </div>
-                <div className="w-20">
-                  <label className="block text-[11px] text-gray-400 mb-0.5">Cena Kč</label>
-                  <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="1000" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-                </div>
-                <button type="button" onClick={submitLesson} disabled={lSaving || !lName.trim()} className="rounded-md bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40">
-                  {lSaving ? "Ukládám…" : "Přidat"}
-                </button>
+            {!pop.item && !addMode && (
+              <div className="space-y-1.5">
+                <button type="button" onClick={() => setAddMode(true)} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat lekci</button>
+                {(onOpenOnce || onOpenWeekly) && (
+                  <div className="rounded-md border border-emerald-200 p-2">
+                    <p className="mb-1 text-[11px] text-gray-500">Otevřít {pop.time} pro veřejnost:</p>
+                    <div className="flex gap-1.5">
+                      {onOpenOnce && <button type="button" onClick={async () => { await onOpenOnce(pop.date, pop.time); closePop(); }} className="flex-1 rounded-md border border-emerald-300 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">Jen dnes</button>}
+                      {onOpenWeekly && <button type="button" onClick={async () => { await onOpenWeekly(new Date(pop.date + "T00:00:00").getDay(), pop.time); closePop(); }} className="flex-1 rounded-md border border-emerald-300 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">Každý týden</button>}
+                    </div>
+                  </div>
+                )}
               </div>
-              {onAddRecurring && (
-                <label className="mt-2 flex items-center gap-2 text-xs text-brand-dark">
-                  <input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" />
-                  Opakovat každý týden (stálý klient)
-                </label>
-              )}
-              {(onOpenOnce || onOpenWeekly) && selectedDay && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2 text-xs">
-                  <span className="text-gray-500">Nebo otevřít hodinu <strong>{lTime}</strong> pro veřejnost:</span>
-                  {onOpenOnce && (
-                    <button type="button" onClick={() => onOpenOnce(dateKey(selectedDay), lTime)} className="rounded-md border border-emerald-300 px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">
-                      Jen tento den
-                    </button>
-                  )}
-                  {onOpenWeekly && (
-                    <button type="button" onClick={() => onOpenWeekly(selectedDay.getDay(), lTime)} className="rounded-md border border-emerald-300 px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">
-                      Každý týden
-                    </button>
-                  )}
+            )}
+
+            {!pop.item && addMode && (
+              <div className="space-y-1.5">
+                <input type="time" value={lTime} onChange={(e) => setLTime(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                <input type="text" list="wc-client-names" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Klient" className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                <datalist id="wc-client-names">{clientNames.map((n) => <option key={n} value={n} />)}</datalist>
+                <div className="flex gap-1.5">
+                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="Pozn." className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
+                  <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="Kč" className="w-16 rounded-md border border-gray-200 px-2 py-1.5" />
                 </div>
-              )}
-            </div>
-          )}
-        </div>
+                {onAddRecurring && (
+                  <label className="flex items-center gap-2 text-brand-dark"><input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" /> Opakovat (stálý klient)</label>
+                )}
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={submitLessonPop} disabled={lSaving || !lName.trim()} className="flex-1 rounded-md bg-teal-600 px-2.5 py-1.5 font-semibold text-white hover:bg-teal-700 disabled:opacity-40">{lSaving ? "Ukládám…" : "Přidat"}</button>
+                  <button type="button" onClick={() => setAddMode(false)} className="rounded-md border border-gray-200 px-2.5 py-1.5 font-semibold text-gray-500">Zpět</button>
+                </div>
+              </div>
+            )}
+
+            {pop.item && pop.item.recurring && (
+              <div className="space-y-1.5">
+                {moveOccId !== pop.item.id ? (
+                  <>
+                    {onMoveOccurrence && <button type="button" onClick={() => { setMoveOccId(pop.item!.id); setMoveOccDate(""); }} className="w-full rounded-md border border-brand-blue px-2.5 py-1.5 text-left font-semibold text-brand-blue hover:bg-brand-light">Přesunout</button>}
+                    {onCancelOccurrence && <button type="button" onClick={async () => { const p = pop.item!.id.split(":"); await onCancelOccurrence(p[1], p[2]); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Zrušit termín</button>}
+                  </>
+                ) : (
+                  <div className="space-y-1.5 rounded-md border border-brand-blue/30 bg-brand-light/40 p-2">
+                    <p className="font-semibold text-brand-dark">Přesunout kam?</p>
+                    <input type="date" value={moveOccDate} onChange={(e) => setMoveOccDate(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                    <input type="time" value={moveOccTime} onChange={(e) => setMoveOccTime(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                    <div className="flex gap-1.5">
+                      <button type="button" disabled={!moveOccDate} onClick={async () => { const p = pop.item!.id.split(":"); await onMoveOccurrence!(p[1], p[2], moveOccDate, moveOccTime); closePop(); }} className="flex-1 rounded-md bg-brand-blue px-2.5 py-1.5 font-semibold text-white disabled:opacity-40">Přesunout</button>
+                      <button type="button" onClick={() => setMoveOccId(null)} className="rounded-md border border-gray-200 px-2.5 py-1.5 text-gray-500">Zpět</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {pop.item && !pop.item.recurring && pop.item.deletable && (
+              <button type="button" onClick={async () => { await onDeleteLesson(pop.item!.id); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Smazat lekci</button>
+            )}
+
+            {pop.item && pop.item.kind === "block" && onCancelBlock && (
+              <button type="button" onClick={async () => { const p = pop.item!.id.split(":"); await onCancelBlock(p[1], p[2]); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Zrušit tento den (blok není)</button>
+            )}
+
+            {pop.item && pop.item.kind === "volno" && onCloseOpen && (
+              <button type="button" onClick={async () => { await onCloseOpen(pop.date, pop.item!.time); closePop(); }} className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-left font-semibold text-gray-600 hover:bg-gray-50">Zavřít (přestat nabízet)</button>
+            )}
+
+            {pop.item && pop.item.kind === "zruseno" && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-gray-400">zrušeno ({pop.item.byClient ? "klient" : "já"})</p>
+                {onOfferMakeup && <button type="button" onClick={() => { onOfferMakeup(pop.item!.name); closePop(); }} className="w-full rounded-md border border-teal-300 px-2.5 py-1.5 text-left font-semibold text-teal-700 hover:bg-teal-50">Nabídnout náhradu</button>}
+              </div>
+            )}
+
+            {pop.item && pop.item.kind === "rezervace" && (
+              <p className="text-[11px] text-gray-500">Rezervace z webu. Spravuješ v záložce Rezervace.</p>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
