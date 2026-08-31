@@ -668,10 +668,18 @@ export default function AdminPage() {
     if (data) setClients(data as ClientRow[]);
   }
   async function deleteClient(id: string) {
+    const c = clients.find((x) => x.id === id);
+    const hasRec = !!c && recurring.some((r) => r.client_name === c.name);
+    if (hasRec && !window.confirm(`Smazat klienta „${c!.name}" i jeho pravidelné lekce? Zmizí všechny jeho budoucí termíny.`)) return;
     setError(null);
+    if (c) {
+      const { error: e1 } = await supabase.from("recurring_lessons").delete().eq("client_name", c.name);
+      if (e1) { setError("Smazání pravidelných lekcí selhalo: " + e1.message); return; }
+    }
     const { error } = await supabase.from("clients").delete().eq("id", id);
     if (error) { setError("Smazání klienta selhalo: " + error.message); return; }
     setClients((prev) => prev.filter((x) => x.id !== id));
+    if (c) setRecurring((prev) => prev.filter((r) => r.client_name !== c.name));
   }
   // Fakturační skupina (rodina) – stejný název u dvou klientů = jedna společná faktura
   async function updateClientGroup(id: string, group: string) {
