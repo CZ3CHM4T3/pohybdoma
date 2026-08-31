@@ -658,13 +658,23 @@ export default function AdminPage() {
     if (hasRec && !window.confirm(`Smazat klienta „${c!.name}" i jeho pravidelné lekce? Zmizí všechny jeho budoucí termíny.`)) return;
     setError(null);
     if (c) {
-      const { error: e1 } = await supabase.from("recurring_lessons").delete().eq("client_name", c.name);
-      if (e1) { setError("Smazání pravidelných lekcí selhalo: " + e1.message); return; }
+      // Toleruj rozdíly ve velikosti písmen / mezerách – maž podle id nalezených lekcí
+      const target = c.name.trim().toLowerCase();
+      const ids = recurring.filter((r) => (r.client_name ?? "").trim().toLowerCase() === target).map((r) => r.id);
+      if (ids.length) {
+        const { error: e1 } = await supabase.from("recurring_lessons").delete().in("id", ids);
+        if (e1) { setError("Smazání pravidelných lekcí selhalo: " + e1.message); return; }
+      }
     }
     const { error } = await supabase.from("clients").delete().eq("id", id);
     if (error) { setError("Smazání klienta selhalo: " + error.message); return; }
-    setClients((prev) => prev.filter((x) => x.id !== id));
-    if (c) setRecurring((prev) => prev.filter((r) => r.client_name !== c.name));
+    // Autoritativní přenačtení z DB (ať rozvrh odpovídá realitě)
+    const [cl, rc] = await Promise.all([
+      supabase.from("clients").select("id, name, email, note, bill_group").order("name"),
+      supabase.from("recurring_lessons").select("*").order("weekday").order("time"),
+    ]);
+    if (cl.data) setClients(cl.data as ClientRow[]);
+    if (rc.data) setRecurring(rc.data as RecurringRow[]);
   }
   // Fakturační skupina (rodina) – stejný název u dvou klientů = jedna společná faktura
   async function updateClientGroup(id: string, group: string) {
