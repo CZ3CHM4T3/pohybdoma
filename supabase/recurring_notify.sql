@@ -8,6 +8,9 @@
 
 create extension if not exists pg_net;
 
+-- Příznak, že zrušení je součást PŘESUNU (přesun si posílá vlastní oznámení)
+alter table public.recurring_cancellations add column if not exists moved boolean not null default false;
+
 -- ── 1) Omluva z pravidelné lekce ────────────────────────────────────────────
 create or replace function public.notify_on_recurring_cancel()
 returns trigger
@@ -20,6 +23,7 @@ declare
   by_client boolean;
   wd_names text[] := array['neděli','pondělí','úterý','středu','čtvrtek','pátek','sobotu'];
 begin
+  if new.moved then return new; end if; -- přesun řeší vlastní oznámení, ne omluvu
   select value into rkey from private.app_config where key = 'resend_api_key';
   if rkey is null then return new; end if;
 

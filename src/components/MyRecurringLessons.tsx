@@ -32,6 +32,9 @@ export function MyRecurringLessons() {
   const [loaded, setLoaded] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [moveKey, setMoveKey] = useState<string | null>(null);
+  const [moveDate, setMoveDate] = useState("");
+  const [moveTime, setMoveTime] = useState("15:00");
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -70,6 +73,20 @@ export function MyRecurringLessons() {
       return;
     }
     setCancelled((prev) => new Set(prev).add(key));
+  }
+
+  async function doMove(o: Occ) {
+    if (!moveDate) { setErr("Vyber nový den."); return; }
+    const key = `${o.recId}|${o.date}`;
+    setBusyKey(key);
+    setErr(null);
+    const supabase = createClient();
+    const { error } = await supabase.rpc("move_lesson", { p_recurring: o.recId, p_orig_date: o.date, p_new_date: moveDate, p_new_time: moveTime });
+    setBusyKey(null);
+    if (error) { setErr("Přesun se nepovedl: " + error.message); return; }
+    setCancelled((prev) => new Set(prev).add(key));
+    setMoveKey(null);
+    setMoveDate("");
   }
 
   if (!loaded) return null;
@@ -113,26 +130,44 @@ export function MyRecurringLessons() {
           const d = new Date(o.date + "T00:00:00");
           const dateLabel = `${WD[d.getDay()]} ${d.getDate()}. ${d.getMonth() + 1}.`;
           return (
-            <div key={key} className={`flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm ${isCancelled ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
-              <span className="rounded bg-brand-blue px-2 py-0.5 font-bold text-white">{o.time}</span>
-              <span className="capitalize font-medium text-brand-dark">{dateLabel}</span>
-              <span className="text-gray-500 truncate">· {o.label}</span>
-              <span className="ml-auto">
-                {isCancelled ? (
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500"><Check className="h-3.5 w-3.5" /> Omluveno</span>
-                ) : canCancel ? (
-                  <button
-                    type="button"
-                    onClick={() => cancel(o)}
-                    disabled={busyKey === key}
-                    className="rounded-md border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    {busyKey === key ? "Omlouvám…" : "Omluvit se"}
+            <div key={key} className={`rounded-lg border p-3 text-sm ${isCancelled ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded bg-brand-blue px-2 py-0.5 font-bold text-white">{o.time}</span>
+                <span className="capitalize font-medium text-brand-dark">{dateLabel}</span>
+                <span className="text-gray-500 truncate">· {o.label}</span>
+                <span className="ml-auto flex items-center gap-2">
+                  {isCancelled ? (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500"><Check className="h-3.5 w-3.5" /> Omluveno</span>
+                  ) : canCancel ? (
+                    <>
+                      <button type="button" onClick={() => cancel(o)} disabled={busyKey === key} className="rounded-md border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50">
+                        {busyKey === key ? "Omlouvám…" : "Omluvit se"}
+                      </button>
+                      <button type="button" onClick={() => { setMoveKey(moveKey === key ? null : key); setErr(null); setMoveDate(""); }} className="rounded-md border border-brand-blue px-3 py-1 text-xs font-semibold text-brand-blue hover:bg-brand-light">
+                        Přesunout
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400">nelze měnit (méně než 24 h)</span>
+                  )}
+                </span>
+              </div>
+              {moveKey === key && !isCancelled && (
+                <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-2.5">
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-0.5">Nový den</label>
+                    <input type="date" value={moveDate} onChange={(e) => setMoveDate(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-0.5">Čas (lekce 1 h)</label>
+                    <input type="time" value={moveTime} onChange={(e) => setMoveTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+                  </div>
+                  <button type="button" onClick={() => doMove(o)} disabled={busyKey === key || !moveDate} className="rounded-md bg-brand-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40">
+                    {busyKey === key ? "Přesouvám…" : "Přesunout sem"}
                   </button>
-                ) : (
-                  <span className="text-xs text-gray-400">nelze omluvit (méně než 24 h)</span>
-                )}
-              </span>
+                  <button type="button" onClick={() => setMoveKey(null)} className="text-xs font-semibold text-gray-400 hover:text-gray-600">Zpět</button>
+                </div>
+              )}
             </div>
           );
                 })}
