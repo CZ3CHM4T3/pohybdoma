@@ -225,6 +225,7 @@ export default function AdminPage() {
   const [recPrice, setRecPrice] = useState("1000");
   // Pravidelné bloky (MS GEM, kroužky…)
   const [blocks, setBlocks] = useState<BlockRow[]>([]);
+  const [blockCancels, setBlockCancels] = useState<{ block_id: string; date: string }[]>([]);
   const [blkWeekday, setBlkWeekday] = useState("1");
   const [blkStart, setBlkStart] = useState("14:00");
   const [blkEnd, setBlkEnd] = useState("18:00");
@@ -422,6 +423,9 @@ export default function AdminPage() {
     });
     supabase.from("recurring_blocks").select("*").order("weekday").order("start_time").then(({ data }) => {
       if (data) setBlocks(data as BlockRow[]);
+    });
+    supabase.from("recurring_block_cancellations").select("block_id, date").then(({ data }) => {
+      if (data) setBlockCancels(data as { block_id: string; date: string }[]);
     });
     supabase.from("makeup_offers").select("id, client_name, status, created_at").order("created_at", { ascending: false }).then(({ data }) => {
       if (data) setMakeupOffers(data as { id: string; client_name: string; status: string; created_at: string }[]);
@@ -727,6 +731,13 @@ export default function AdminPage() {
     if (error) { setError("Zrušení termínu selhalo (spustil jsi recurring.sql?): " + error.message); return; }
     const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date");
     if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+  }
+  // Zrušení konkrétního výskytu bloku (skupinovka dneska není) → nepočítá se
+  async function cancelBlockOccurrence(blockId: string, date: string) {
+    setError(null);
+    const { error } = await supabase.from("recurring_block_cancellations").insert({ block_id: blockId, date });
+    if (error) { setError("Zrušení bloku selhalo (spustil jsi block_cancellations.sql?): " + error.message); return; }
+    setBlockCancels((prev) => [...prev, { block_id: blockId, date }]);
   }
   // ── Pravidelné bloky (MS GEM, kroužky…) ──
   async function addBlock() {
@@ -1209,6 +1220,7 @@ export default function AdminPage() {
     }
   }
   // Pravidelné bloky (MS GEM, kroužky…) → rozpad na celé hodiny výskytu (jen pro kalendář, nefakturuje se)
+  const blockCancelSet = new Set(blockCancels.map((c) => `${c.block_id}|${c.date}`));
   const blockRows: LessonRow[] = [];
   {
     const base = new Date();
@@ -1221,6 +1233,7 @@ export default function AdminPage() {
       const key = d.toLocaleDateString("sv-SE");
       for (const b of blocks) {
         if (!b.active || b.weekday !== wd) continue;
+        if (blockCancelSet.has(`${b.id}|${key}`)) continue;
         const sh = parseInt(b.start_time.slice(0, 2), 10);
         const em = parseInt(b.end_time.slice(3, 5), 10);
         const eh = parseInt(b.end_time.slice(0, 2), 10) - (em === 0 ? 1 : 0);
@@ -1253,6 +1266,7 @@ export default function AdminPage() {
       const key = d.toLocaleDateString("sv-SE");
       for (const b of blocks) {
         if (!b.active || b.weekday !== wd) continue;
+        if (blockCancelSet.has(`${b.id}|${key}`)) continue;
         blockOccs.push({ id: `blk:${b.id}:${key}`, date: key, start_time: b.start_time, end_time: b.end_time, label: b.label, category: b.category });
       }
     }
@@ -1612,6 +1626,7 @@ export default function AdminPage() {
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
             onCancelOccurrence={cancelOccurrence}
+            onCancelBlock={cancelBlockOccurrence}
           />
 
           {/* Otevřené hodiny pro veřejnost */}

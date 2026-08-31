@@ -40,6 +40,7 @@ export function WeekCalendar({
   onAddRecurring,
   onDeleteLesson,
   onCancelOccurrence,
+  onCancelBlock,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -51,6 +52,7 @@ export function WeekCalendar({
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
+  onCancelBlock?: (blockId: string, date: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
@@ -220,6 +222,15 @@ export function WeekCalendar({
                       className="ml-auto rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
                     >
                       Zrušit termín
+                    </button>
+                  ) : it.kind === "block" && onCancelBlock ? (
+                    <button
+                      type="button"
+                      onClick={() => { const p = it.id.split(":"); onCancelBlock(p[1], p[2]); }}
+                      title="Tento den blok není – zrušit (nebude se počítat)"
+                      className="ml-auto rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Zrušit tento den
                     </button>
                   ) : it.deletable ? (
                     <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
