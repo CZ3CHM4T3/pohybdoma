@@ -237,6 +237,12 @@ export default function AdminPage() {
   const [blkEnd, setBlkEnd] = useState("18:00");
   const [blkLabel, setBlkLabel] = useState("");
   const [blkCategory, setBlkCategory] = useState("msgem");
+  // Skupinové lekce: soupiska lidí + docházka
+  const [blockMembers, setBlockMembers] = useState<{ id: string; block_id: string; name: string }[]>([]);
+  const [blockAttendance, setBlockAttendance] = useState<{ block_id: string; date: string; name: string }[]>([]);
+  const [newMemberName, setNewMemberName] = useState<Record<string, string>>({});
+  // Podzáložka ve Stálých klientech
+  const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   // Náhrady lekcí
   const [makeupOffers, setMakeupOffers] = useState<{ id: string; client_name: string; status: string; created_at: string }[]>([]);
   const [mkClient, setMkClient] = useState("");
@@ -247,7 +253,7 @@ export default function AdminPage() {
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
-  const [dochView, setDochView] = useState<"klienti" | "dny">("klienti");
+  const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [archClient, setArchClient] = useState("");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -429,6 +435,12 @@ export default function AdminPage() {
     });
     supabase.from("recurring_block_cancellations").select("block_id, date").then(({ data }) => {
       if (data) setBlockCancels(data as { block_id: string; date: string }[]);
+    });
+    supabase.from("block_members").select("id, block_id, name").order("name").then(({ data }) => {
+      if (data) setBlockMembers(data as { id: string; block_id: string; name: string }[]);
+    });
+    supabase.from("block_attendance").select("block_id, date, name").then(({ data }) => {
+      if (data) setBlockAttendance(data as { block_id: string; date: string; name: string }[]);
     });
     supabase.from("makeup_offers").select("id, client_name, status, created_at").order("created_at", { ascending: false }).then(({ data }) => {
       if (data) setMakeupOffers(data as { id: string; client_name: string; status: string; created_at: string }[]);
@@ -826,6 +838,36 @@ export default function AdminPage() {
     const { error } = await supabase.from("recurring_blocks").delete().eq("id", id);
     if (error) { setError("Smazání bloku selhalo: " + error.message); return; }
     setBlocks((prev) => prev.filter((x) => x.id !== id));
+  }
+  // ── Skupinové lekce: soupiska + docházka ──
+  async function addBlockMember(blockId: string) {
+    const name = (newMemberName[blockId] || "").trim();
+    if (!name) return;
+    setError(null);
+    const { error } = await supabase.from("block_members").insert({ block_id: blockId, name });
+    if (error) { setError("Přidání do skupiny selhalo (spustil jsi group_attendance.sql?): " + error.message); return; }
+    setNewMemberName((p) => ({ ...p, [blockId]: "" }));
+    const { data } = await supabase.from("block_members").select("id, block_id, name").order("name");
+    if (data) setBlockMembers(data as { id: string; block_id: string; name: string }[]);
+  }
+  async function deleteBlockMember(id: string) {
+    setError(null);
+    const { error } = await supabase.from("block_members").delete().eq("id", id);
+    if (error) { setError("Odebrání ze skupiny selhalo: " + error.message); return; }
+    setBlockMembers((prev) => prev.filter((m) => m.id !== id));
+  }
+  // Přepnutí docházky (přítomen/nepřítomen) pro daný den skupiny
+  async function toggleAttendance(blockId: string, date: string, name: string, present: boolean) {
+    setError(null);
+    if (present) {
+      const { error } = await supabase.from("block_attendance").upsert({ block_id: blockId, date, name }, { onConflict: "block_id,date,name" });
+      if (error) { setError("Uložení docházky selhalo (spustil jsi group_attendance.sql?): " + error.message); return; }
+      setBlockAttendance((prev) => prev.some((a) => a.block_id === blockId && a.date === date && a.name === name) ? prev : [...prev, { block_id: blockId, date, name }]);
+    } else {
+      const { error } = await supabase.from("block_attendance").delete().eq("block_id", blockId).eq("date", date).eq("name", name);
+      if (error) { setError("Uložení docházky selhalo: " + error.message); return; }
+      setBlockAttendance((prev) => prev.filter((a) => !(a.block_id === blockId && a.date === date && a.name === name)));
+    }
   }
   // ── Náhrady lekcí ──
   function addMkSlot() {
@@ -1701,9 +1743,12 @@ export default function AdminPage() {
             blocks={blockOccs}
             open={openOccs}
             notes={lessonNotes}
+            blockMembers={blockMembers}
+            blockAttendance={blockAttendance}
             catColors={CAT_COLORS}
             clientNames={clients.map((c) => c.name)}
             onSaveNote={saveLessonNote}
+            onToggleAttendance={toggleAttendance}
             onAddLesson={addLesson}
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
@@ -1722,11 +1767,20 @@ export default function AdminPage() {
 
         </section>
 
-        {/* ── Stálí klienti: kartotéka + pravidelné lekce ── */}
+        {/* ── Stálí klienti: podzáložky Individuály / Skupinové lekce ── */}
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold text-brand-dark">Stálí klienti</h2>
+          <div className="inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
+            {([["individ", "Individuály"], ["skupiny", "Skupinové lekce"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setKlientTab(k)} className={`rounded-md px-3 py-1.5 font-semibold ${klientTab === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+
+        {klientTab === "individ" && (
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Stálí klienti</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Kartotéka klientů a jejich pravidelné lekce. Lekce automaticky obsazují termín a počítají se
+            Kartotéka klientů a jejich pravidelné lekce <strong>1 na 1</strong>. Lekce automaticky obsazují termín a počítají se
             do Faktur. <span className="text-gray-400">(Spusť clients.sql a recurring.sql.)</span>
           </p>
 
@@ -1852,25 +1906,57 @@ export default function AdminPage() {
             </button>
           </div>
         </section>
+        )}
 
-        {/* ── Pravidelné bloky (MS GEM, kroužky, akademie…) ── */}
+        {/* ── Skupinové lekce: bloky + soupiska + docházka ── */}
+        {klientTab === "skupiny" && (
         <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Pravidelné bloky (MS GEM, kroužky, akademie…)</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Vyblokuj pravidelně obsazený čas (den + od–do), např. MS GEM, kruhový trénink, příprava tenistů, kroužek. Zablokuje kalendář (nikdo si tam nezarezervuje) a zobrazí se <span className="font-semibold text-slate-600">šedě jako blok</span>. Do faktur klientů se nepočítá – peníze si zapisuješ ve Faktury → Příjmy odjinud. <span className="text-gray-400">(Spusť recurring_blocks.sql.)</span>
+            Skupinové/pravidelné bloky (MS GEM, kroužky, kruhák, příprava tenistů…). Zablokují termín v rozvrhu (nikdo si tam nezarezervuje) a ukážou se <span className="font-semibold text-slate-600">barevně jako blok</span>. Peníze si zapisuješ ve Faktury → Příjmy odjinud. U každé skupiny si vyplň <strong>soupisku lidí</strong> (nemusí být členové webu) – <strong>docházku</strong> pak zapisuješ klikem na lekci v Rozvrhu a vidíš ji v Docházka → Po lekcích. <span className="text-gray-400">(Spusť recurring_blocks.sql a group_attendance.sql.)</span>
           </p>
 
           {blocks.length > 0 && (
-            <div className="space-y-2 mb-4">
-              {blocks.map((b) => (
-                <div key={b.id} className="flex items-center gap-2 rounded-lg border border-gray-100 p-3 text-sm">
-                  <span className="rounded px-2 py-0.5 font-bold text-white" style={{ background: CAT_COLORS[b.category] || CAT_COLORS.jine }}>{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][b.weekday]}</span>
-                  <span className="font-medium text-gray-500">{b.start_time}–{b.end_time}</span>
-                  <span className="font-semibold text-brand-dark truncate">{b.label}</span>
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{CAT_LABELS[b.category] || "Jiné"}</span>
-                  <button type="button" onClick={() => deleteBlock(b.id)} className="ml-auto shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat</button>
+            <div className="space-y-3 mb-4">
+              {blocks.map((b) => {
+                const roster = blockMembers.filter((m) => m.block_id === b.id).sort((x, y) => x.name.localeCompare(y.name, "cs"));
+                return (
+                <div key={b.id} className="rounded-lg border border-gray-100 p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="rounded px-2 py-0.5 font-bold text-white" style={{ background: CAT_COLORS[b.category] || CAT_COLORS.jine }}>{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][b.weekday]}</span>
+                    <span className="font-medium text-gray-500">{b.start_time}–{b.end_time}</span>
+                    <span className="font-semibold text-brand-dark truncate">{b.label}</span>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{CAT_LABELS[b.category] || "Jiné"}</span>
+                    <button type="button" onClick={() => deleteBlock(b.id)} className="ml-auto shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat blok</button>
+                  </div>
+                  {/* Soupiska lidí ve skupině */}
+                  <div className="mt-2.5 border-t border-gray-100 pt-2.5">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Soupiska ({roster.length})</p>
+                    {roster.length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {roster.map((m) => (
+                          <span key={m.id} className="inline-flex items-center gap-1.5 rounded-full bg-brand-light px-2.5 py-1 text-xs font-medium text-brand-dark">
+                            {m.name}
+                            <button type="button" onClick={() => deleteBlockMember(m.id)} title="Odebrat ze skupiny" className="text-gray-300 hover:text-red-500">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={newMemberName[b.id] || ""}
+                        onChange={(e) => setNewMemberName((p) => ({ ...p, [b.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBlockMember(b.id); } }}
+                        placeholder="Jméno člověka do skupiny"
+                        className="flex-1 min-w-[160px] rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+                      />
+                      <button type="button" onClick={() => addBlockMember(b.id)} disabled={!(newMemberName[b.id] || "").trim()} className="rounded-md bg-brand-dark px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+                        + Přidat
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1909,6 +1995,7 @@ export default function AdminPage() {
             </button>
           </div>
         </section>
+        )}
 
         {/* ── Náhrady lekcí ── */}
         <section id="nahrady" className="card p-6 mb-8">
@@ -2370,12 +2457,66 @@ export default function AdminPage() {
               <h2 className="text-lg font-semibold text-brand-dark mb-1">Docházka</h2>
               <p className="text-sm text-gray-500 mb-4">Kdo kdy byl, kdo se omluvil, kdo nedorazil (posledních ~6 měsíců). Peníze počítají Faktury.</p>
               <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
-                {([["klienti", "Po klientech"], ["dny", "Den po dni"]] as const).map(([k, l]) => (
+                {([["klienti", "Po klientech"], ["dny", "Den po dni"], ["lekce", "Po lekcích (skupiny)"]] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setDochView(k)} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
                 ))}
               </div>
 
-              {items.length === 0 ? (
+              {dochView === "lekce" ? (
+                (() => {
+                  const MON = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"];
+                  if (blocks.length === 0) return <p className="text-sm text-gray-400">Nemáš žádné skupinové lekce. Založ je ve Stálí klienti → Skupinové lekce.</p>;
+                  return (
+                    <div className="space-y-5">
+                      {blocks.map((bl) => {
+                        const roster = blockMembers.filter((m) => m.block_id === bl.id).map((m) => m.name).sort((a, b) => a.localeCompare(b, "cs"));
+                        const att = blockAttendance.filter((a) => a.block_id === bl.id);
+                        const monthKeys = [...new Set(att.map((a) => a.date.slice(0, 7)))].sort();
+                        const countFor = (name: string, mk: string) => att.filter((a) => a.name === name && a.date.slice(0, 7) === mk).length;
+                        const totalFor = (name: string) => att.filter((a) => a.name === name).length;
+                        return (
+                          <div key={bl.id} className="rounded-xl border border-gray-100 p-4">
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className="rounded px-2 py-0.5 text-xs font-bold text-white" style={{ background: CAT_COLORS[bl.category] || CAT_COLORS.jine }}>{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][bl.weekday]} {bl.start_time}</span>
+                              <span className="font-semibold text-brand-dark">{bl.label}</span>
+                            </div>
+                            {roster.length === 0 ? (
+                              <p className="text-xs text-gray-400">Zatím nikdo v soupisce.</p>
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="text-xs text-gray-400">
+                                      <th className="py-1 pr-3 text-left font-medium">Kdo</th>
+                                      {monthKeys.map((mk) => (
+                                        <th key={mk} className="px-2 py-1 text-center font-medium">{MON[Number(mk.slice(5, 7)) - 1]}</th>
+                                      ))}
+                                      <th className="pl-3 py-1 text-center font-semibold text-brand-dark">Σ</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {roster.map((nm) => (
+                                      <tr key={nm} className="border-t border-gray-50">
+                                        <td className="py-1.5 pr-3 font-medium text-brand-dark">{nm}</td>
+                                        {monthKeys.map((mk) => {
+                                          const c = countFor(nm, mk);
+                                          return <td key={mk} className={`px-2 py-1.5 text-center ${c > 0 ? "font-semibold text-emerald-600" : "text-gray-300"}`}>{c || "·"}</td>;
+                                        })}
+                                        <td className="pl-3 py-1.5 text-center font-bold text-brand-dark">{totalFor(nm)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {monthKeys.length === 0 && <p className="mt-1 text-xs text-gray-400">Zatím žádná zapsaná docházka. Klikni na tuhle lekci v Rozvrhu a zaškrtni, kdo přišel.</p>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              ) : items.length === 0 ? (
                 <p className="text-sm text-gray-400">Zatím žádné záznamy.</p>
               ) : dochView === "klienti" ? (
                 <div className="space-y-3">

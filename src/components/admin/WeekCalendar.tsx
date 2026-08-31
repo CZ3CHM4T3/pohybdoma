@@ -36,6 +36,8 @@ export function WeekCalendar({
   open = [],
   cancelled = [],
   notes = [],
+  blockMembers = [],
+  blockAttendance = [],
   catColors,
   clientNames = [],
   onAddLesson,
@@ -49,6 +51,7 @@ export function WeekCalendar({
   onCloseOpen,
   onOfferMakeup,
   onSaveNote,
+  onToggleAttendance,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -56,6 +59,8 @@ export function WeekCalendar({
   open?: { date: string; time: string }[];
   cancelled?: { date: string; time: string; name: string; byClient: boolean }[];
   notes?: { date: string; time: string; note: string }[];
+  blockMembers?: { block_id: string; name: string }[];
+  blockAttendance?: { block_id: string; date: string; name: string }[];
   catColors: Record<string, string>;
   clientNames?: string[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -69,7 +74,9 @@ export function WeekCalendar({
   onCloseOpen?: (date: string, time: string) => Promise<void>;
   onOfferMakeup?: (clientName: string) => void;
   onSaveNote?: (date: string, time: string, note: string) => Promise<void>;
+  onToggleAttendance?: (blockId: string, date: string, name: string, present: boolean) => Promise<void>;
 }) {
+  const attSet = useMemo(() => new Set(blockAttendance.map((a) => `${a.block_id}|${a.date}|${a.name}`)), [blockAttendance]);
   const noteMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const n of notes) m.set(`${n.date}|${n.time}`, n.note);
@@ -341,9 +348,38 @@ export function WeekCalendar({
               <button type="button" onClick={async () => { await onDeleteLesson(pop.item!.id); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Smazat lekci</button>
             )}
 
-            {pop.item && pop.item.kind === "block" && onCancelBlock && (
-              <button type="button" onClick={async () => { const p = pop.item!.id.split(":"); await onCancelBlock(p[1], p[2]); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Zrušit tento den (blok není)</button>
-            )}
+            {pop.item && pop.item.kind === "block" && (() => {
+              const p = pop.item.id.split(":");
+              const blockId = p[1], bdate = p[2];
+              const roster = blockMembers.filter((m) => m.block_id === blockId).map((m) => m.name).sort((a, b) => a.localeCompare(b, "cs"));
+              return (
+                <div className="space-y-2">
+                  {onToggleAttendance && (
+                    <div className="rounded-md border border-gray-200 p-2">
+                      <p className="mb-1 text-[11px] font-semibold text-brand-dark">Docházka – kdo je tu?</p>
+                      {roster.length === 0 ? (
+                        <p className="text-[11px] text-gray-400">Nikdo v soupisce. Přidej lidi ve Stálí klienti → Skupinové lekce.</p>
+                      ) : (
+                        <div className="max-h-44 space-y-1 overflow-y-auto">
+                          {roster.map((nm) => {
+                            const present = attSet.has(`${blockId}|${bdate}|${nm}`);
+                            return (
+                              <label key={nm} className="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                                <input type="checkbox" checked={present} onChange={(e) => onToggleAttendance(blockId, bdate, nm, e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-teal-600" />
+                                <span className={present ? "font-semibold text-brand-dark" : "text-gray-500"}>{nm}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {onCancelBlock && (
+                    <button type="button" onClick={async () => { await onCancelBlock(blockId, bdate); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Zrušit tento den (blok není)</button>
+                  )}
+                </div>
+              );
+            })()}
 
             {pop.item && pop.item.kind === "volno" && onCloseOpen && (
               <button type="button" onClick={async () => { await onCloseOpen(pop.date, pop.item!.time); closePop(); }} className="w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-left font-semibold text-gray-600 hover:bg-gray-50">Zavřít (přestat nabízet)</button>
