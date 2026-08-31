@@ -732,6 +732,18 @@ export default function AdminPage() {
     const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date");
     if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
   }
+  // Přesun konkrétního termínu lektorem → uvolní původní, vytvoří nový, klientovi mail+bublina
+  async function adminMoveOccurrence(recId: string, origDate: string, newDate: string, newTime: string) {
+    setError(null);
+    const { error } = await supabase.rpc("admin_move_lesson", { p_recurring: recId, p_orig_date: origDate, p_new_date: newDate, p_new_time: newTime });
+    if (error) { setError("Přesun selhal (spustil jsi move_lesson.sql?): " + error.message); return; }
+    const [c, l] = await Promise.all([
+      supabase.from("recurring_cancellations").select("recurring_id, date"),
+      supabase.from("lesson_plans").select("*").order("date").order("time"),
+    ]);
+    if (c.data) setRecCancels(c.data as { recurring_id: string; date: string }[]);
+    if (l.data) setLessons(l.data as LessonRow[]);
+  }
   // Zrušení konkrétního výskytu bloku (skupinovka dneska není) → nepočítá se
   async function cancelBlockOccurrence(blockId: string, date: string) {
     setError(null);
@@ -1656,6 +1668,7 @@ export default function AdminPage() {
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
             onCancelOccurrence={cancelOccurrence}
+            onMoveOccurrence={adminMoveOccurrence}
             onCancelBlock={cancelBlockOccurrence}
             onOpenOnce={openOnce}
             onOpenWeekly={openWeekly}

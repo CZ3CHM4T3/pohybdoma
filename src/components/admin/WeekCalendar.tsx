@@ -40,6 +40,7 @@ export function WeekCalendar({
   onAddRecurring,
   onDeleteLesson,
   onCancelOccurrence,
+  onMoveOccurrence,
   onCancelBlock,
   onOpenOnce,
   onOpenWeekly,
@@ -55,6 +56,7 @@ export function WeekCalendar({
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
+  onMoveOccurrence?: (recId: string, origDate: string, newDate: string, newTime: string) => Promise<void>;
   onCancelBlock?: (blockId: string, date: string) => Promise<void>;
   onOpenOnce?: (date: string, time: string) => Promise<void>;
   onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
@@ -73,6 +75,10 @@ export function WeekCalendar({
   const [lPrice, setLPrice] = useState("1000");
   const [lRepeat, setLRepeat] = useState(false);
   const [lSaving, setLSaving] = useState(false);
+  // Přesun lekce lektorem
+  const [moveOccId, setMoveOccId] = useState<string | null>(null);
+  const [moveOccDate, setMoveOccDate] = useState("");
+  const [moveOccTime, setMoveOccTime] = useState("15:00");
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const canPrev = weekStart > minWeek;
@@ -221,14 +227,25 @@ export function WeekCalendar({
                   <span className="rounded px-1.5 py-0.5 font-bold text-white" style={{ background: it.color }}>{it.time}</span>
                   <span className="font-semibold text-brand-dark">{it.name}</span>
                   {it.recurring && onCancelOccurrence ? (
-                    <button
-                      type="button"
-                      onClick={() => { const p = it.id.split(":"); onCancelOccurrence(p[1], p[2]); }}
-                      title="Zrušit tento termín (uvolní se + klientovi přijde mail)"
-                      className="ml-auto rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
-                    >
-                      Zrušit termín
-                    </button>
+                    <span className="ml-auto flex items-center gap-1.5">
+                      {onMoveOccurrence && (
+                        <button
+                          type="button"
+                          onClick={() => { setMoveOccId(it.id); setMoveOccDate(""); setMoveOccTime(it.time); }}
+                          className="rounded border border-brand-blue px-2 py-0.5 text-[10px] font-semibold text-brand-blue hover:bg-brand-light"
+                        >
+                          Přesunout
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => { const p = it.id.split(":"); onCancelOccurrence(p[1], p[2]); }}
+                        title="Zrušit tento termín (uvolní se + klientovi přijde mail)"
+                        className="rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        Zrušit
+                      </button>
+                    </span>
                   ) : it.kind === "block" && onCancelBlock ? (
                     <button
                       type="button"
@@ -255,6 +272,29 @@ export function WeekCalendar({
             </div>
           ) : (
             <p className="text-xs text-gray-400 mb-4">Tento den zatím nikoho nemáš.</p>
+          )}
+
+          {moveOccId && onMoveOccurrence && (
+            <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-brand-blue/30 bg-brand-light/40 p-3">
+              <span className="w-full text-xs font-semibold text-brand-dark">Přesunout lekci kam?</span>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-0.5">Nový den</label>
+                <input type="date" value={moveOccDate} onChange={(e) => setMoveOccDate(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-0.5">Čas (1 h)</label>
+                <input type="time" value={moveOccTime} onChange={(e) => setMoveOccTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
+              </div>
+              <button
+                type="button"
+                disabled={!moveOccDate}
+                onClick={async () => { const p = moveOccId.split(":"); await onMoveOccurrence(p[1], p[2], moveOccDate, moveOccTime); setMoveOccId(null); setMoveOccDate(""); }}
+                className="rounded-md bg-brand-blue px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-40"
+              >
+                Přesunout sem
+              </button>
+              <button type="button" onClick={() => setMoveOccId(null)} className="text-xs font-semibold text-gray-400 hover:text-gray-600">Zpět</button>
+            </div>
           )}
 
           {(
