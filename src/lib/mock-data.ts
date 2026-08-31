@@ -127,6 +127,20 @@ export const SERVICES: Service[] = [
     description:
       "Nahraj mi video, jak se hýbeš, cvičíš konkrétní cvik, nebo jaký pohybový problém řešíš a já ti pošlu podrobný rozbor s návodem na opravu a doporučeními. Bez domlouvání termínu.",
   },
+  {
+    id: "svc-workshop",
+    name: "Workshop",
+    durationMin: 0,
+    durationLabel: "skupinově",
+    priceKc: 0,
+    priceLabel: "dle termínu",
+    mode: "inPerson",
+    inquiryOnly: true,
+    icon: "👥",
+    tone: "amber",
+    description:
+      "Skupinový pohybový workshop na konkrétní téma (mobilita, síla, zdravá záda, regenerace…). Termíny vypisuji průběžně – ozvi se a dám ti vědět nejbližší.",
+  },
 ];
 
 /**

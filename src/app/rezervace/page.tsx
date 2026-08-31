@@ -17,6 +17,7 @@ import {
   HandHelping,
   ClipboardList,
   Video,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -49,6 +50,7 @@ const SERVICE_ICONS: Record<string, LucideIcon> = {
   "svc-masaz": HandHelping,
   "svc-plan-doma": ClipboardList,
   "svc-video-rozbor": Video,
+  "svc-workshop": Users,
 };
 
 
@@ -513,45 +515,46 @@ export default function RezervacePage() {
             )}
 
             {/* Týdenní přehled – kde je volno */}
-            <div className={`mt-8 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
-              <div className="flex items-center justify-between mb-3">
+            <div className={`mt-8 card p-5 lg:p-8 ${loadingData ? "opacity-50" : ""}`}>
+              <div className="flex items-center justify-between mb-5">
                 <button
                   type="button"
                   disabled={weekStart <= thisWeekMonday}
                   onClick={() => { const x = new Date(weekStart); x.setDate(weekStart.getDate() - 7); setWeekStart(x); }}
-                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="rounded-lg p-2.5 text-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Předchozí týden"
                 >
                   ←
                 </button>
-                <h3 className="text-sm font-semibold text-brand-dark">
+                <h3 className="text-lg font-bold text-brand-dark">
                   {weekDays[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – {weekDays[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })}
                 </h3>
                 <button
                   type="button"
                   onClick={() => { const x = new Date(weekStart); x.setDate(weekStart.getDate() + 7); setWeekStart(x); }}
-                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light"
+                  className="rounded-lg p-2.5 text-lg text-brand-dark hover:bg-brand-light"
                   aria-label="Další týden"
                 >
                   →
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 {weekDays.map((d) => {
                   const past = d < today;
                   const daySlots = past ? [] : slotsFor(d);
                   const isToday = sameDay(d, today);
                   return (
-                    <div key={d.toISOString()} className={`rounded-lg border p-2 ${isToday ? "border-brand-blue/40 bg-brand-light/40" : "border-gray-100"}`}>
-                      <p className="text-center text-xs font-semibold text-brand-dark">
-                        {WEEKDAYS_CS[(d.getDay() + 6) % 7]} <span className="text-gray-500 font-normal">{d.getDate()}.{d.getMonth() + 1}.</span>
+                    <div key={d.toISOString()} className={`rounded-xl border p-2.5 min-h-[120px] ${isToday ? "border-brand-blue bg-brand-light/50" : "border-gray-200"}`}>
+                      <p className="text-center text-sm font-bold text-brand-dark">
+                        {WEEKDAYS_CS[(d.getDay() + 6) % 7]}
+                        <span className="block text-xs text-gray-500 font-medium">{d.getDate()}.{d.getMonth() + 1}.</span>
                       </p>
                       {past ? (
-                        <p className="mt-2 text-center text-[11px] text-gray-300">—</p>
+                        <p className="mt-3 text-center text-xs text-gray-300">—</p>
                       ) : daySlots.length === 0 ? (
-                        <p className="mt-2 text-center text-[11px] text-gray-300">necvičím</p>
+                        <p className="mt-3 text-center text-xs text-gray-300">necvičím</p>
                       ) : (
-                        <div className="mt-1.5 flex flex-col gap-1">
+                        <div className="mt-2 flex flex-col gap-1.5">
                           {daySlots.map((s) => {
                             const isFree = s.status === "free";
                             const isSel = !!selectedDate && sameDay(d, selectedDate) && selectedTime === s.time;
@@ -561,12 +564,13 @@ export default function RezervacePage() {
                                 type="button"
                                 disabled={!isFree}
                                 onClick={() => { setSelectedDate(d); setSelectedTime(s.time); }}
-                                className={`rounded-md px-1 py-1 text-xs font-semibold transition-all ${
+                                title={isFree ? `${s.time} – volno` : `${s.time} – obsazeno`}
+                                className={`rounded-lg px-1.5 py-2 text-sm font-bold transition-all ${
                                   isSel
-                                    ? "bg-emerald-600 text-white"
+                                    ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300"
                                     : isFree
-                                      ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                      : "bg-gray-100 text-gray-500 line-through cursor-not-allowed"
+                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                      : "bg-red-100 text-red-700 cursor-not-allowed"
                                 }`}
                               >
                                 {s.time}
@@ -579,10 +583,16 @@ export default function RezervacePage() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs text-gray-500">
-                <span className="font-medium text-emerald-600">Zeleně</span> = volno (klikni a rezervuj) ·{" "}
-                <span className="line-through">přeškrtnuté</span> = obsazeno
-              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3.5 w-3.5 rounded bg-emerald-200 inline-block" />
+                  <span className="font-semibold text-emerald-700">volno</span> <span className="text-gray-500">– klikni a rezervuj</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3.5 w-3.5 rounded bg-red-200 inline-block" />
+                  <span className="font-semibold text-red-600">obsazeno</span>
+                </span>
+              </div>
             </div>
 
             <details className="mt-6">
@@ -689,7 +699,7 @@ export default function RezervacePage() {
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> volno
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> obsazeno
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> obsazeno
                     </span>
                   </div>
                 </div>
@@ -738,7 +748,7 @@ export default function RezervacePage() {
                               ? "bg-emerald-600 border-emerald-600 text-white shadow-md"
                               : isFree
                                 ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                : "border-transparent bg-gray-100 text-gray-500 line-through cursor-not-allowed"
+                                : "border-transparent bg-red-100 text-red-700 cursor-not-allowed"
                           }`}
                           aria-label={isFree ? `${slot.time} – volno` : `${slot.time} – obsazeno`}
                         >
