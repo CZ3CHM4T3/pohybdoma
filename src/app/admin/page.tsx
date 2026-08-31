@@ -215,7 +215,7 @@ export default function AdminPage() {
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
-  const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string }[]>([]);
+  const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
@@ -418,8 +418,8 @@ export default function AdminPage() {
     supabase.from("recurring_lessons").select("*").order("weekday").order("time").then(({ data }) => {
       if (data) setRecurring(data as RecurringRow[]);
     });
-    supabase.from("recurring_cancellations").select("recurring_id, date").then(({ data }) => {
-      if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+    supabase.from("recurring_cancellations").select("recurring_id, date, cancelled_by, moved").then(({ data }) => {
+      if (data) setRecCancels(data as { recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]);
     });
     supabase.from("recurring_blocks").select("*").order("weekday").order("start_time").then(({ data }) => {
       if (data) setBlocks(data as BlockRow[]);
@@ -729,8 +729,8 @@ export default function AdminPage() {
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("recurring_cancellations").insert({ recurring_id: recId, date, cancelled_by: user?.id ?? null });
     if (error) { setError("Zrušení termínu selhalo (spustil jsi recurring.sql?): " + error.message); return; }
-    const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date");
-    if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+    const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date, cancelled_by, moved");
+    if (data) setRecCancels(data as { recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]);
   }
   // Přesun konkrétního termínu lektorem → uvolní původní, vytvoří nový, klientovi mail+bublina
   async function adminMoveOccurrence(recId: string, origDate: string, newDate: string, newTime: string) {
@@ -738,10 +738,10 @@ export default function AdminPage() {
     const { error } = await supabase.rpc("admin_move_lesson", { p_recurring: recId, p_orig_date: origDate, p_new_date: newDate, p_new_time: newTime });
     if (error) { setError("Přesun selhal (spustil jsi move_lesson.sql?): " + error.message); return; }
     const [c, l] = await Promise.all([
-      supabase.from("recurring_cancellations").select("recurring_id, date"),
+      supabase.from("recurring_cancellations").select("recurring_id, date, cancelled_by, moved"),
       supabase.from("lesson_plans").select("*").order("date").order("time"),
     ]);
-    if (c.data) setRecCancels(c.data as { recurring_id: string; date: string }[]);
+    if (c.data) setRecCancels(c.data as { recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]);
     if (l.data) setLessons(l.data as LessonRow[]);
   }
   // Zrušení konkrétního výskytu bloku (skupinovka dneska není) → nepočítá se
@@ -1336,6 +1336,19 @@ export default function AdminPage() {
     // (stačí, že lekce zmizí). Na veřejné rezervaci se nabízejí dál (open_times).
   }
 
+  // Zrušené výskyty pravidelných lekcí (budoucí, ne přesuny) – vidět na kalendáři + nabídnout náhradu
+  const cancelledOccs: { date: string; time: string; name: string; byClient: boolean }[] = [];
+  {
+    const todayKey = new Date().toLocaleDateString("sv-SE");
+    const recById = new Map(recurring.map((r) => [r.id, r] as const));
+    for (const c of recCancels) {
+      if (c.moved || c.date < todayKey) continue;
+      const r = recById.get(c.recurring_id);
+      if (!r) continue;
+      cancelledOccs.push({ date: c.date, time: r.time, name: r.client_name || "Klient", byClient: !!c.cancelled_by && c.cancelled_by !== user?.id });
+    }
+  }
+
   // Odtrénované hodiny (každá lekce/blok-hodina = 1 h) – tento týden a tento měsíc, do dneška včetně
   const hoursTodayKey = new Date().toLocaleDateString("sv-SE");
   const hoursNow = new Date(); hoursNow.setHours(0, 0, 0, 0);
@@ -1673,6 +1686,11 @@ export default function AdminPage() {
             onOpenOnce={openOnce}
             onOpenWeekly={openWeekly}
             onCloseOpen={closeOpen}
+            cancelled={cancelledOccs}
+            onOfferMakeup={(clientName) => {
+              setMkClient(clientName);
+              if (typeof document !== "undefined") document.getElementById("nahrady")?.scrollIntoView({ behavior: "smooth" });
+            }}
           />
 
           {/* Otevřené hodiny pro veřejnost */}
@@ -1861,7 +1879,7 @@ export default function AdminPage() {
         </section>
 
         {/* ── Náhrady lekcí ── */}
-        <section className="card p-6 mb-8">
+        <section id="nahrady" className="card p-6 mb-8">
           <h2 className="text-lg font-semibold text-brand-dark mb-1">Náhrady lekcí</h2>
           <p className="text-sm text-gray-500 mb-5">
             Když se ti někdo omluví, nabídni mu náhradní termíny. Vyber klienta, přidej pár volných časů a odešli – přijdou mu do účtu i na mail a jeden si vybere (nebo řekne, že nevyhovuje žádný). <span className="text-gray-400">(Spusť makeup.sql.)</span>

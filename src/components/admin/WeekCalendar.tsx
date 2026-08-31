@@ -26,7 +26,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno"; deletable: boolean; recurring: boolean; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno"; deletable: boolean; recurring: boolean; byClient?: boolean; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -34,6 +34,7 @@ export function WeekCalendar({
   lessons,
   blocks,
   open = [],
+  cancelled = [],
   catColors,
   clientNames = [],
   onAddLesson,
@@ -45,11 +46,13 @@ export function WeekCalendar({
   onOpenOnce,
   onOpenWeekly,
   onCloseOpen,
+  onOfferMakeup,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
   blocks: BlockOcc[];
   open?: { date: string; time: string }[];
+  cancelled?: { date: string; time: string; name: string; byClient: boolean }[];
   catColors: Record<string, string>;
   clientNames?: string[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -61,6 +64,7 @@ export function WeekCalendar({
   onOpenOnce?: (date: string, time: string) => Promise<void>;
   onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
   onCloseOpen?: (date: string, time: string) => Promise<void>;
+  onOfferMakeup?: (clientName: string) => void;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
@@ -107,6 +111,11 @@ export function WeekCalendar({
       seenOpen.add(o.time);
       const s = toMin(o.time);
       raw.push({ id: `open:${key}:${o.time}`, startMin: s, endMin: s + 60, name: "volno", time: o.time, color: "#10b981", kind: "volno", deletable: false, recurring: false });
+    }
+    for (const cx of cancelled) {
+      if (cx.date !== key) continue;
+      const s = toMin(cx.time);
+      raw.push({ id: `cx:${key}:${cx.time}`, startMin: s, endMin: s + 60, name: cx.name, time: cx.time, color: "#9ca3af", kind: "zruseno", deletable: false, recurring: false, byClient: cx.byClient });
     }
     // Rozvržení do sloupců (lanes) při překryvu
     raw.sort((a, b) => a.startMin - b.startMin);
@@ -189,13 +198,13 @@ export function WeekCalendar({
                     return (
                       <div
                         key={it.id}
-                        title={`${it.time} ${it.name}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="absolute rounded px-1 py-0.5 text-[9px] font-semibold text-white overflow-hidden leading-tight cursor-default"
-                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.color }}
+                        title={it.kind === "zruseno" ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
+                        onClick={(e) => { e.stopPropagation(); if (it.kind === "zruseno" && onOfferMakeup) { setSelectedDay(d); } }}
+                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight ${it.kind === "zruseno" ? "border border-dashed border-gray-400 text-gray-600 cursor-pointer" : "text-white cursor-default"}`}
+                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.kind === "zruseno" ? "#f3f4f6" : it.color }}
                       >
-                        <span className="block opacity-90">{it.time}</span>
-                        <span className="block truncate">{it.name}</span>
+                        <span className="block opacity-90">{it.kind === "zruseno" ? "zrušeno" : it.time}</span>
+                        <span className={`block truncate ${it.kind === "zruseno" ? "line-through" : ""}`}>{it.name}</span>
                       </div>
                     );
                   })}
@@ -264,6 +273,15 @@ export function WeekCalendar({
                     >
                       Zavřít
                     </button>
+                  ) : it.kind === "zruseno" ? (
+                    <span className="ml-auto flex items-center gap-2">
+                      <span className="text-[10px] text-gray-400">zrušeno ({it.byClient ? "klient" : "já"})</span>
+                      {onOfferMakeup && (
+                        <button type="button" onClick={() => onOfferMakeup(it.name)} className="rounded border border-teal-300 px-2 py-0.5 text-[10px] font-semibold text-teal-700 hover:bg-teal-50">
+                          Nabídnout náhradu
+                        </button>
+                      )}
+                    </span>
                   ) : it.deletable ? (
                     <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
                   ) : null}
