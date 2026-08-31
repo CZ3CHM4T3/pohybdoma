@@ -739,6 +739,34 @@ export default function AdminPage() {
     if (error) { setError("Zrušení bloku selhalo (spustil jsi block_cancellations.sql?): " + error.message); return; }
     setBlockCancels((prev) => [...prev, { block_id: blockId, date }]);
   }
+  // Otevřít hodinu pro veřejnost z kalendáře – jen tento den / každý týden / zavřít
+  async function openOnce(date: string, time: string) {
+    setError(null);
+    const { error } = await supabase.from("availability_overrides").upsert({ date, time, status: "free" }, { onConflict: "date,time" });
+    if (error) { setError("Otevření hodiny selhalo: " + error.message); return; }
+    const { data } = await supabase.from("availability_overrides").select("*").order("date");
+    if (data) setOverrides(data as OverrideRow[]);
+  }
+  async function openWeekly(weekday: number, time: string) {
+    setError(null);
+    const { error } = await supabase.from("availability_weekly").upsert({ weekday, time, is_free: true }, { onConflict: "weekday,time" });
+    if (error) { setError("Otevření hodiny selhalo: " + error.message); return; }
+    const { data } = await supabase.from("availability_weekly").select("weekday,time,is_free");
+    if (data) setWeekly(data as WeeklyRow[]);
+  }
+  async function closeOpen(date: string, time: string) {
+    setError(null);
+    if (overrides.some((o) => o.date === date && o.time === time && o.status === "free")) {
+      const { error } = await supabase.from("availability_overrides").delete().eq("date", date).eq("time", time);
+      if (error) { setError("Zavření selhalo: " + error.message); return; }
+      setOverrides((prev) => prev.filter((o) => !(o.date === date && o.time === time)));
+    } else {
+      const wd = new Date(date + "T00:00:00").getDay();
+      const { error } = await supabase.from("availability_weekly").delete().eq("weekday", wd).eq("time", time);
+      if (error) { setError("Zavření selhalo: " + error.message); return; }
+      setWeekly((prev) => prev.filter((w) => !(w.weekday === wd && w.time === time)));
+    }
+  }
   // ── Pravidelné bloky (MS GEM, kroužky…) ──
   async function addBlock() {
     if (!blkLabel.trim()) { setError("Zadej název bloku (např. MS GEM – tenisová akademie)."); return; }
@@ -1290,6 +1318,8 @@ export default function AdminPage() {
         for (const w of freeWeekly) if (w.weekday === wd) openOccs.push({ date: key, time: w.time });
       }
     }
+    // Jednorázově otevřené hodiny (výjimky „volno" pro konkrétní datum)
+    for (const o of overrides) if (o.status === "free") openOccs.push({ date: o.date, time: o.time });
     // Pozn.: uvolněné termíny po omluvě/zrušení už v adminu jako zelené „volno" NEukazujeme
     // (stačí, že lekce zmizí). Na veřejné rezervaci se nabízejí dál (open_times).
   }
@@ -1627,6 +1657,9 @@ export default function AdminPage() {
             onDeleteLesson={deleteLesson}
             onCancelOccurrence={cancelOccurrence}
             onCancelBlock={cancelBlockOccurrence}
+            onOpenOnce={openOnce}
+            onOpenWeekly={openWeekly}
+            onCloseOpen={closeOpen}
           />
 
           {/* Otevřené hodiny pro veřejnost */}
@@ -1963,63 +1996,6 @@ export default function AdminPage() {
           </form>
         </details>
 
-        {/* ── Výjimky pro konkrétní datum (sbaleno – málokdy potřeba) ── */}
-        <details className="card p-6 mb-8">
-          <summary className="cursor-pointer text-lg font-semibold text-brand-dark">
-            Výjimky „pro tentokrát" <span className="text-gray-400 font-normal">({overrides.length}) · rozbalit</span>
-          </summary>
-          <p className="text-sm text-gray-500 mb-5 mt-2">
-            Mimořádně uvolni nebo zaber hodinu na <strong>konkrétní datum</strong> (má přednost před týdenním rozvrhem).
-          </p>
-
-          {overrides.length > 0 && (
-            <div className="space-y-2 mb-6">
-              {overrides.map((o) => (
-                <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3">
-                  <p className="text-sm text-brand-dark">
-                    <span className="capitalize">{fmtDateCs(o.date)}</span> · {o.time} ·{" "}
-                    <span className={o.status === "free" ? "text-emerald-600 font-semibold" : "text-gray-500 font-semibold"}>
-                      {o.status === "free" ? "volno" : "obsazeno"}
-                    </span>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => deleteOverride(o.id)}
-                    className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700"
-                  >
-                    Smazat
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <form onSubmit={addOverride} className="flex flex-wrap items-end gap-3">
-            <AdminInput label="Datum *" type="date" value={ovDate} onChange={setOvDate} required />
-            <div>
-              <label className="block text-xs font-semibold text-brand-dark mb-1">Hodina</label>
-              <select
-                value={ovTime}
-                onChange={(e) => setOvTime(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white"
-              >
-                {HOURS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-brand-dark mb-1">Stav</label>
-              <select
-                value={ovStatus}
-                onChange={(e) => setOvStatus(e.target.value as "free" | "booked")}
-                className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm bg-white"
-              >
-                <option value="free">volno</option>
-                <option value="booked">obsazeno</option>
-              </select>
-            </div>
-            <button type="submit" className="btn-primary text-sm">Přidat výjimku</button>
-          </form>
-        </details>
         </>
         )}
 

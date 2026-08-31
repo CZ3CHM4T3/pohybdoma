@@ -41,6 +41,9 @@ export function WeekCalendar({
   onDeleteLesson,
   onCancelOccurrence,
   onCancelBlock,
+  onOpenOnce,
+  onOpenWeekly,
+  onCloseOpen,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -53,6 +56,9 @@ export function WeekCalendar({
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
   onCancelBlock?: (blockId: string, date: string) => Promise<void>;
+  onOpenOnce?: (date: string, time: string) => Promise<void>;
+  onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
+  onCloseOpen?: (date: string, time: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
@@ -232,6 +238,15 @@ export function WeekCalendar({
                     >
                       Zrušit tento den
                     </button>
+                  ) : it.kind === "volno" && onCloseOpen && selectedDay ? (
+                    <button
+                      type="button"
+                      onClick={() => onCloseOpen(dateKey(selectedDay), it.time)}
+                      title="Zavřít – přestat nabízet veřejnosti"
+                      className="ml-auto rounded border border-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500 hover:bg-gray-50"
+                    >
+                      Zavřít
+                    </button>
                   ) : it.deletable ? (
                     <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
                   ) : null}
@@ -274,6 +289,21 @@ export function WeekCalendar({
                   <input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" />
                   Opakovat každý týden (stálý klient)
                 </label>
+              )}
+              {(onOpenOnce || onOpenWeekly) && selectedDay && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-2 text-xs">
+                  <span className="text-gray-500">Nebo otevřít hodinu <strong>{lTime}</strong> pro veřejnost:</span>
+                  {onOpenOnce && (
+                    <button type="button" onClick={() => onOpenOnce(dateKey(selectedDay), lTime)} className="rounded-md border border-emerald-300 px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">
+                      Jen tento den
+                    </button>
+                  )}
+                  {onOpenWeekly && (
+                    <button type="button" onClick={() => onOpenWeekly(selectedDay.getDay(), lTime)} className="rounded-md border border-emerald-300 px-2.5 py-1 font-semibold text-emerald-700 hover:bg-emerald-50">
+                      Každý týden
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
