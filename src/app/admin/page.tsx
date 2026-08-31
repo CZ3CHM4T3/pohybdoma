@@ -711,6 +711,15 @@ export default function AdminPage() {
     if (error) { setError("Smazání selhalo: " + error.message); return; }
     setRecurring((prev) => prev.filter((x) => x.id !== id));
   }
+  // Zrušení KONKRÉTNÍHO termínu pravidelné lekce (lektor) → uvolní se + klientovi mail
+  async function cancelOccurrence(recId: string, date: string) {
+    setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("recurring_cancellations").insert({ recurring_id: recId, date, cancelled_by: user?.id ?? null });
+    if (error) { setError("Zrušení termínu selhalo (spustil jsi recurring.sql?): " + error.message); return; }
+    const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date");
+    if (data) setRecCancels(data as { recurring_id: string; date: string }[]);
+  }
   // ── Pravidelné bloky (MS GEM, kroužky…) ──
   async function addBlock() {
     if (!blkLabel.trim()) { setError("Zadej název bloku (např. MS GEM – tenisová akademie)."); return; }
@@ -1597,6 +1606,7 @@ export default function AdminPage() {
             onAddLesson={addLesson}
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
+            onCancelOccurrence={cancelOccurrence}
           />
 
           {/* Otevřené hodiny pro veřejnost */}

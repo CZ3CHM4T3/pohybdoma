@@ -26,7 +26,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno"; deletable: boolean; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno"; deletable: boolean; recurring: boolean; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -39,6 +39,7 @@ export function WeekCalendar({
   onAddLesson,
   onAddRecurring,
   onDeleteLesson,
+  onCancelOccurrence,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -49,6 +50,7 @@ export function WeekCalendar({
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
+  onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
 }) {
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
@@ -74,23 +76,23 @@ export function WeekCalendar({
     for (const l of lessons) {
       if (l.date !== key) continue;
       const s = toMin(l.time);
-      raw.push({ id: l.id, startMin: s, endMin: s + 60, name: l.client_name || "Lekce", time: l.time, color: catColors.fitness, kind: "fitness", deletable: !l.recurring });
+      raw.push({ id: l.id, startMin: s, endMin: s + 60, name: l.client_name || "Lekce", time: l.time, color: catColors.fitness, kind: "fitness", deletable: !l.recurring, recurring: !!l.recurring });
     }
     for (const b of blocks) {
       if (b.date !== key) continue;
-      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false });
+      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false, recurring: false });
     }
     for (const bk of bookings) {
       if (bk.date !== key || bk.status === "cancelled" || bk.status === "no_show") continue;
       const s = toMin(bk.time);
-      raw.push({ id: bk.id, startMin: s, endMin: s + 60, name: bk.contact_name, time: bk.time, color: catColors.rezervace, kind: "rezervace", deletable: false });
+      raw.push({ id: bk.id, startMin: s, endMin: s + 60, name: bk.contact_name, time: bk.time, color: catColors.rezervace, kind: "rezervace", deletable: false, recurring: false });
     }
     const seenOpen = new Set<string>();
     for (const o of open) {
       if (o.date !== key || seenOpen.has(o.time)) continue;
       seenOpen.add(o.time);
       const s = toMin(o.time);
-      raw.push({ id: `open:${key}:${o.time}`, startMin: s, endMin: s + 60, name: "volno", time: o.time, color: "#10b981", kind: "volno", deletable: false });
+      raw.push({ id: `open:${key}:${o.time}`, startMin: s, endMin: s + 60, name: "volno", time: o.time, color: "#10b981", kind: "volno", deletable: false, recurring: false });
     }
     // Rozvržení do sloupců (lanes) při překryvu
     raw.sort((a, b) => a.startMin - b.startMin);
@@ -210,9 +212,18 @@ export function WeekCalendar({
                 <div key={it.id} className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs" style={{ background: it.color + "18" }}>
                   <span className="rounded px-1.5 py-0.5 font-bold text-white" style={{ background: it.color }}>{it.time}</span>
                   <span className="font-semibold text-brand-dark">{it.name}</span>
-                  {it.deletable && (
+                  {it.recurring && onCancelOccurrence ? (
+                    <button
+                      type="button"
+                      onClick={() => { const p = it.id.split(":"); onCancelOccurrence(p[1], p[2]); }}
+                      title="Zrušit tento termín (uvolní se + klientovi přijde mail)"
+                      className="ml-auto rounded border border-red-200 px-2 py-0.5 text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Zrušit termín
+                    </button>
+                  ) : it.deletable ? (
                     <button type="button" onClick={() => onDeleteLesson(it.id)} title="Smazat lekci" className="ml-auto text-gray-300 hover:text-red-500">×</button>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
