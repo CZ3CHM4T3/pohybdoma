@@ -55,7 +55,7 @@ export function WeekCalendar({
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
   const maxWeek = useMemo(() => addDays(startOfWeek(today), 7 * 77), [today]);
-  const [weekStart, setWeekStart] = useState<Date>(minWeek);
+  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(startOfDay(new Date()))); // aktuální týden
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // Formulář na lekci

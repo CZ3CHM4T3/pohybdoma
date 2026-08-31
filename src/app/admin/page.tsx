@@ -1268,11 +1268,8 @@ export default function AdminPage() {
         for (const w of freeWeekly) if (w.weekday === wd) openOccs.push({ date: key, time: w.time });
       }
     }
-    const recById = new Map(recurring.map((r) => [r.id, r] as const));
-    for (const c of recCancels) {
-      const r = recById.get(c.recurring_id);
-      if (r?.active) openOccs.push({ date: c.date, time: r.time });
-    }
+    // Pozn.: uvolněné termíny po omluvě/zrušení už v adminu jako zelené „volno" NEukazujeme
+    // (stačí, že lekce zmizí). Na veřejné rezervaci se nabízejí dál (open_times).
   }
 
   // Odtrénované hodiny (každá lekce/blok-hodina = 1 h) – tento týden a tento měsíc, do dneška včetně
