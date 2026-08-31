@@ -108,9 +108,11 @@ type EventRow = {
   title: string;
   kind: string;
   time: string | null;
+  end_time: string | null;
   location: string | null;
   description: string | null;
   price_kc: number | null;
+  color: string | null;
 };
 type OverrideRow = {
   id: string;
@@ -604,6 +606,17 @@ export default function AdminPage() {
     const { error } = await supabase.from("events").delete().eq("id", id);
     if (error) { setError("Smazání akce selhalo: " + error.message); return; }
     setEvents((prev) => prev.filter((x) => x.id !== id));
+  }
+  // Vytvoření akce přímo z kalendáře (klik na den → bublina)
+  async function addEventFromCalendar(date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) {
+    setError(null);
+    const { error } = await supabase.from("events").insert({
+      date, title, kind: kind || "Akce", time: time || null, end_time: endTime || null,
+      location: location || null, description: null, price_kc: priceKc, color: color || null,
+    });
+    if (error) { setError("Akci se nepodařilo uložit (spustil jsi events_color.sql?): " + error.message); return; }
+    const { data } = await supabase.from("events").select("*").order("date");
+    if (data) setEvents(data as EventRow[]);
   }
 
   // ── Výjimky pro konkrétní datum ──
@@ -1745,10 +1758,13 @@ export default function AdminPage() {
             notes={lessonNotes}
             blockMembers={blockMembers}
             blockAttendance={blockAttendance}
+            events={events}
             catColors={CAT_COLORS}
             clientNames={clients.map((c) => c.name)}
             onSaveNote={saveLessonNote}
             onToggleAttendance={toggleAttendance}
+            onAddEvent={addEventFromCalendar}
+            onDeleteEvent={deleteEvent}
             onAddLesson={addLesson}
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}

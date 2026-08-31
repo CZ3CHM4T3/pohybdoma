@@ -149,6 +149,10 @@ export interface CalendarEvent {
   priceKc?: number;
   /** Cílová stránka / přihláška (volitelné). */
   href?: string;
+  /** Konec akce "HH:MM" (volitelné). */
+  endTime?: string;
+  /** Barva zobrazení v kalendáři (hex). */
+  color?: string;
 }
 
 // ─── Personal lessons / bookings ──────────────────────────────────────────────

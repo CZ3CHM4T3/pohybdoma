@@ -16,6 +16,23 @@ import type {
 
 export const HOME_BASE = "Dobřichovice";
 
+// ─── Typy akcí + přednastavené barvy (workshop, cvíčo, seminář…) ──────────────
+// Používá se v adminu (vytvoření akce v kalendáři) i veřejně (barevný pruh v rozvrhu).
+export const EVENT_TYPES: { key: string; label: string; color: string }[] = [
+  { key: "workshop", label: "Workshop", color: "#7c3aed" },       // fialová
+  { key: "cvico", label: "CVÍČO ZA KILČO (online)", color: "#0891b2" }, // tyrkysová
+  { key: "seminar", label: "Seminář / přednáška", color: "#d97706" },  // jantarová
+  { key: "akce", label: "Akce", color: "#db2777" },               // růžová
+  { key: "jine", label: "Jiné", color: "#475569" },               // šedomodrá
+];
+
+/** Barva akce: nejdřív uložená barva, jinak podle typu (kind), jinak default. */
+export function eventColorOf(ev: { color?: string | null; kind?: string | null }): string {
+  if (ev.color) return ev.color;
+  const t = EVENT_TYPES.find((x) => x.label === ev.kind || x.key === ev.kind);
+  return t?.color ?? "#475569";
+}
+
 export const SERVICE_AREA: string[] = [
   "Dobřichovice",
   "Lety",

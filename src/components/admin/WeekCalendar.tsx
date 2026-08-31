@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 import type { BookingLite, LessonRow } from "./MonthCalendar";
+import { EVENT_TYPES, eventColorOf } from "@/lib/mock-data";
+
+type EventLite = { id: string; date: string; time: string | null; end_time: string | null; title: string; kind: string; color: string | null };
 
 export type BlockOcc = { id: string; date: string; start_time: string; end_time: string; label: string; category: string };
 
@@ -26,7 +29,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno" | "event"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -38,6 +41,7 @@ export function WeekCalendar({
   notes = [],
   blockMembers = [],
   blockAttendance = [],
+  events = [],
   catColors,
   clientNames = [],
   onAddLesson,
@@ -52,6 +56,8 @@ export function WeekCalendar({
   onOfferMakeup,
   onSaveNote,
   onToggleAttendance,
+  onAddEvent,
+  onDeleteEvent,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -61,6 +67,7 @@ export function WeekCalendar({
   notes?: { date: string; time: string; note: string }[];
   blockMembers?: { block_id: string; name: string }[];
   blockAttendance?: { block_id: string; date: string; name: string }[];
+  events?: EventLite[];
   catColors: Record<string, string>;
   clientNames?: string[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -75,6 +82,8 @@ export function WeekCalendar({
   onOfferMakeup?: (clientName: string) => void;
   onSaveNote?: (date: string, time: string, note: string) => Promise<void>;
   onToggleAttendance?: (blockId: string, date: string, name: string, present: boolean) => Promise<void>;
+  onAddEvent?: (date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) => Promise<void>;
+  onDeleteEvent?: (id: string) => Promise<void>;
 }) {
   const attSet = useMemo(() => new Set(blockAttendance.map((a) => `${a.block_id}|${a.date}|${a.name}`)), [blockAttendance]);
   const noteMap = useMemo(() => {
@@ -105,7 +114,24 @@ export function WeekCalendar({
   // Připomínka k lekci
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
-  function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); }
+  // Vytvoření akce v kalendáři
+  const [evMode, setEvMode] = useState(false);
+  const [evTitle, setEvTitle] = useState("");
+  const [evType, setEvType] = useState(EVENT_TYPES[0].key);
+  const [evFrom, setEvFrom] = useState("17:00");
+  const [evTo, setEvTo] = useState("18:00");
+  const [evPlace, setEvPlace] = useState("");
+  const [evPrice, setEvPrice] = useState("");
+  const [evSaving, setEvSaving] = useState(false);
+  function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); setEvMode(false); }
+  async function submitEvent() {
+    if (!pop || !evTitle.trim() || !onAddEvent) return;
+    setEvSaving(true);
+    const t = EVENT_TYPES.find((x) => x.key === evType) ?? EVENT_TYPES[EVENT_TYPES.length - 1];
+    const pr = evPrice.trim() === "" ? null : Number(evPrice);
+    await onAddEvent(pop.date, evFrom, evTo, evTitle.trim(), t.label, t.color, evPlace.trim(), Number.isFinite(pr as number) ? pr : null);
+    setEvSaving(false); setEvTitle(""); setEvPlace(""); setEvPrice(""); setEvMode(false); closePop();
+  }
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const canPrev = weekStart > minWeek;
@@ -139,6 +165,12 @@ export function WeekCalendar({
       if (cx.date !== key) continue;
       const s = toMin(cx.time);
       raw.push({ id: `cx:${key}:${cx.time}`, startMin: s, endMin: s + 60, name: cx.name, time: cx.time, color: "#9ca3af", kind: "zruseno", deletable: false, recurring: false, byClient: cx.byClient });
+    }
+    for (const ev of events) {
+      if (ev.date !== key || !ev.time) continue;
+      const s = toMin(ev.time);
+      const e2 = ev.end_time ? toMin(ev.end_time) : s + 90;
+      raw.push({ id: `evt:${ev.id}`, startMin: s, endMin: Math.max(s + 30, e2), name: ev.title, time: ev.time, color: eventColorOf(ev), kind: "event", deletable: false, recurring: false });
     }
     // Rozvržení do sloupců (lanes) při překryvu
     raw.sort((a, b) => a.startMin - b.startMin);
@@ -258,6 +290,7 @@ export function WeekCalendar({
         {[["fitness", "fitness (klient)"], ["rezervace", "rezervace z webu"], ["msgem", "MS GEM"], ["tenis", "příprava tenistů"], ["skolka", "školka"], ["krouzek", "kroužek"], ["kruhac", "kruhový trénink"], ["jine", "jiné"]].map(([k, label]) => (
           <span key={k} className="flex items-center gap-1"><span className="h-3 w-3 rounded inline-block" style={{ background: catColors[k] }} /> {label}</span>
         ))}
+        <span className="flex items-center gap-1"><span className="h-3 w-3 rounded inline-block" style={{ background: "#7c3aed" }} /> akce / workshop</span>
       </div>
 
       <p className="mt-3 text-[11px] text-gray-400">Klikni na políčko (přidat / otevřít pro veřejnost) nebo na lekci (přesunout / zrušit / nabídnout náhradu).</p>
@@ -289,9 +322,12 @@ export function WeekCalendar({
               </div>
             )}
 
-            {!pop.item && !addMode && (
+            {!pop.item && !addMode && !evMode && (
               <div className="space-y-1.5">
                 <button type="button" onClick={() => setAddMode(true)} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat lekci</button>
+                {onAddEvent && (
+                  <button type="button" onClick={() => { setEvFrom(pop.time); const [hh, mm] = pop.time.split(":").map(Number); const end = Math.min(22 * 60, hh * 60 + mm + 90); setEvTo(`${String(Math.floor(end / 60)).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`); setEvMode(true); }} className="w-full rounded-md bg-violet-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-violet-700">+ Vytvořit akci / workshop</button>
+                )}
                 {(onOpenOnce || onOpenWeekly) && (
                   <div className="rounded-md border border-emerald-200 p-2">
                     <p className="mb-1 text-[11px] text-gray-500">Otevřít {pop.time} pro veřejnost:</p>
@@ -320,6 +356,41 @@ export function WeekCalendar({
                   <button type="button" onClick={submitLessonPop} disabled={lSaving || !lName.trim()} className="flex-1 rounded-md bg-teal-600 px-2.5 py-1.5 font-semibold text-white hover:bg-teal-700 disabled:opacity-40">{lSaving ? "Ukládám…" : "Přidat"}</button>
                   <button type="button" onClick={() => setAddMode(false)} className="rounded-md border border-gray-200 px-2.5 py-1.5 font-semibold text-gray-500">Zpět</button>
                 </div>
+              </div>
+            )}
+
+            {!pop.item && evMode && (
+              <div className="space-y-1.5">
+                <input type="text" value={evTitle} onChange={(e) => setEvTitle(e.target.value)} placeholder="Název akce (např. Workshop: zdravá záda)" className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                <select value={evType} onChange={(e) => setEvType(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5">
+                  {EVENT_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </select>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-gray-500">Od</span>
+                  <input type="time" value={evFrom} onChange={(e) => setEvFrom(e.target.value)} className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
+                  <span className="text-[11px] text-gray-500">do</span>
+                  <input type="time" value={evTo} onChange={(e) => setEvTo(e.target.value)} className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
+                </div>
+                <div className="flex gap-1.5">
+                  <input type="text" value={evPlace} onChange={(e) => setEvPlace(e.target.value)} placeholder="Místo (nepovinné)" className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
+                  <input type="number" value={evPrice} onChange={(e) => setEvPrice(e.target.value)} placeholder="Kč" className="w-16 rounded-md border border-gray-200 px-2 py-1.5" />
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                  Barva: <span className="inline-block h-3.5 w-3.5 rounded" style={{ background: (EVENT_TYPES.find((x) => x.key === evType) ?? EVENT_TYPES[0]).color }} /> (podle typu)
+                </div>
+                <div className="flex gap-1.5">
+                  <button type="button" onClick={submitEvent} disabled={evSaving || !evTitle.trim()} className="flex-1 rounded-md bg-violet-600 px-2.5 py-1.5 font-semibold text-white hover:bg-violet-700 disabled:opacity-40">{evSaving ? "Ukládám…" : "Vytvořit akci"}</button>
+                  <button type="button" onClick={() => setEvMode(false)} className="rounded-md border border-gray-200 px-2.5 py-1.5 font-semibold text-gray-500">Zpět</button>
+                </div>
+              </div>
+            )}
+
+            {pop.item && pop.item.kind === "event" && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-gray-500">Akce / workshop – veřejně viditelné v kalendáři na webu.</p>
+                {onDeleteEvent && (
+                  <button type="button" onClick={async () => { await onDeleteEvent(pop.item!.id.replace(/^evt:/, "")); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Smazat akci</button>
+                )}
               </div>
             )}
 

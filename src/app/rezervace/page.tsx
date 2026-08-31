@@ -8,6 +8,7 @@ import {
   getServicePrice,
   getServicePriceForTier,
   hasDayPricing,
+  eventColorOf,
 } from "@/lib/mock-data";
 import type { Service, ScheduleSlot, SlotStatus, CalendarEvent } from "@/types";
 import {
@@ -24,10 +25,6 @@ import { createClient } from "@/lib/supabase/client";
 import { normalizeTier } from "@/lib/tiers";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-const MONTHS_CS = [
-  "leden", "únor", "březen", "duben", "květen", "červen",
-  "červenec", "srpen", "září", "říjen", "listopad", "prosinec",
-];
 const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
 
@@ -65,31 +62,12 @@ function dateKey(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-function startOfMonth(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-function addMonths(d: Date, n: number): Date {
-  return new Date(d.getFullYear(), d.getMonth() + n, 1);
-}
 function sameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate()
   );
-}
-/** 6týdenní mřížka začínající pondělím. */
-function buildCalendar(view: Date): Date[] {
-  const first = startOfMonth(view);
-  // JS: neděle=0; chceme pondělí=0
-  const offset = (first.getDay() + 6) % 7;
-  const start = new Date(first);
-  start.setDate(first.getDate() - offset);
-  return Array.from({ length: 42 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d;
-  });
 }
 
 export default function RezervacePage() {
@@ -98,15 +76,12 @@ export default function RezervacePage() {
     t.setHours(0, 0, 0, 0);
     return t;
   }, []);
-  const minMonth = useMemo(() => startOfMonth(today), [today]);
-  const maxMonth = useMemo(() => addMonths(minMonth, 11), [minMonth]);
 
   // Výchozí předvybraná služba (doporučená, jinak první) – aby byl kalendář
   // vidět hned po otevření stránky.
   const defaultServiceId =
     SERVICES.find((s) => s.highlighted)?.id ?? SERVICES[0]?.id ?? null;
   const [serviceId, setServiceId] = useState<string | null>(defaultServiceId);
-  const [viewMonth, setViewMonth] = useState<Date>(minMonth);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   // Týdenní přehled dostupnosti (Po daného týdne)
@@ -159,10 +134,12 @@ export default function RezervacePage() {
             title: String(r.title),
             kind: String(r.kind ?? "Akce"),
             time: r.time ? String(r.time) : undefined,
+            endTime: r.end_time ? String(r.end_time) : undefined,
             location: r.location ? String(r.location) : undefined,
             description: String(r.description ?? ""),
             priceKc: r.price_kc == null ? undefined : Number(r.price_kc),
             href: r.href ? String(r.href) : undefined,
+            color: r.color ? String(r.color) : undefined,
           }))
         );
       }
@@ -250,18 +227,10 @@ export default function RezervacePage() {
     },
     [busy, open, today]
   );
-  const dayHasFree = useCallback(
-    (date: Date) => slotsFor(date).some((s) => s.status === "free"),
-    [slotsFor]
-  );
   const eventsFor = useCallback(
     (date: Date) => events.filter((e) => e.date === dateKey(date)),
     [events]
   );
-
-  const days = useMemo(() => buildCalendar(viewMonth), [viewMonth]);
-  const slots = selectedDate ? slotsFor(selectedDate) : [];
-  const dayEvents = selectedDate ? eventsFor(selectedDate) : [];
 
   // Týdenní přehled
   const weekDays = useMemo(
@@ -269,9 +238,6 @@ export default function RezervacePage() {
     [weekStart]
   );
   const thisWeekMonday = useMemo(() => { const x = startOfDay(new Date()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }, []);
-
-  const canPrev = startOfMonth(viewMonth) > minMonth;
-  const canNext = startOfMonth(viewMonth) < maxMonth;
 
   // Pro osobní lekce: vybraná obec musí být ve spádové oblasti.
   const municipalityInvalid = isInPerson && municipality === OTHER;
@@ -551,10 +517,21 @@ export default function RezervacePage() {
                       </p>
                       {past ? (
                         <p className="mt-3 text-center text-xs text-gray-300">—</p>
-                      ) : daySlots.length === 0 ? (
-                        <p className="mt-3 text-center text-xs text-gray-300">necvičím</p>
                       ) : (
                         <div className="mt-2 flex flex-col gap-1.5">
+                          {/* Akce / workshopy v tento den */}
+                          {eventsFor(d).map((ev) => (
+                            <a
+                              key={ev.id}
+                              href="/kontakt"
+                              title={`${ev.title}${ev.time ? " · " + ev.time : ""}`}
+                              className="block rounded-lg px-1.5 py-1.5 text-[11px] font-bold text-white leading-tight hover:opacity-90"
+                              style={{ background: eventColorOf(ev) }}
+                            >
+                              {ev.time && <span className="block opacity-90">{ev.time}{ev.endTime ? `–${ev.endTime}` : ""}</span>}
+                              <span className="block truncate">{ev.title}</span>
+                            </a>
+                          ))}
                           {daySlots.map((s) => {
                             const isFree = s.status === "free";
                             const isSel = !!selectedDate && sameDay(d, selectedDate) && selectedTime === s.time;
@@ -577,6 +554,9 @@ export default function RezervacePage() {
                               </button>
                             );
                           })}
+                          {daySlots.length === 0 && eventsFor(d).length === 0 && (
+                            <p className="text-center text-xs text-gray-300">necvičím</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -592,181 +572,12 @@ export default function RezervacePage() {
                   <span className="h-3.5 w-3.5 rounded bg-red-200 inline-block" />
                   <span className="font-semibold text-red-600">obsazeno</span>
                 </span>
-              </div>
-            </div>
-
-            <details className="mt-6">
-              <summary className="cursor-pointer text-center text-xs font-semibold uppercase tracking-wide text-gray-500 hover:text-brand-dark">
-                nebo vyber v měsíčním kalendáři
-              </summary>
-
-            <div className={`mt-3 card p-5 lg:p-6 ${loadingData ? "opacity-50" : ""}`}>
-              {/* Navigace měsíců */}
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  type="button"
-                  disabled={!canPrev}
-                  onClick={() => { setViewMonth(addMonths(viewMonth, -1)); }}
-                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Předchozí měsíc"
-                >
-                  ←
-                </button>
-                <h3 className="font-semibold text-brand-dark capitalize">
-                  {MONTHS_CS[viewMonth.getMonth()]} {viewMonth.getFullYear()}
-                </h3>
-                <button
-                  type="button"
-                  disabled={!canNext}
-                  onClick={() => { setViewMonth(addMonths(viewMonth, 1)); }}
-                  className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                  aria-label="Další měsíc"
-                >
-                  →
-                </button>
-              </div>
-
-              {/* Hlavička dnů */}
-              <div className="grid grid-cols-7 gap-1 mb-1">
-                {WEEKDAYS_CS.map((w) => (
-                  <div key={w} className="text-center text-xs font-semibold text-gray-500 py-1">
-                    {w}
-                  </div>
-                ))}
-              </div>
-
-              {/* Dny */}
-              <div className="grid grid-cols-7 gap-1">
-                {days.map((d) => {
-                  const inMonth = d.getMonth() === viewMonth.getMonth();
-                  const isPast = d < today;
-                  const free = inMonth && !isPast && dayHasFree(d);
-                  const eventDay = inMonth && !isPast && eventsFor(d).length > 0;
-                  const clickable = free || eventDay;
-                  const isSelected = selectedDate && sameDay(d, selectedDate);
-                  return (
-                    <button
-                      key={d.toISOString()}
-                      type="button"
-                      disabled={!clickable}
-                      onClick={() => { setSelectedDate(d); setSelectedTime(null); }}
-                      className={`relative aspect-square rounded-lg text-sm font-medium transition-all ${
-                        !inMonth
-                          ? "text-gray-300"
-                          : isSelected
-                            ? "bg-emerald-600 text-white shadow-md"
-                            : clickable
-                              ? "text-brand-dark hover:bg-emerald-50"
-                              : "text-gray-300 cursor-not-allowed"
-                      }`}
-                    >
-                      {d.getDate()}
-                      {!isSelected && (free || eventDay) && (
-                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
-                          {free && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                          {eventDay && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                  Volný termín
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
-                  Akce / workshop
+                  <span className="h-3.5 w-3.5 rounded inline-block" style={{ background: "#7c3aed" }} />
+                  <span className="font-semibold text-violet-700">akce / workshop</span>
                 </span>
               </div>
             </div>
-
-            {/* Časy */}
-            {selectedDate && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-semibold text-brand-dark capitalize">
-                    {selectedDate.toLocaleDateString("cs-CZ", {
-                      weekday: "long", day: "numeric", month: "long",
-                    })}
-                  </p>
-                  {/* Legenda */}
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> volno
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> obsazeno
-                    </span>
-                  </div>
-                </div>
-
-                {/* Akce v tento den */}
-                {dayEvents.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="mb-4 rounded-xl border-l-4 border-amber-500 bg-amber-50 p-4"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        {ev.kind}
-                      </span>
-                      {ev.time && <span className="text-xs font-medium text-amber-800">{ev.time}</span>}
-                    </div>
-                    <h4 className="font-semibold text-brand-dark">{ev.title}</h4>
-                    <p className="mt-1 text-sm text-gray-600 leading-relaxed">{ev.description}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                      {ev.location && <span>📍 {ev.location}</span>}
-                      <span>
-                        {ev.priceKc === 0 ? "Zdarma" : ev.priceKc != null ? `${ev.priceKc} Kč` : ""}
-                      </span>
-                    </div>
-                    <a
-                      href="/kontakt"
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
-                    >
-                      Přihlásit se
-                    </a>
-                  </div>
-                ))}
-                {slots.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {slots.map((slot) => {
-                      const isFree = slot.status === "free";
-                      const isSel = selectedTime === slot.time;
-                      return (
-                        <button
-                          key={slot.time}
-                          type="button"
-                          disabled={!isFree}
-                          onClick={() => isFree && setSelectedTime(slot.time)}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 ${
-                            isSel
-                              ? "bg-emerald-600 border-emerald-600 text-white shadow-md"
-                              : isFree
-                                ? "border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                : "border-transparent bg-red-100 text-red-700 cursor-not-allowed"
-                          }`}
-                          aria-label={isFree ? `${slot.time} – volno` : `${slot.time} – obsazeno`}
-                        >
-                          {slot.time}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : dayEvents.length > 0 ? (
-                  <p className="text-sm text-gray-500">
-                    V tento den nemám individuální lekce – ale koná se akce (viz výše).
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-500">V tento den necvičím.</p>
-                )}
-              </div>
-            )}
-            </details>
           </div>
         </section>
       )}
