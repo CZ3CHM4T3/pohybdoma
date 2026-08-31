@@ -56,15 +56,6 @@ export default async function HomePage() {
       {/* ── Hero – fullscreen logo splash ── */}
       {/* Pozadí je čistě bílé (#fff) = stejné jako pozadí loga, takže rámeček loga splývá. */}
       <section className="relative flex flex-col items-center justify-center overflow-hidden bg-white px-4 py-10 lg:py-16 text-center">
-        {/* Web v procesu vzniku – nenápadné upozornění */}
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-          </span>
-          Nová videa a kurzy přibývají každý týden.
-        </div>
-
         {/* Logo – dominanta */}
         <Reveal variant="scale">
           <Image

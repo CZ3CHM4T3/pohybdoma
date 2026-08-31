@@ -310,7 +310,7 @@ export default function VideoknihovnaPage() {
             <div className="mt-12 p-6 lg:p-8 rounded-2xl bg-gradient-to-r from-brand-dark to-[#1256c0] text-white flex flex-col sm:flex-row items-center gap-6 justify-between">
               <div>
                 <h3 className="text-xl font-semibold mb-1">Chceš přístup ke všem videím?</h3>
-                <p className="text-white/75 text-sm">Knihovna roste každý týden. Členství od 199 Kč / měsíc.</p>
+                <p className="text-white/75 text-sm">Členství od 199 Kč / měsíc.</p>
               </div>
               <Link href="/clenstvi" className="btn-primary shrink-0 bg-white text-brand-dark hover:opacity-90 py-3 px-6">
                 Zobrazit členství

@@ -153,9 +153,6 @@ export function MovementClips() {
         {/* CTA */}
         <Reveal variant="up" delay={200}>
           <div className="mt-12 flex flex-col items-center gap-4 text-center">
-            <p className="text-white/60 text-sm">
-              Nové lekce každý týden · knihovna krátkých videí · měsíční výzva
-            </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
                 Začít svou cestu
