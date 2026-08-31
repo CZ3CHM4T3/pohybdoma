@@ -239,6 +239,13 @@ export default function AdminPage() {
   const [blkEnd, setBlkEnd] = useState("18:00");
   const [blkLabel, setBlkLabel] = useState("");
   const [blkCategory, setBlkCategory] = useState("msgem");
+  // Úprava bloku (den/čas/název/typ)
+  const [editBlockId, setEditBlockId] = useState<string | null>(null);
+  const [ebWeekday, setEbWeekday] = useState("1");
+  const [ebStart, setEbStart] = useState("14:00");
+  const [ebEnd, setEbEnd] = useState("18:00");
+  const [ebLabel, setEbLabel] = useState("");
+  const [ebCategory, setEbCategory] = useState("msgem");
   // Skupinové lekce: soupiska lidí + docházka
   const [blockMembers, setBlockMembers] = useState<{ id: string; block_id: string; name: string }[]>([]);
   const [blockAttendance, setBlockAttendance] = useState<{ block_id: string; date: string; name: string }[]>([]);
@@ -851,6 +858,17 @@ export default function AdminPage() {
     const { error } = await supabase.from("recurring_blocks").delete().eq("id", id);
     if (error) { setError("Smazání bloku selhalo: " + error.message); return; }
     setBlocks((prev) => prev.filter((x) => x.id !== id));
+  }
+  async function updateBlock(id: string) {
+    if (ebEnd <= ebStart) { setError("Konec bloku musí být později než začátek."); return; }
+    setError(null);
+    const { error } = await supabase.from("recurring_blocks").update({
+      weekday: Number(ebWeekday), start_time: ebStart, end_time: ebEnd, label: ebLabel.trim(), category: ebCategory,
+    }).eq("id", id);
+    if (error) { setError("Úprava bloku selhala: " + error.message); return; }
+    setEditBlockId(null);
+    const { data } = await supabase.from("recurring_blocks").select("*").order("weekday").order("start_time");
+    if (data) setBlocks(data as BlockRow[]);
   }
   // ── Skupinové lekce: soupiska + docházka ──
   async function addBlockMember(blockId: string) {
@@ -1942,8 +1960,45 @@ export default function AdminPage() {
                     <span className="font-medium text-gray-500">{b.start_time}–{b.end_time}</span>
                     <span className="font-semibold text-brand-dark truncate">{b.label}</span>
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{CAT_LABELS[b.category] || "Jiné"}</span>
-                    <button type="button" onClick={() => deleteBlock(b.id)} className="ml-auto shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">Smazat blok</button>
+                    <span className="ml-auto flex shrink-0 items-center gap-3">
+                      <button type="button" onClick={() => { setEditBlockId(editBlockId === b.id ? null : b.id); setEbWeekday(String(b.weekday)); setEbStart(b.start_time); setEbEnd(b.end_time); setEbLabel(b.label); setEbCategory(b.category); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">{editBlockId === b.id ? "Zavřít" : "Upravit"}</button>
+                      <button type="button" onClick={() => deleteBlock(b.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">Smazat blok</button>
+                    </span>
                   </div>
+                  {editBlockId === b.id && (
+                    <div className="mt-2.5 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-2.5">
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
+                        <select value={ebWeekday} onChange={(e) => setEbWeekday(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                          <option value="1">Po</option><option value="2">Út</option><option value="3">St</option><option value="4">Čt</option><option value="5">Pá</option><option value="6">So</option><option value="0">Ne</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Od</label>
+                        <input type="time" value={ebStart} onChange={(e) => setEbStart(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Do</label>
+                        <input type="time" value={ebEnd} onChange={(e) => setEbEnd(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Typ</label>
+                        <select value={ebCategory} onChange={(e) => setEbCategory(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                          <option value="msgem">MS GEM</option>
+                          <option value="tenis">Příprava tenistů</option>
+                          <option value="skolka">Tenis s EMESKOU (MŠ)</option>
+                          <option value="krouzek">Kroužek</option>
+                          <option value="kruhac">Kruhový trénink</option>
+                          <option value="jine">Jiné</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
+                        <input value={ebLabel} onChange={(e) => setEbLabel(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <button type="button" onClick={() => updateBlock(b.id)} disabled={!ebLabel.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Uložit</button>
+                    </div>
+                  )}
                   {/* Soupiska lidí ve skupině */}
                   <div className="mt-2.5 border-t border-gray-100 pt-2.5">
                     <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Soupiska ({roster.length})</p>
@@ -2525,6 +2580,23 @@ export default function AdminPage() {
                                 </table>
                                 {monthKeys.length === 0 && <p className="mt-1 text-xs text-gray-400">Zatím žádná zapsaná docházka. Klikni na tuhle lekci v Rozvrhu a zaškrtni, kdo přišel.</p>}
                               </div>
+                            )}
+                            {att.length > 0 && (
+                              <details className="mt-3">
+                                <summary className="cursor-pointer text-xs font-semibold text-brand-blue hover:text-brand-dark">Po dnech – kdo kdy byl</summary>
+                                <div className="mt-2 space-y-1.5">
+                                  {[...new Set(att.map((a) => a.date))].sort((a, b) => b.localeCompare(a)).map((dt) => {
+                                    const names = att.filter((a) => a.date === dt).map((a) => a.name).sort((x, y) => x.localeCompare(y, "cs"));
+                                    return (
+                                      <div key={dt} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                                        <span className="w-40 shrink-0 capitalize text-gray-600">{fmtDateCs(dt)}</span>
+                                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{names.length}×</span>
+                                        <span className="text-brand-dark">{names.join(", ")}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </details>
                             )}
                           </div>
                         );
