@@ -1,8 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { BookingLite, LessonRow } from "./MonthCalendar";
 import { EVENT_TYPES, eventColorOf } from "@/lib/mock-data";
+
+// Na serveru není layout efekt – bublinu polohujeme až v prohlížeči.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type EventLite = { id: string; date: string; time: string | null; end_time: string | null; title: string; kind: string; color: string | null };
 
@@ -111,6 +114,9 @@ export function WeekCalendar({
   // Bublinové menu na kalendáři (klik na políčko/lekci)
   const [pop, setPop] = useState<{ x: number; y: number; date: string; time: string; item: Item | null } | null>(null);
   const [addMode, setAddMode] = useState(false);
+  // Napozicování bubliny tak, aby byla celá vidět (jinak u spodních lekcí ukrojená)
+  const popRef = useRef<HTMLDivElement>(null);
+  const [popStyle, setPopStyle] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
   // Připomínka k lekci
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
@@ -217,6 +223,20 @@ export function WeekCalendar({
     setLSaving(false); setLName(""); setLNote(""); setLRepeat(false); closePop();
   }
 
+  // Po otevření/změně obsahu bubliny ji posuň, ať se celá vejde na obrazovku.
+  useIsoLayoutEffect(() => {
+    if (!pop || typeof window === "undefined") { setPopStyle(null); return; }
+    const el = popRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const maxHeight = vh - 16;
+    const h = Math.min(rect.height, maxHeight);
+    const left = Math.max(8, Math.min(pop.x, vw - rect.width - 8));
+    const top = Math.max(8, Math.min(pop.y, vh - h - 8));
+    setPopStyle({ left, top, maxHeight });
+  }, [pop, addMode, evMode, moveOccId]);
+
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
 
   return (
@@ -300,8 +320,13 @@ export function WeekCalendar({
         <>
           <div className="fixed inset-0 z-40" onClick={closePop} />
           <div
-            className="fixed z-50 w-60 rounded-xl border border-gray-200 bg-white p-3 shadow-xl text-xs"
-            style={{ left: Math.max(8, Math.min(pop.x, (typeof window !== "undefined" ? window.innerWidth : 1000) - 260)), top: Math.max(8, Math.min(pop.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 320)) }}
+            ref={popRef}
+            className="fixed z-50 w-60 overflow-y-auto rounded-xl border border-gray-200 bg-white p-3 shadow-xl text-xs"
+            style={{
+              left: popStyle ? popStyle.left : Math.max(8, Math.min(pop.x, (typeof window !== "undefined" ? window.innerWidth : 1000) - 260)),
+              top: popStyle ? popStyle.top : Math.max(8, Math.min(pop.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 320)),
+              maxHeight: popStyle ? popStyle.maxHeight : undefined,
+            }}
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="font-semibold text-brand-dark capitalize">
