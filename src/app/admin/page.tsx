@@ -214,11 +214,17 @@ export default function AdminPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
+  const [lessonNotes, setLessonNotes] = useState<{ date: string; time: string; note: string }[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
+  const [editRecId, setEditRecId] = useState<string | null>(null);
+  const [edWeekday, setEdWeekday] = useState("1");
+  const [edTime, setEdTime] = useState("15:00");
+  const [edPrice, setEdPrice] = useState("1000");
+  const [edClient, setEdClient] = useState("");
   const [recClient, setRecClient] = useState("");
   const [recWeekday, setRecWeekday] = useState("1");
   const [recTime, setRecTime] = useState("15:00");
@@ -429,6 +435,10 @@ export default function AdminPage() {
     });
     supabase.from("clients").select("id, name, email, note, bill_group").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
+    });
+    // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
+    supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
+      if (data) setLessonNotes(data as { date: string; time: string; note: string }[]);
     });
     // Produkty – samostatně, ať admin funguje i bez tabulky products
     supabase.from("products").select("*").order("position").then(({ data }) => {
@@ -713,6 +723,30 @@ export default function AdminPage() {
     const { error } = await supabase.from("recurring_lessons").delete().eq("id", id);
     if (error) { setError("Smazání selhalo: " + error.message); return; }
     setRecurring((prev) => prev.filter((x) => x.id !== id));
+  }
+  // Úprava pravidelné lekce (den / čas / cena / klient)
+  async function updateRecurring(id: string, patch: { client_name?: string; weekday?: number; time?: string; price_kc?: number | null }) {
+    setError(null);
+    const { error } = await supabase.from("recurring_lessons").update(patch).eq("id", id);
+    if (error) { setError("Úprava lekce selhala: " + error.message); return; }
+    const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
+    if (data) setRecurring(data as RecurringRow[]);
+  }
+  // Připomínka k lekci v kalendáři (datum + čas). Prázdný text = smazat.
+  async function saveLessonNote(date: string, time: string, note: string) {
+    setError(null);
+    if (!note) {
+      const { error } = await supabase.from("lesson_notes").delete().eq("date", date).eq("time", time);
+      if (error) { setError("Smazání připomínky selhalo (spustil jsi lesson_notes.sql?): " + error.message); return; }
+      setLessonNotes((prev) => prev.filter((n) => !(n.date === date && n.time === time)));
+      return;
+    }
+    const { error } = await supabase.from("lesson_notes").upsert({ date, time, note }, { onConflict: "date,time" });
+    if (error) { setError("Uložení připomínky selhalo (spustil jsi lesson_notes.sql?): " + error.message); return; }
+    setLessonNotes((prev) => {
+      const rest = prev.filter((n) => !(n.date === date && n.time === time));
+      return [...rest, { date, time, note }];
+    });
   }
   // Zrušení KONKRÉTNÍHO termínu pravidelné lekce (lektor) → uvolní se + klientovi mail
   async function cancelOccurrence(recId: string, date: string) {
@@ -1666,8 +1700,10 @@ export default function AdminPage() {
             lessons={timelineLessons}
             blocks={blockOccs}
             open={openOccs}
+            notes={lessonNotes}
             catColors={CAT_COLORS}
             clientNames={clients.map((c) => c.name)}
+            onSaveNote={saveLessonNote}
             onAddLesson={addLesson}
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
@@ -1738,15 +1774,50 @@ export default function AdminPage() {
           {recurring.length > 0 && (
             <div className="space-y-2 mb-4">
               {recurring.map((r) => (
-                <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 p-3">
-                  <span className="text-sm text-brand-dark">
-                    <span className="font-semibold">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][r.weekday]}</span>
-                    {" "}v {r.time} · <span className="font-medium">{r.client_name}</span>
-                    {r.price_kc != null && <span className="text-gray-500"> · {r.price_kc} Kč</span>}
-                  </span>
-                  <button type="button" onClick={() => deleteRecurring(r.id)} className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700">
-                    Smazat
-                  </button>
+                <div key={r.id} className="rounded-lg border border-gray-100 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm text-brand-dark">
+                      <span className="font-semibold">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][r.weekday]}</span>
+                      {" "}v {r.time} · <span className="font-medium">{r.client_name}</span>
+                      {r.price_kc != null && <span className="text-gray-500"> · {r.price_kc} Kč</span>}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <button type="button" onClick={() => { setEditRecId(editRecId === r.id ? null : r.id); setEdClient(r.client_name); setEdWeekday(String(r.weekday)); setEdTime(r.time); setEdPrice(r.price_kc != null ? String(r.price_kc) : ""); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">
+                        {editRecId === r.id ? "Zavřít" : "Upravit"}
+                      </button>
+                      <button type="button" onClick={() => deleteRecurring(r.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">
+                        Smazat
+                      </button>
+                    </span>
+                  </div>
+                  {editRecId === r.id && (
+                    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-2.5">
+                      <div className="flex-1 min-w-[140px]">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Klient</label>
+                        <input type="text" list="rec-edit-clients" value={edClient} onChange={(e) => setEdClient(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm" />
+                        <datalist id="rec-edit-clients">{clients.map((c) => <option key={c.id} value={c.name} />)}</datalist>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Den</label>
+                        <select value={edWeekday} onChange={(e) => setEdWeekday(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
+                          {[["1", "Po"], ["2", "Út"], ["3", "St"], ["4", "Čt"], ["5", "Pá"], ["6", "So"], ["0", "Ne"]].map(([v, l]) => (
+                            <option key={v} value={v}>{l}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-24">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Čas</label>
+                        <input type="time" value={edTime} onChange={(e) => setEdTime(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div className="w-20">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Cena Kč</label>
+                        <input type="number" value={edPrice} onChange={(e) => setEdPrice(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <button type="button" onClick={async () => { const p = edPrice.trim() === "" ? null : Number(edPrice); await updateRecurring(r.id, { client_name: edClient.trim() || r.client_name, weekday: Number(edWeekday), time: edTime, price_kc: Number.isFinite(p as number) ? p : null }); setEditRecId(null); }} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+                        Uložit
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

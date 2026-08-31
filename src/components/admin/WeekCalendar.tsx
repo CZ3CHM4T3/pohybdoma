@@ -26,7 +26,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno"; deletable: boolean; recurring: boolean; byClient?: boolean; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -35,6 +35,7 @@ export function WeekCalendar({
   blocks,
   open = [],
   cancelled = [],
+  notes = [],
   catColors,
   clientNames = [],
   onAddLesson,
@@ -47,12 +48,14 @@ export function WeekCalendar({
   onOpenWeekly,
   onCloseOpen,
   onOfferMakeup,
+  onSaveNote,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
   blocks: BlockOcc[];
   open?: { date: string; time: string }[];
   cancelled?: { date: string; time: string; name: string; byClient: boolean }[];
+  notes?: { date: string; time: string; note: string }[];
   catColors: Record<string, string>;
   clientNames?: string[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
@@ -65,7 +68,13 @@ export function WeekCalendar({
   onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
   onCloseOpen?: (date: string, time: string) => Promise<void>;
   onOfferMakeup?: (clientName: string) => void;
+  onSaveNote?: (date: string, time: string, note: string) => Promise<void>;
 }) {
+  const noteMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of notes) m.set(`${n.date}|${n.time}`, n.note);
+    return m;
+  }, [notes]);
   const today = useMemo(() => startOfDay(new Date()), []);
   const minWeek = useMemo(() => addDays(startOfWeek(today), -7 * 20), [today]); // ~5 měsíců dozadu (zpětné zapisování)
   const maxWeek = useMemo(() => addDays(startOfWeek(today), 7 * 77), [today]);
@@ -86,6 +95,9 @@ export function WeekCalendar({
   // Bublinové menu na kalendáři (klik na políčko/lekci)
   const [pop, setPop] = useState<{ x: number; y: number; date: string; time: string; item: Item | null } | null>(null);
   const [addMode, setAddMode] = useState(false);
+  // Připomínka k lekci
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); }
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -131,7 +143,7 @@ export function WeekCalendar({
       return { ...it, lane };
     });
     const lanes = Math.max(1, laneEnds.length);
-    return withLane.map((it) => ({ ...it, lanes }));
+    return withLane.map((it) => ({ ...it, lanes, note: noteMap.get(`${key}|${it.time}`) }));
   }
 
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, d: Date) {
@@ -146,7 +158,15 @@ export function WeekCalendar({
   function openItemPop(e: React.MouseEvent, d: Date, it: Item) {
     e.stopPropagation();
     setAddMode(false); setMoveOccId(null); setMoveOccDate(""); setMoveOccTime(it.time);
+    setNoteDraft(it.note ?? "");
     setPop({ x: e.clientX, y: e.clientY, date: dateKey(d), time: it.time, item: it });
+  }
+  async function saveNote(value: string) {
+    if (!pop || !pop.item || !onSaveNote) return;
+    setNoteSaving(true);
+    await onSaveNote(pop.date, pop.item.time, value.trim());
+    setNoteSaving(false);
+    closePop();
   }
   async function submitLessonPop() {
     if (!pop || !lName.trim() || !lTime) return;
@@ -212,6 +232,9 @@ export function WeekCalendar({
                       >
                         <span className="block opacity-90">{it.kind === "zruseno" ? "zrušeno" : it.time}</span>
                         <span className={`block truncate ${it.kind === "zruseno" ? "line-through" : ""}`}>{it.name}</span>
+                        {it.note && it.kind !== "zruseno" && (
+                          <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
+                        )}
                       </div>
                     );
                   })}
@@ -247,6 +270,17 @@ export function WeekCalendar({
               </span>
               <button type="button" onClick={closePop} className="text-gray-300 hover:text-gray-600">✕</button>
             </div>
+
+            {pop.item && onSaveNote && (pop.item.kind === "fitness" || pop.item.kind === "block" || pop.item.kind === "rezervace") && (
+              <div className="mb-2 rounded-md border border-amber-200 bg-amber-50/60 p-2">
+                <p className="mb-1 text-[11px] font-semibold text-amber-700">📝 Připomínka (ukáže se v rámečku lekce)</p>
+                <input type="text" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="např. přines gumu, platba v hotovosti…" className="w-full rounded-md border border-amber-200 px-2 py-1.5" />
+                <div className="mt-1 flex gap-1.5">
+                  <button type="button" onClick={() => saveNote(noteDraft)} disabled={noteSaving} className="flex-1 rounded-md bg-amber-500 px-2.5 py-1.5 font-semibold text-white hover:bg-amber-600 disabled:opacity-40">{noteSaving ? "Ukládám…" : "Uložit poznámku"}</button>
+                  {pop.item.note && <button type="button" onClick={() => saveNote("")} disabled={noteSaving} className="rounded-md border border-gray-200 px-2.5 py-1.5 font-semibold text-gray-500 hover:bg-gray-50">Smazat</button>}
+                </div>
+              </div>
+            )}
 
             {!pop.item && !addMode && (
               <div className="space-y-1.5">
