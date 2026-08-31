@@ -1884,12 +1884,11 @@ export default function AdminPage() {
           )}
         </section>
 
-        {/* ── Měsíční přehled / výjimky ── */}
-        <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Měsíční přehled</h2>
-          <p className="text-sm text-gray-500 mb-5">
-            Celý měsíc na jednom místě – uvidíš, které dny máš volno, kolik máš obsazeno a kde jsou akce.
-            Klik na den ukáže detail a umí i výjimky.
+        {/* ── Měsíční přehled / výjimky (sbaleno) ── */}
+        <details className="card p-6 mb-8">
+          <summary className="cursor-pointer text-lg font-semibold text-brand-dark">Měsíční přehled <span className="text-xs font-normal text-gray-400">· rozbalit</span></summary>
+          <p className="text-sm text-gray-500 mb-5 mt-2">
+            Celý měsíc na jednom místě (volno i výjimky pro konkrétní den).
           </p>
           <MonthCalendar
             weekly={weekly}
@@ -1904,14 +1903,14 @@ export default function AdminPage() {
             onAddRecurring={addRecurringFromCalendar}
             onDeleteLesson={deleteLesson}
           />
-        </section>
+        </details>
 
-        {/* ── Akce / workshopy ── */}
-        <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">
-            Akce a workshopy <span className="text-gray-400 font-normal">({events.length})</span>
-          </h2>
-          <p className="text-sm text-gray-500 mb-5">
+        {/* ── Akce / workshopy (sbaleno) ── */}
+        <details className="card p-6 mb-8">
+          <summary className="cursor-pointer text-lg font-semibold text-brand-dark">
+            Akce a workshopy <span className="text-gray-400 font-normal">({events.length}) · rozbalit</span>
+          </summary>
+          <p className="text-sm text-gray-500 mb-5 mt-2">
             Zobrazí se v kalendáři oranžovým puntíkem.
           </p>
 
@@ -1962,14 +1961,14 @@ export default function AdminPage() {
               <button type="submit" className="btn-primary text-sm">Přidat akci</button>
             </div>
           </form>
-        </section>
+        </details>
 
-        {/* ── Výjimky pro konkrétní datum ── */}
-        <section className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">
-            Výjimky „pro tentokrát" <span className="text-gray-400 font-normal">({overrides.length})</span>
-          </h2>
-          <p className="text-sm text-gray-500 mb-5">
+        {/* ── Výjimky pro konkrétní datum (sbaleno – málokdy potřeba) ── */}
+        <details className="card p-6 mb-8">
+          <summary className="cursor-pointer text-lg font-semibold text-brand-dark">
+            Výjimky „pro tentokrát" <span className="text-gray-400 font-normal">({overrides.length}) · rozbalit</span>
+          </summary>
+          <p className="text-sm text-gray-500 mb-5 mt-2">
             Mimořádně uvolni nebo zaber hodinu na <strong>konkrétní datum</strong> (má přednost před týdenním rozvrhem).
           </p>
 
@@ -2020,7 +2019,7 @@ export default function AdminPage() {
             </div>
             <button type="submit" className="btn-primary text-sm">Přidat výjimku</button>
           </form>
-        </section>
+        </details>
         </>
         )}
 
