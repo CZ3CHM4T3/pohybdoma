@@ -1434,13 +1434,12 @@ export default function AdminPage() {
     // (stačí, že lekce zmizí). Na veřejné rezervaci se nabízejí dál (open_times).
   }
 
-  // Zrušené výskyty pravidelných lekcí (budoucí, ne přesuny) – vidět na kalendáři + nabídnout náhradu
+  // Zrušené výskyty pravidelných lekcí (ne přesuny) – vidět na kalendáři jako „zrušeno" + nabídnout náhradu
   const cancelledOccs: { date: string; time: string; name: string; byClient: boolean }[] = [];
   {
-    const todayKey = new Date().toLocaleDateString("sv-SE");
     const recById = new Map(recurring.map((r) => [r.id, r] as const));
     for (const c of recCancels) {
-      if (c.moved || c.date < todayKey) continue;
+      if (c.moved) continue; // přesun není zrušení
       const r = recById.get(c.recurring_id);
       if (!r) continue;
       cancelledOccs.push({ date: c.date, time: r.time, name: r.client_name || "Klient", byClient: !!c.cancelled_by && c.cancelled_by !== user?.id });
