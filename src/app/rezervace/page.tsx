@@ -430,19 +430,18 @@ export default function RezervacePage() {
                     {s.description}
                     {s.descBold && <> <strong className="text-brand-dark">{s.descBold}</strong></>}
                   </p>
-                  <div className="flex items-end justify-between border-t border-black/5 pt-3 mb-4">
-                    <span className="text-xl font-semibold text-brand-dark">
-                      {isVipPlus && s.vipPlusDiscountKc ? (
-                        <>
-                          <span className="text-sm text-gray-500 line-through mr-1.5">{s.priceKc} Kč</span>
-                          <span className="text-amber-700">{s.priceKc - s.vipPlusDiscountKc} Kč</span>
-                          <span className="block text-[11px] font-semibold text-amber-700">VIP+ cena</span>
-                        </>
-                      ) : (
-                        s.priceLabel ?? `${s.priceKc} Kč`
-                      )}
-                    </span>
-                    <span className="text-xs text-gray-500">{s.durationLabel ?? `${s.durationMin} min`}</span>
+                  <div className="border-t border-black/5 pt-3 mb-4">
+                    <div className="flex items-end justify-between">
+                      <span className="text-xl font-semibold text-brand-dark">
+                        {s.priceLabel ?? (s.durationMin === 60 ? `${s.priceKc} Kč / h` : `${s.priceKc} Kč`)}
+                      </span>
+                      <span className="text-xs text-gray-500">{s.durationLabel ?? `${s.durationMin} min`}</span>
+                    </div>
+                    {s.vipPlusDiscountKc ? (
+                      <p className="mt-1.5 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
+                        {isVipPlus ? "Tvoje VIP+ cena " : "VIP+ cena "}{s.priceKc - s.vipPlusDiscountKc} Kč
+                      </p>
+                    ) : null}
                   </div>
                   {s.inquiryOnly ? (
                     <a href="/kontakt" className="btn-primary w-full text-sm">
