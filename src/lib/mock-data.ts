@@ -152,11 +152,10 @@ export const SERVICES: Service[] = [
     priceKc: 0,
     priceLabel: "dle termínu",
     mode: "inPerson",
-    inquiryOnly: true,
     icon: "👥",
     tone: "amber",
     description:
-      "Skupinový pohybový workshop na konkrétní téma (mobilita, síla, zdravá záda, regenerace…). Termíny vypisuji průběžně – ozvi se a dám ti vědět nejbližší.",
+      "Skupinový pohybový workshop na konkrétní téma (mobilita, síla, zdravá záda, regenerace…). Nejbližší termín najdeš níže a přihlásíš se přímo v kalendáři.",
   },
 ];
 

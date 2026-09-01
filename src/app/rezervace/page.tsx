@@ -107,6 +107,8 @@ export default function RezervacePage() {
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Rezervace konkrétní akce/workshopu (místo běžné hodinové služby)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // ── Data z databáze (rozvrh, výjimky, akce) ──
   const [open, setOpen] = useState<Set<string>>(new Set()); // "YYYY-MM-DD HH:MM" volné termíny
@@ -200,10 +202,11 @@ export default function RezervacePage() {
 
   const service: Service | null =
     SERVICES.find((s) => s.id === serviceId) ?? null;
-  const isInPerson = service?.mode === "inPerson";
-  const fullPrice = service ? getServicePrice(service, selectedDate) : 0;
-  const price = service ? getServicePriceForTier(service, selectedDate, isVipPlus) : 0;
-  const vipSaved = fullPrice - price; // kolik VIP+ ušetří (0, když není sleva)
+  // U rezervace akce nevyžadujeme obec/adresu (koná se na daném místě akce).
+  const isInPerson = !selectedEvent && service?.mode === "inPerson";
+  const fullPrice = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePrice(service, selectedDate) : 0);
+  const price = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePriceForTier(service, selectedDate, isVipPlus) : 0);
+  const vipSaved = selectedEvent ? 0 : fullPrice - price; // kolik VIP+ ušetří (0, když není sleva)
 
   // ── Výpočet slotů a akcí z načtených dat ──
   const slotsFor = useCallback(
@@ -239,15 +242,42 @@ export default function RezervacePage() {
   );
   const thisWeekMonday = useMemo(() => { const x = startOfDay(new Date()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }, []);
 
+  // Nejbližší nadcházející akce (pro kartu Workshop)
+  const upcomingEvents = useMemo(
+    () => events
+      .filter((e) => e.date >= dateKey(today))
+      .sort((a, b) => (a.date + (a.time ?? "")).localeCompare(b.date + (b.time ?? ""))),
+    [events, today]
+  );
+  const nearestEvent = upcomingEvents[0] ?? null;
+
+  // Otevři kalendář na týdnu, kde je akce (proklik z karty Workshop)
+  function openCalendarAtEvent(ev: CalendarEvent) {
+    setSelectedEvent(null);
+    setServiceId("svc-workshop");
+    const d = startOfDay(new Date(ev.date + "T00:00:00"));
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    setWeekStart(d);
+    setTimeout(() => document.getElementById("kalendar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  }
+  // Rezervace konkrétní akce (klik na akci v kalendáři → rovnou k dokončení)
+  function bookEvent(ev: CalendarEvent) {
+    setSelectedEvent(ev);
+    setServiceId("svc-workshop");
+    setSelectedDate(new Date(ev.date + "T00:00:00"));
+    setSelectedTime(ev.time ?? "00:00");
+    setSubmitted(false);
+    setTimeout(() => document.getElementById("dokoncit")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+  }
+
   // Pro osobní lekce: vybraná obec musí být ve spádové oblasti.
   const municipalityInvalid = isInPerson && municipality === OTHER;
   const formValid =
-    !!service &&
     !!selectedDate &&
     !!selectedTime &&
-    reason.trim().length > 0 &&
     name.trim().length > 0 &&
     email.trim().length > 0 &&
+    (selectedEvent ? true : (!!service && reason.trim().length > 0)) &&
     (!isInPerson || (municipality !== "" && municipality !== OTHER && address.trim().length > 0));
 
   function resetDateTime() {
@@ -257,6 +287,7 @@ export default function RezervacePage() {
 
   function handleSelectService(id: string) {
     setServiceId(id);
+    setSelectedEvent(null);
     setSubmitted(false);
     resetDateTime();
     setMunicipality("");
@@ -265,21 +296,21 @@ export default function RezervacePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formValid || !service || !selectedDate || !selectedTime) return;
+    if (!formValid || !selectedDate || !selectedTime || (!service && !selectedEvent)) return;
     setSaving(true);
     setSaveError(null);
 
     const supabase = createClient();
     const { error } = await supabase.from("bookings").insert({
       user_id: userId,
-      service_id: service.id,
-      service_name: service.name,
+      service_id: selectedEvent ? "svc-workshop" : service!.id,
+      service_name: selectedEvent ? `Akce: ${selectedEvent.title}` : service!.name,
       date: dateKey(selectedDate),
       time: selectedTime,
-      mode: service.mode,
+      mode: selectedEvent ? "event" : service!.mode,
       municipality: isInPerson ? municipality : null,
       address: isInPerson ? address : null,
-      reason,
+      reason: selectedEvent ? (reason.trim() || `Přihláška na akci: ${selectedEvent.title}`) : reason,
       contact_name: name,
       contact_email: email,
       contact_phone: phone || null,
@@ -312,6 +343,7 @@ export default function RezervacePage() {
 
   function resetAll() {
     setServiceId(null);
+    setSelectedEvent(null);
     setSelectedDate(null);
     setSelectedTime(null);
     setMunicipality("");
@@ -324,7 +356,7 @@ export default function RezervacePage() {
   }
 
   // ─── Úspěšná rezervace ───────────────────────────────────────────────
-  if (submitted && service && selectedDate && selectedTime) {
+  if (submitted && (service || selectedEvent) && selectedDate && selectedTime) {
     return (
       <section className="bg-brand-light py-20 lg:py-28">
         <div className="mx-auto max-w-xl px-4 sm:px-6 lg:px-8">
@@ -334,13 +366,14 @@ export default function RezervacePage() {
               Rezervace odeslána!
             </h1>
             <div className="text-left bg-brand-light rounded-xl p-5 my-6 text-sm text-brand-dark space-y-1">
-              <p><strong>Služba:</strong> {service.name}</p>
+              <p><strong>{selectedEvent ? "Akce:" : "Služba:"}</strong> {selectedEvent ? selectedEvent.title : service?.name}</p>
               <p>
                 <strong>Termín:</strong>{" "}
                 {selectedDate.toLocaleDateString("cs-CZ", {
                   weekday: "long", day: "numeric", month: "long", year: "numeric",
                 })}{" "}v {selectedTime}
               </p>
+              {selectedEvent?.location && <p><strong>Místo:</strong> {selectedEvent.location}</p>}
               {isInPerson && <p><strong>Místo:</strong> {address}, {municipality}</p>}
               <p><strong>Cena:</strong> {price} Kč</p>
             </div>
@@ -443,7 +476,37 @@ export default function RezervacePage() {
                       </p>
                     ) : null}
                   </div>
-                  {s.inquiryOnly ? (
+                  {s.id === "svc-workshop" ? (
+                    nearestEvent ? (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Nejbližší termín</p>
+                        <p className="mt-0.5 font-semibold text-brand-dark leading-snug">{nearestEvent.title}</p>
+                        <p className="text-xs text-gray-600">
+                          {new Date(nearestEvent.date + "T00:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })}
+                          {nearestEvent.time ? ` · ${nearestEvent.time}` : ""}
+                          {nearestEvent.priceKc != null ? ` · ${nearestEvent.priceKc === 0 ? "zdarma" : `${nearestEvent.priceKc} Kč`}` : ""}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openCalendarAtEvent(nearestEvent)}
+                          className="btn-primary mt-3 w-full text-sm"
+                        >
+                          Zobrazit v kalendáři →
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center">
+                        <p className="text-sm text-gray-500">Zatím nevypsané termíny.</p>
+                        <button
+                          type="button"
+                          onClick={() => { setServiceId("svc-workshop"); setSelectedEvent(null); setTimeout(() => document.getElementById("kalendar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120); }}
+                          className="btn-outline mt-2 w-full text-sm"
+                        >
+                          Zobrazit kalendář
+                        </button>
+                      </div>
+                    )
+                  ) : s.inquiryOnly ? (
                     <a href="/kontakt" className="btn-primary w-full text-sm">
                       Mám zájem
                     </a>
@@ -518,19 +581,24 @@ export default function RezervacePage() {
                         <p className="mt-3 text-center text-xs text-gray-300">—</p>
                       ) : (
                         <div className="mt-2 flex flex-col gap-1.5">
-                          {/* Akce / workshopy v tento den */}
-                          {eventsFor(d).map((ev) => (
-                            <a
-                              key={ev.id}
-                              href="/kontakt"
-                              title={`${ev.title}${ev.time ? " · " + ev.time : ""}`}
-                              className="block rounded-lg px-1.5 py-1.5 text-[11px] font-bold text-white leading-tight hover:opacity-90"
-                              style={{ background: eventColorOf(ev) }}
-                            >
-                              {ev.time && <span className="block opacity-90">{ev.time}{ev.endTime ? `–${ev.endTime}` : ""}</span>}
-                              <span className="block truncate">{ev.title}</span>
-                            </a>
-                          ))}
+                          {/* Akce / workshopy v tento den – klik = rezervace */}
+                          {eventsFor(d).map((ev) => {
+                            const evSel = selectedEvent?.id === ev.id;
+                            return (
+                              <button
+                                key={ev.id}
+                                type="button"
+                                onClick={() => bookEvent(ev)}
+                                title={`${ev.title}${ev.time ? " · " + ev.time : ""} – klikni pro přihlášení`}
+                                className={`block w-full rounded-lg px-1.5 py-1.5 text-left text-[11px] font-bold text-white leading-tight hover:opacity-90 ${evSel ? "ring-2 ring-offset-1 ring-brand-dark" : ""}`}
+                                style={{ background: eventColorOf(ev) }}
+                              >
+                                {ev.time && <span className="block opacity-90">{ev.time}{ev.endTime ? `–${ev.endTime}` : ""}</span>}
+                                <span className="block truncate">{ev.title}</span>
+                                <span className="block text-[10px] font-normal opacity-90">{ev.priceKc != null ? (ev.priceKc === 0 ? "zdarma · přihlásit" : `${ev.priceKc} Kč · přihlásit`) : "přihlásit"}</span>
+                              </button>
+                            );
+                          })}
                           {daySlots.map((s) => {
                             const isFree = s.status === "free";
                             const isSel = !!selectedDate && sameDay(d, selectedDate) && selectedTime === s.time;
@@ -539,7 +607,7 @@ export default function RezervacePage() {
                                 key={s.time}
                                 type="button"
                                 disabled={!isFree}
-                                onClick={() => { setSelectedDate(d); setSelectedTime(s.time); }}
+                                onClick={() => { setSelectedEvent(null); setSelectedDate(d); setSelectedTime(s.time); }}
                                 title={isFree ? `${s.time} – volno` : `${s.time} – obsazeno`}
                                 className={`rounded-lg px-1.5 py-2 text-sm font-bold transition-all ${
                                   isSel
@@ -582,8 +650,8 @@ export default function RezervacePage() {
       )}
 
       {/* Krok 3 – formulář */}
-      {service && selectedDate && selectedTime && (
-        <section className="bg-white py-12 lg:py-16">
+      {(service || selectedEvent) && selectedDate && selectedTime && (
+        <section id="dokoncit" className="bg-white py-12 lg:py-16">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <SectionHeading label="Krok 3" title="Dokonči rezervaci" />
 
@@ -601,7 +669,7 @@ export default function RezervacePage() {
             <form onSubmit={handleSubmit} className="mt-8 card p-6 lg:p-8">
               {/* Souhrn */}
               <div className="rounded-xl bg-brand-light p-4 mb-6 text-sm text-brand-dark">
-                <strong>{service.name}</strong> ·{" "}
+                <strong>{selectedEvent ? selectedEvent.title : service?.name}</strong> ·{" "}
                 {selectedDate.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" })} v {selectedTime} ·{" "}
                 {vipSaved > 0 ? (
                   <>
@@ -612,9 +680,10 @@ export default function RezervacePage() {
                     </span>
                   </>
                 ) : (
-                  <strong>{price} Kč</strong>
+                  <strong>{price === 0 ? "zdarma" : `${price} Kč`}</strong>
                 )}
-                {hasDayPricing(service) && (
+                {selectedEvent?.location && <span className="text-gray-500"> · {selectedEvent.location}</span>}
+                {!selectedEvent && service && hasDayPricing(service) && (
                   <span className="text-gray-500">
                     {" "}({selectedDate.getDay() === 0 || selectedDate.getDay() === 6 ? "víkendová" : "všední"} sazba)
                   </span>
@@ -673,15 +742,15 @@ export default function RezervacePage() {
               {/* Důvod / cíl */}
               <div className="mb-5">
                 <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="reason">
-                  Co tě trápí / co od lekce čekáš? *
+                  {selectedEvent ? "Poznámka k přihlášce (nepovinné)" : "Co tě trápí / co od lekce čekáš? *"}
                 </label>
                 <textarea
                   id="reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  rows={4}
-                  required
-                  placeholder="Bolesti, omezení pohybu, cíle… Čím víc napíšeš, tím líp se připravím."
+                  rows={selectedEvent ? 3 : 4}
+                  required={!selectedEvent}
+                  placeholder={selectedEvent ? "Cokoliv, co bych měl vědět (nepovinné)…" : "Bolesti, omezení pohybu, cíle… Čím víc napíšeš, tím líp se připravím."}
                   className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none"
                 />
               </div>
