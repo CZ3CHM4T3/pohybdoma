@@ -9,7 +9,7 @@ const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : use
 
 type EventLite = { id: string; date: string; time: string | null; end_time: string | null; title: string; kind: string; color: string | null };
 
-export type BlockOcc = { id: string; date: string; start_time: string; end_time: string; label: string; category: string };
+export type BlockOcc = { id: string; date: string; start_time: string; end_time: string; label: string; category: string; cancelled?: boolean };
 
 const START_H = 7;
 const END_H = 22;
@@ -32,7 +32,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno" | "event"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno" | "event"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; cancelled?: boolean; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -53,6 +53,7 @@ export function WeekCalendar({
   onCancelOccurrence,
   onMoveOccurrence,
   onCancelBlock,
+  onRestoreBlock,
   onOpenOnce,
   onOpenWeekly,
   onCloseOpen,
@@ -79,6 +80,7 @@ export function WeekCalendar({
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
   onMoveOccurrence?: (recId: string, origDate: string, newDate: string, newTime: string) => Promise<void>;
   onCancelBlock?: (blockId: string, date: string) => Promise<void>;
+  onRestoreBlock?: (blockId: string, date: string) => Promise<void>;
   onOpenOnce?: (date: string, time: string) => Promise<void>;
   onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
   onCloseOpen?: (date: string, time: string) => Promise<void>;
@@ -153,7 +155,7 @@ export function WeekCalendar({
     }
     for (const b of blocks) {
       if (b.date !== key) continue;
-      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false, recurring: false });
+      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false, recurring: false, cancelled: b.cancelled });
     }
     for (const bk of bookings) {
       if (bk.date !== key || bk.status === "cancelled" || bk.status === "no_show") continue;
@@ -281,17 +283,18 @@ export function WeekCalendar({
                     const top = ((it.startMin - START_H * 60) / 60) * HOUR_PX;
                     const height = Math.max(15, ((it.endMin - it.startMin) / 60) * HOUR_PX - 2);
                     const w = 100 / it.lanes;
+                    const isCx = it.kind === "zruseno" || it.cancelled; // zrušená lekce nebo zrušený blok
                     return (
                       <div
                         key={it.id}
-                        title={it.kind === "zruseno" ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
+                        title={isCx ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
                         onClick={(e) => openItemPop(e, d, it)}
-                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${it.kind === "zruseno" ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
-                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: it.kind === "zruseno" ? "#f3f4f6" : it.color }}
+                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${isCx ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
+                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: isCx ? "#f3f4f6" : it.color }}
                       >
-                        <span className="block opacity-90">{it.kind === "zruseno" ? "zrušeno" : it.time}</span>
-                        <span className={`block truncate ${it.kind === "zruseno" ? "line-through" : ""}`}>{it.name}</span>
-                        {it.note && it.kind !== "zruseno" && (
+                        <span className="block opacity-90">{isCx ? "zrušeno" : it.time}</span>
+                        <span className={`block truncate ${isCx ? "line-through" : ""}`}>{it.name}</span>
+                        {it.note && !isCx && (
                           <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
                         )}
                       </div>
@@ -336,7 +339,7 @@ export function WeekCalendar({
               <button type="button" onClick={closePop} className="text-gray-300 hover:text-gray-600">✕</button>
             </div>
 
-            {pop.item && onSaveNote && (pop.item.kind === "fitness" || pop.item.kind === "block" || pop.item.kind === "rezervace") && (
+            {pop.item && onSaveNote && !pop.item.cancelled && (pop.item.kind === "fitness" || pop.item.kind === "block" || pop.item.kind === "rezervace") && (
               <div className="mb-2 rounded-md border border-amber-200 bg-amber-50/60 p-2">
                 <p className="mb-1 text-[11px] font-semibold text-amber-700">📝 Připomínka (ukáže se v rámečku lekce)</p>
                 <input type="text" value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="např. přines gumu, platba v hotovosti…" className="w-full rounded-md border border-amber-200 px-2 py-1.5" />
@@ -448,6 +451,16 @@ export function WeekCalendar({
               const p = pop.item.id.split(":");
               const blockId = p[1], bdate = p[2];
               const roster = blockMembers.filter((m) => m.block_id === blockId).map((m) => m.name).sort((a, b) => a.localeCompare(b, "cs"));
+              if (pop.item.cancelled) {
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-gray-400">Tento den je blok zrušený.</p>
+                    {onRestoreBlock && (
+                      <button type="button" onClick={async () => { await onRestoreBlock(blockId, bdate); closePop(); }} className="w-full rounded-md border border-emerald-300 px-2.5 py-1.5 text-left font-semibold text-emerald-700 hover:bg-emerald-50">Obnovit blok</button>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <div className="space-y-2">
                   {onToggleAttendance && (

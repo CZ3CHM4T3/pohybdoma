@@ -808,6 +808,12 @@ export default function AdminPage() {
     if (error) { setError("Zrušení bloku selhalo (spustil jsi block_cancellations.sql?): " + error.message); return; }
     setBlockCancels((prev) => [...prev, { block_id: blockId, date }]);
   }
+  async function restoreBlockOccurrence(blockId: string, date: string) {
+    setError(null);
+    const { error } = await supabase.from("recurring_block_cancellations").delete().eq("block_id", blockId).eq("date", date);
+    if (error) { setError("Obnovení bloku selhalo: " + error.message); return; }
+    setBlockCancels((prev) => prev.filter((c) => !(c.block_id === blockId && c.date === date)));
+  }
   // Otevřít hodinu pro veřejnost z kalendáře – jen tento den / každý týden / zavřít
   async function openOnce(date: string, time: string) {
     setError(null);
@@ -1392,7 +1398,7 @@ export default function AdminPage() {
   const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows, ...blockRows];
 
   // Bloky jako CELÉ boxy (start–end) pro proporční časovou osu
-  const blockOccs: { id: string; date: string; start_time: string; end_time: string; label: string; category: string }[] = [];
+  const blockOccs: { id: string; date: string; start_time: string; end_time: string; label: string; category: string; cancelled?: boolean }[] = [];
   {
     const base = new Date();
     base.setHours(0, 0, 0, 0);
@@ -1404,8 +1410,9 @@ export default function AdminPage() {
       const key = d.toLocaleDateString("sv-SE");
       for (const b of blocks) {
         if (!b.active || b.weekday !== wd) continue;
-        if (blockCancelSet.has(`${b.id}|${key}`)) continue;
-        blockOccs.push({ id: `blk:${b.id}:${key}`, date: key, start_time: b.start_time, end_time: b.end_time, label: b.label, category: b.category });
+        // Zrušený výskyt necháme zobrazený jako „zrušeno" (nezmizí ze dne)
+        const cancelled = blockCancelSet.has(`${b.id}|${key}`);
+        blockOccs.push({ id: `blk:${b.id}:${key}`, date: key, start_time: b.start_time, end_time: b.end_time, label: b.label, category: b.category, cancelled });
       }
     }
   }
@@ -1788,6 +1795,7 @@ export default function AdminPage() {
             onCancelOccurrence={cancelOccurrence}
             onMoveOccurrence={adminMoveOccurrence}
             onCancelBlock={cancelBlockOccurrence}
+            onRestoreBlock={restoreBlockOccurrence}
             onOpenOnce={openOnce}
             onOpenWeekly={openWeekly}
             onCloseOpen={closeOpen}
