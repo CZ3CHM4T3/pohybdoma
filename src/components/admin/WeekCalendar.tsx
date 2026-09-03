@@ -57,7 +57,6 @@ export function WeekCalendar({
   onOpenOnce,
   onOpenWeekly,
   onCloseOpen,
-  onOfferMakeup,
   onSaveNote,
   onToggleAttendance,
   onAddEvent,
@@ -84,7 +83,6 @@ export function WeekCalendar({
   onOpenOnce?: (date: string, time: string) => Promise<void>;
   onOpenWeekly?: (weekday: number, time: string) => Promise<void>;
   onCloseOpen?: (date: string, time: string) => Promise<void>;
-  onOfferMakeup?: (clientName: string) => void;
   onSaveNote?: (date: string, time: string, note: string) => Promise<void>;
   onToggleAttendance?: (blockId: string, date: string, name: string, present: boolean) => Promise<void>;
   onAddEvent?: (date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) => Promise<void>;
@@ -519,7 +517,6 @@ export function WeekCalendar({
               <div className="space-y-1.5">
                 <p className="text-[11px] text-gray-400">zrušeno ({pop.item.byClient ? "klient" : "já"})</p>
                 <button type="button" onClick={() => { setLTime(pop.item!.time); setLName(""); setLNote("náhrada"); setLRepeat(false); setAddMode(true); }} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat náhradu sem (vybrat klienta)</button>
-                {onOfferMakeup && <button type="button" onClick={() => { onOfferMakeup(pop.item!.name); closePop(); }} className="w-full rounded-md border border-teal-300 px-2.5 py-1.5 text-left font-semibold text-teal-700 hover:bg-teal-50">Nabídnout náhradu klientovi</button>}
               </div>
             )}
 

@@ -252,13 +252,6 @@ export default function AdminPage() {
   const [newMemberName, setNewMemberName] = useState<Record<string, string>>({});
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
-  // Náhrady lekcí
-  const [makeupOffers, setMakeupOffers] = useState<{ id: string; client_name: string; status: string; created_at: string }[]>([]);
-  const [mkClient, setMkClient] = useState("");
-  const [mkNote, setMkNote] = useState("");
-  const [mkDate, setMkDate] = useState("");
-  const [mkTime, setMkTime] = useState("15:00");
-  const [mkSlots, setMkSlots] = useState<{ date: string; time: string }[]>([]);
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -450,9 +443,6 @@ export default function AdminPage() {
     });
     supabase.from("block_attendance").select("block_id, date, name").then(({ data }) => {
       if (data) setBlockAttendance(data as { block_id: string; date: string; name: string }[]);
-    });
-    supabase.from("makeup_offers").select("id, client_name, status, created_at").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setMakeupOffers(data as { id: string; client_name: string; status: string; created_at: string }[]);
     });
     supabase.from("clients").select("id, name, email, note, bill_group").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
@@ -906,26 +896,6 @@ export default function AdminPage() {
       if (error) { setError("Uložení docházky selhalo: " + error.message); return; }
       setBlockAttendance((prev) => prev.filter((a) => !(a.block_id === blockId && a.date === date && a.name === name)));
     }
-  }
-  // ── Náhrady lekcí ──
-  function addMkSlot() {
-    if (!mkDate || !mkTime) return;
-    setMkSlots((p) => [...p, { date: mkDate, time: mkTime }]);
-    setMkDate("");
-  }
-  async function sendMakeup() {
-    if (!mkClient.trim()) { setError("Vyber klienta z kartotéky."); return; }
-    if (mkSlots.length === 0) { setError("Přidej aspoň jeden náhradní termín."); return; }
-    setError(null);
-    const roster = clients.find((c) => c.name === mkClient.trim());
-    if (!roster?.email) { setError("Klient nemá v kartotéce e-mail. Doplň mu ho, aby měl účet a mohl si vybrat."); return; }
-    const { data: prof } = await supabase.from("profiles").select("id").eq("email", roster.email).maybeSingle();
-    if (!prof) { setError("Klient ještě nemá účet (nezaregistroval se) – bez účtu mu nabídku nepošlu."); return; }
-    const { error } = await supabase.rpc("create_makeup", { p_client_id: prof.id, p_client_name: mkClient.trim(), p_note: mkNote.trim(), p_slots: mkSlots });
-    if (error) { setError("Odeslání nabídky selhalo (spustil jsi makeup.sql?): " + error.message); return; }
-    setMkNote(""); setMkSlots([]);
-    const { data } = await supabase.from("makeup_offers").select("id, client_name, status, created_at").order("created_at", { ascending: false });
-    if (data) setMakeupOffers(data as { id: string; client_name: string; status: string; created_at: string }[]);
   }
   // Pravidelná lekce založená přímo z kalendáře (den → weekday). Propojí účet klienta, pokud sedí e-mail.
   async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null) {
@@ -1811,10 +1781,6 @@ export default function AdminPage() {
             onOpenWeekly={openWeekly}
             onCloseOpen={closeOpen}
             cancelled={cancelledOccs}
-            onOfferMakeup={(clientName) => {
-              setMkClient(clientName);
-              if (typeof document !== "undefined") document.getElementById("nahrady")?.scrollIntoView({ behavior: "smooth" });
-            }}
           />
 
         </section>
@@ -2086,75 +2052,6 @@ export default function AdminPage() {
         </section>
         )}
 
-        {/* ── Náhrady lekcí ── */}
-        <section id="nahrady" className="card p-6 mb-8">
-          <h2 className="text-lg font-semibold text-brand-dark mb-1">Náhrady lekcí</h2>
-          <p className="text-sm text-gray-500 mb-5">
-            Když se ti někdo omluví, nabídni mu náhradní termíny. Vyber klienta, přidej pár volných časů a odešli – přijdou mu do účtu i na mail a jeden si vybere (nebo řekne, že nevyhovuje žádný). <span className="text-gray-400">(Spusť makeup.sql.)</span>
-          </p>
-
-          <div className="rounded-lg bg-gray-50 p-3">
-            <div className="flex flex-wrap items-end gap-2 mb-3">
-              <div className="flex-1 min-w-[160px]">
-                <label className="block text-[11px] text-gray-500 mb-0.5">Klient</label>
-                <select value={mkClient} onChange={(e) => setMkClient(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
-                  <option value="">— vyber z kartotéky —</option>
-                  {clients.filter((c) => c.email).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[160px]">
-                <label className="block text-[11px] text-gray-500 mb-0.5">Vzkaz (nepovinné)</label>
-                <input value={mkNote} onChange={(e) => setMkNote(e.target.value)} placeholder="např. omlouvám se za dnešek, vyber si náhradu" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-2">
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">Datum</label>
-                <input type="date" value={mkDate} onChange={(e) => setMkDate(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
-              </div>
-              <div>
-                <label className="block text-[11px] text-gray-500 mb-0.5">Čas</label>
-                <input type="time" value={mkTime} onChange={(e) => setMkTime(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
-              </div>
-              <button type="button" onClick={addMkSlot} disabled={!mkDate} className="rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold text-brand-blue hover:bg-brand-light disabled:opacity-40">+ Přidat termín</button>
-            </div>
-
-            {mkSlots.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {mkSlots.map((s, i) => (
-                  <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-brand-dark ring-1 ring-gray-200">
-                    {new Date(s.date + "T00:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} v {s.time}
-                    <button type="button" onClick={() => setMkSlots((p) => p.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500">×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-3">
-              <button type="button" onClick={sendMakeup} disabled={!mkClient || mkSlots.length === 0} className="rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-40">
-                Odeslat nabídku ({mkSlots.length})
-              </button>
-            </div>
-          </div>
-
-          {makeupOffers.length > 0 && (
-            <div className="mt-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Odeslané nabídky</p>
-              <div className="space-y-1.5">
-                {makeupOffers.slice(0, 12).map((o) => (
-                  <div key={o.id} className="flex items-center gap-2 rounded-lg border border-gray-100 p-2.5 text-sm">
-                    <span className="font-semibold text-brand-dark">{o.client_name}</span>
-                    <span className="text-xs text-gray-400">{new Date(o.created_at).toLocaleDateString("cs-CZ")}</span>
-                    <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${o.status === "accepted" ? "bg-emerald-100 text-emerald-700" : o.status === "declined" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-700"}`}>
-                      {o.status === "accepted" ? "vybráno" : o.status === "declined" ? "odmítnuto" : "čeká na výběr"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </section>
 
         {/* ── Měsíční přehled / výjimky (sbaleno) ── */}
         <details className="card p-6 mb-8">
