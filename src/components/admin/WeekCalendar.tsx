@@ -465,14 +465,18 @@ export function WeekCalendar({
               <button type="button" onClick={async () => { await onDeleteLesson(pop.item!.id); closePop(); }} className="w-full rounded-md border border-red-200 px-2.5 py-1.5 text-left font-semibold text-red-600 hover:bg-red-50">Smazat lekci</button>
             )}
 
-            {pop.item && pop.item.kind === "block" && (() => {
+            {pop.item && pop.item.kind === "block" && !addMode && (() => {
               const p = pop.item.id.split(":");
               const blockId = p[1], bdate = p[2];
               const roster = blockMembers.filter((m) => m.block_id === blockId).map((m) => m.name).sort((a, b) => a.localeCompare(b, "cs"));
+              const addReplacementBtn = (
+                <button type="button" onClick={() => { setLTime(pop.item!.time); setLName(""); setLNote("náhrada"); setLRepeat(false); setAddMode(true); }} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat náhradu sem (vybrat klienta)</button>
+              );
               if (pop.item.cancelled) {
                 return (
                   <div className="space-y-1.5">
                     <p className="text-[11px] text-gray-400">Tento den je blok zrušený.</p>
+                    {addReplacementBtn}
                     {onRestoreBlock && (
                       <button type="button" onClick={async () => { await onRestoreBlock(blockId, bdate); closePop(); }} className="w-full rounded-md border border-emerald-300 px-2.5 py-1.5 text-left font-semibold text-emerald-700 hover:bg-emerald-50">Obnovit blok</button>
                     )}
@@ -481,6 +485,7 @@ export function WeekCalendar({
               }
               return (
                 <div className="space-y-2">
+                  {addReplacementBtn}
                   {onToggleAttendance && (
                     <div className="rounded-md border border-gray-200 p-2">
                       <p className="mb-1 text-[11px] font-semibold text-brand-dark">Docházka – kdo je tu?</p>
