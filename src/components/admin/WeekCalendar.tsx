@@ -181,10 +181,16 @@ export function WeekCalendar({
       const e2 = ev.end_time ? toMin(ev.end_time) : s + 90;
       raw.push({ id: `evt:${ev.id}`, startMin: s, endMin: Math.max(s + 30, e2), name: ev.title, time: ev.time, color: eventColorOf(ev), kind: "event", deletable: false, recurring: false });
     }
+    // Když je na stejný čas přidaná reálná lekce/rezervace/akce, „zrušeno" schováme
+    // (náhrada nahradí zrušený termín – sloupec se nerozdělí na dvě hodiny vedle sebe).
+    const filledStarts = new Set(
+      raw.filter((r) => r.kind === "fitness" || r.kind === "rezervace" || r.kind === "event").map((r) => r.startMin)
+    );
+    const rawShown = raw.filter((r) => !(r.kind === "zruseno" && filledStarts.has(r.startMin)));
     // Rozvržení do sloupců (lanes) při překryvu
-    raw.sort((a, b) => a.startMin - b.startMin);
+    rawShown.sort((a, b) => a.startMin - b.startMin);
     const laneEnds: number[] = [];
-    const withLane = raw.map((it) => {
+    const withLane = rawShown.map((it) => {
       let lane = laneEnds.findIndex((end) => end <= it.startMin);
       if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.endMin); }
       else laneEnds[lane] = it.endMin;
