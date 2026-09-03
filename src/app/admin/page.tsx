@@ -665,14 +665,15 @@ export default function AdminPage() {
   }
 
   // ── Vlastní lekce (plánovač) ──
-  async function addLesson(date: string, time: string, clientName: string, note: string, priceKc: number | null) {
+  async function addLesson(date: string, time: string, clientName: string, note: string, priceKc: number | null): Promise<boolean> {
     setError(null);
     const { error } = await supabase
       .from("lesson_plans")
       .insert({ date, time, client_name: clientName, note: note || null, price_kc: priceKc });
-    if (error) { setError("Lekci se nepodařilo uložit (spustil jsi planner.sql?): " + error.message); return; }
+    if (error) { setError("Lekci se nepodařilo uložit (spustil jsi planner.sql?): " + error.message); return false; }
     const { data } = await supabase.from("lesson_plans").select("*").order("date").order("time");
     if (data) setLessons(data as LessonRow[]);
+    return true;
   }
   async function deleteLesson(id: string) {
     setError(null);

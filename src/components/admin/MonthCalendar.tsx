@@ -100,7 +100,7 @@ export function MonthCalendar({
   clientNames?: string[];
   onSetOverride: (date: string, time: string, status: EffStatus) => Promise<void>;
   onResetOverride: (date: string, time: string) => Promise<void>;
-  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void | boolean>;
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
 }) {

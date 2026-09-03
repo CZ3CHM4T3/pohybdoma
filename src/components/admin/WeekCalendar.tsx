@@ -74,7 +74,7 @@ export function WeekCalendar({
   events?: EventLite[];
   catColors: Record<string, string>;
   clientNames?: string[];
-  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
+  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void | boolean>;
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
@@ -109,6 +109,7 @@ export function WeekCalendar({
   const [lPrice, setLPrice] = useState("1000");
   const [lRepeat, setLRepeat] = useState(false);
   const [lSaving, setLSaving] = useState(false);
+  const [lErr, setLErr] = useState<string | null>(null);
   // Přesun lekce lektorem
   const [moveOccId, setMoveOccId] = useState<string | null>(null);
   const [moveOccDate, setMoveOccDate] = useState("");
@@ -131,7 +132,7 @@ export function WeekCalendar({
   const [evPlace, setEvPlace] = useState("");
   const [evPrice, setEvPrice] = useState("");
   const [evSaving, setEvSaving] = useState(false);
-  function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); setEvMode(false); }
+  function closePop() { setPop(null); setAddMode(false); setMoveOccId(null); setEvMode(false); setLErr(null); }
   async function submitEvent() {
     if (!pop || !evTitle.trim() || !onAddEvent) return;
     setEvSaving(true);
@@ -199,12 +200,12 @@ export function WeekCalendar({
     let min = START_H * 60 + Math.round(((y / HOUR_PX) * 60) / 15) * 15; // zaokrouhli na 15 min
     min = Math.max(START_H * 60, Math.min(END_H * 60 - 15, min));
     const time = `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
-    setLTime(time); setAddMode(false); setMoveOccId(null);
+    setLTime(time); setAddMode(false); setMoveOccId(null); setLErr(null);
     setPop({ x: e.clientX, y: e.clientY, date: dateKey(d), time, item: null });
   }
   function openItemPop(e: React.MouseEvent, d: Date, it: Item) {
     e.stopPropagation();
-    setAddMode(false); setMoveOccId(null); setMoveOccDate(""); setMoveOccTime(it.time);
+    setAddMode(false); setMoveOccId(null); setMoveOccDate(""); setMoveOccTime(it.time); setLErr(null);
     setNoteDraft(it.note ?? "");
     setPop({ x: e.clientX, y: e.clientY, date: dateKey(d), time: it.time, item: it });
   }
@@ -218,11 +219,15 @@ export function WeekCalendar({
   async function submitLessonPop() {
     if (!pop || !lName.trim() || !lTime) return;
     setLSaving(true);
+    setLErr(null);
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
     const p = Number.isFinite(priceKc as number) ? priceKc : null;
-    if (lRepeat && onAddRecurring) await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p);
-    else await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p);
-    setLSaving(false); setLName(""); setLNote(""); setLRepeat(false); closePop();
+    const ok = (lRepeat && onAddRecurring)
+      ? await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p)
+      : await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p);
+    setLSaving(false);
+    if (ok === false) { setLErr("Nepodařilo se uložit. Zkontroluj, že je v Supabase spuštěný planner.sql (tabulka lesson_plans)."); return; }
+    setLName(""); setLNote(""); setLRepeat(false); closePop();
   }
 
   // Po otevření/změně obsahu bubliny ji posuň, ať se celá vejde na obrazovku.
@@ -381,6 +386,7 @@ export function WeekCalendar({
                 {onAddRecurring && !pop.item && (
                   <label className="flex items-center gap-2 text-brand-dark"><input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" /> Opakovat (stálý klient)</label>
                 )}
+                {lErr && <p className="rounded-md border border-red-200 bg-red-50 p-1.5 text-[11px] text-red-700">{lErr}</p>}
                 <div className="flex gap-1.5">
                   <button type="button" onClick={submitLessonPop} disabled={lSaving || !lName.trim()} className="flex-1 rounded-md bg-teal-600 px-2.5 py-1.5 font-semibold text-white hover:bg-teal-700 disabled:opacity-40">{lSaving ? "Ukládám…" : "Přidat"}</button>
                   <button type="button" onClick={() => setAddMode(false)} className="rounded-md border border-gray-200 px-2.5 py-1.5 font-semibold text-gray-500">Zpět</button>
