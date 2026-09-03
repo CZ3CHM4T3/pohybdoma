@@ -1419,6 +1419,16 @@ export default function AdminPage() {
   }
   // Klientské lekce (stálé + jednorázové) pro časovou osu – každá 60 min
   const timelineLessons: LessonRow[] = [...lessons, ...recurringLessonRows];
+  // Jména do výběru klienta v kalendáři: kartotéka + stálí klienti + jednorázové lekce
+  const clientNameOptions = Array.from(
+    new Set(
+      [
+        ...clients.map((c) => c.name),
+        ...recurring.map((r) => r.client_name),
+        ...lessons.map((l) => l.client_name),
+      ].filter((n): n is string => !!n && n.trim().length > 0)
+    )
+  ).sort((a, b) => a.localeCompare(b, "cs"));
 
   // Volné (otevřené) hodiny pro časovou osu: pevně otevřené (weekly is_free) + uvolněné od stálých klientů (omluvy)
   const openOccs: { date: string; time: string }[] = [];
@@ -1785,7 +1795,7 @@ export default function AdminPage() {
             blockAttendance={blockAttendance}
             events={events}
             catColors={CAT_COLORS}
-            clientNames={clients.map((c) => c.name)}
+            clientNames={clientNameOptions}
             onSaveNote={saveLessonNote}
             onToggleAttendance={toggleAttendance}
             onAddEvent={addEventFromCalendar}
@@ -2158,7 +2168,7 @@ export default function AdminPage() {
             events={events}
             bookings={bookings}
             lessons={allLessons}
-            clientNames={clients.map((c) => c.name)}
+            clientNames={clientNameOptions}
             onSetOverride={setOverrideAt}
             onResetOverride={resetOverrideAt}
             onAddLesson={addLesson}

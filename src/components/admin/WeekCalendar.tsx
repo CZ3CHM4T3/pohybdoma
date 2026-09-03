@@ -383,8 +383,13 @@ export function WeekCalendar({
               <div className="space-y-1.5">
                 {pop.item && <p className="text-[11px] font-semibold text-teal-700">Náhrada na tento den – vyber klienta:</p>}
                 <input type="time" value={lTime} onChange={(e) => setLTime(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
-                <input type="text" list="wc-client-names" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="Klient" className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
-                <datalist id="wc-client-names">{clientNames.map((n) => <option key={n} value={n} />)}</datalist>
+                {clientNames.length > 0 && (
+                  <select value={clientNames.includes(lName) ? lName : ""} onChange={(e) => setLName(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5">
+                    <option value="">— vyber klienta —</option>
+                    {clientNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                )}
+                <input type="text" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="…nebo napiš jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
                 <div className="flex gap-1.5">
                   <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="Pozn." className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
                   <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="Kč" className="w-16 rounded-md border border-gray-200 px-2 py-1.5" />
