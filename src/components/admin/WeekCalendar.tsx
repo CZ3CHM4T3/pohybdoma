@@ -179,12 +179,14 @@ export function WeekCalendar({
       const e2 = ev.end_time ? toMin(ev.end_time) : s + 90;
       raw.push({ id: `evt:${ev.id}`, startMin: s, endMin: Math.max(s + 30, e2), name: ev.title, time: ev.time, color: eventColorOf(ev), kind: "event", deletable: false, recurring: false });
     }
-    // Když je na stejný čas přidaná reálná lekce/rezervace/akce, „zrušeno" schováme
-    // (náhrada nahradí zrušený termín – sloupec se nerozdělí na dvě hodiny vedle sebe).
-    const filledStarts = new Set(
-      raw.filter((r) => r.kind === "fitness" || r.kind === "rezervace" || r.kind === "event").map((r) => r.startMin)
-    );
-    const rawShown = raw.filter((r) => !(r.kind === "zruseno" && filledStarts.has(r.startMin)));
+    // Na daný čas může být jen 1 lekce. Když čas zabírá reálná lekce/rezervace/akce/aktivní blok,
+    // schováme informativní značky (volno, zrušeno, zrušený blok), ať se sloupec nezdvojuje.
+    const occupying = raw.filter((r) => r.kind === "fitness" || r.kind === "rezervace" || r.kind === "event" || (r.kind === "block" && !r.cancelled));
+    const overlapsOccupying = (it: Omit<Item, "lane" | "lanes">) => occupying.some((o) => o !== it && o.startMin < it.endMin && it.startMin < o.endMin);
+    const rawShown = raw.filter((r) => {
+      const isMarker = r.kind === "volno" || r.kind === "zruseno" || (r.kind === "block" && r.cancelled);
+      return !(isMarker && overlapsOccupying(r));
+    });
     // Rozvržení do sloupců (lanes) při překryvu
     rawShown.sort((a, b) => a.startMin - b.startMin);
     const laneEnds: number[] = [];
