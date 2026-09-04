@@ -24,6 +24,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { normalizeTier } from "@/lib/tiers";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { useViewAs } from "@/components/ViewAs";
 
 const WEEKDAYS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
 const OTHER = "__other__";
@@ -204,8 +205,11 @@ export default function RezervacePage() {
     SERVICES.find((s) => s.id === serviceId) ?? null;
   // U rezervace akce nevyžadujeme obec/adresu (koná se na daném místě akce).
   const isInPerson = !selectedEvent && service?.mode === "inPerson";
+  // „Zobrazit jako" (admin náhled) přebije reálnou úroveň pro zobrazení cen.
+  const { viewAs } = useViewAs();
+  const effVipPlus = viewAs === "admin" ? isVipPlus : viewAs === "VIP_PLUS";
   const fullPrice = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePrice(service, selectedDate) : 0);
-  const price = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePriceForTier(service, selectedDate, isVipPlus) : 0);
+  const price = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePriceForTier(service, selectedDate, effVipPlus) : 0);
   const vipSaved = selectedEvent ? 0 : fullPrice - price; // kolik VIP+ ušetří (0, když není sleva)
 
   // ── Výpočet slotů a akcí z načtených dat ──
@@ -472,7 +476,7 @@ export default function RezervacePage() {
                     </div>
                     {s.vipPlusDiscountKc ? (
                       <p className="mt-1.5 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                        {isVipPlus ? "Tvoje VIP+ cena " : "VIP+ cena "}{s.priceKc - s.vipPlusDiscountKc} Kč
+                        {effVipPlus ? "Tvoje VIP+ cena " : "VIP+ cena "}{s.priceKc - s.vipPlusDiscountKc} Kč
                       </p>
                     ) : null}
                   </div>

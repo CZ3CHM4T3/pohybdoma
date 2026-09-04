@@ -9,6 +9,7 @@ import { BuddiesWidget } from "@/components/BuddiesWidget";
 import { MembershipExpiryBanner } from "@/components/MembershipExpiryBanner";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { PageViewTracker } from "@/components/PageViewTracker";
+import { ViewAsProvider, ViewAsBar } from "@/components/ViewAs";
 
 const montserrat = Montserrat({
   subsets: ["latin", "latin-ext"],
@@ -96,15 +97,18 @@ export default function RootLayout({
     <html lang="cs" className={montserrat.variable}>
       <body className="flex min-h-screen flex-col">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
-        <MembershipExpiryBanner />
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <CookieBanner />
-        <ChatAssistant />
-        <BuddiesWidget />
-        <OnboardingTour />
-        <PageViewTracker />
+        <ViewAsProvider>
+          <MembershipExpiryBanner />
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+          <CookieBanner />
+          <ChatAssistant />
+          <BuddiesWidget />
+          <OnboardingTour />
+          <PageViewTracker />
+          <ViewAsBar />
+        </ViewAsProvider>
       </body>
     </html>
   );

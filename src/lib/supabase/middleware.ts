@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SITE_GATE_CODE } from "@/lib/gate";
 import { isPublicPath } from "@/lib/public-paths";
+import { LAUNCH_MODE, isComingSoon, sectionLabel } from "@/lib/launch";
+import { isAdminEmail } from "@/lib/admin";
 
 /**
  * Obnovuje (refreshuje) Supabase session při každém požadavku a propisuje
@@ -34,7 +36,7 @@ export async function updateSession(request: NextRequest) {
 
   // Obnoví token, pokud vypršel. Když je Supabase nedostupný (nebo pomalý),
   // nesmí to blokovat web – proto časový strop 1,5 s (pak prostě pokračujeme).
-  let user: { id: string } | null = null;
+  let user: { id: string; email?: string } | null = null;
   try {
     const userPromise = supabase.auth.getUser();
     userPromise.catch(() => {});
@@ -44,7 +46,7 @@ export async function updateSession(request: NextRequest) {
         setTimeout(() => resolve({ data: { user: null } }), 1500)
       ),
     ]);
-    user = (res as { data: { user: { id: string } | null } }).data.user;
+    user = (res as { data: { user: { id: string; email?: string } | null } }).data.user;
   } catch {
     // ignorujeme – session se obnoví při dalším požadavku
   }
@@ -71,6 +73,22 @@ export async function updateSession(request: NextRequest) {
         u.search = "";
         return NextResponse.rewrite(u);
       }
+    }
+  }
+
+  // ── Spuštění do světa: nehotové stránky → „připravuje se" ──────────────────
+  // Admin vidí vše. Přes „Zobrazit jako" (cookie pd_view_as) si i admin projde
+  // pohled návštěvníka. Návštěvník uvidí jen hotové stránky, zbytek /brzy.
+  if (LAUNCH_MODE) {
+    const { pathname } = request.nextUrl;
+    const viewAs = request.cookies.get("pd_view_as")?.value;
+    const adminSeesAll = isAdminEmail(user?.email) && (!viewAs || viewAs === "admin");
+    if (!adminSeesAll && isComingSoon(pathname)) {
+      const u = request.nextUrl.clone();
+      u.pathname = "/brzy";
+      u.search = "";
+      u.searchParams.set("sekce", sectionLabel(pathname));
+      return NextResponse.rewrite(u);
     }
   }
 

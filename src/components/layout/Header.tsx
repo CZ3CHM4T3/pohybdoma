@@ -10,6 +10,8 @@ import { NotificationBell } from "@/components/layout/NotificationBell";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
+import { isNavReady } from "@/lib/launch";
+import { useViewAs } from "@/components/ViewAs";
 import type { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
@@ -69,8 +71,15 @@ export function Header() {
       );
   }, [authUser]);
 
+  // „Zobrazit jako" (jen pro admina) – přepne, co je vidět v navigaci
+  const { viewAs } = useViewAs();
+  const previewing = viewAs !== "admin";
+  const effSignedIn = previewing ? viewAs !== "visitor" : signedIn;
+  const effIsAdmin = previewing ? false : isAdmin;
+  const effIsClub = previewing ? viewAs === "VIP_PLUS" : isClub;
+
   const MEMBER_PREFIXES = ["/ucet", "/videoknihovna", "/kurzy", "/kruhy", "/denik", "/odznaky", "/chlubirna", "/buddies", "/klub"];
-  const showMemberNav = signedIn && MEMBER_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
+  const showMemberNav = effSignedIn && MEMBER_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
 
   return (
     <>
@@ -117,10 +126,13 @@ export function Header() {
                   aria-current={active ? "page" : undefined}
                 >
                   {link.label}
+                  {!isNavReady(link.href) && (
+                    <span className="ml-1 align-middle rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">brzy</span>
+                  )}
                 </Link>
               );
             })}
-            {isClub && (
+            {effIsClub && (
               <Link
                 href="/klub"
                 className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors inline-flex items-center gap-1.5 ${
@@ -132,7 +144,7 @@ export function Header() {
                 <Crown className="h-4 w-4" strokeWidth={2} /> Klub
               </Link>
             )}
-            {isAdmin && (
+            {effIsAdmin && (
               <Link
                 href="/admin"
                 className={`px-2.5 py-2 rounded-lg text-sm font-semibold tracking-wide transition-colors ${
@@ -148,13 +160,13 @@ export function Header() {
 
           {/* CTA + hamburger */}
           <div className="flex items-center gap-3">
-            {signedIn && <NotificationBell />}
-            {!signedIn && (
+            {effSignedIn && <NotificationBell />}
+            {!effSignedIn && (
               <Link
-                href="/clenstvi"
+                href="/rezervace"
                 className="hidden sm:inline-flex items-center rounded-lg bg-brand-blue px-3 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
               >
-                Začít hned
+                Rezervovat lekci
               </Link>
             )}
 
@@ -191,10 +203,13 @@ export function Header() {
                   aria-current={active ? "page" : undefined}
                 >
                   {link.label}
+                  {!isNavReady(link.href) && (
+                    <span className="ml-1 align-middle rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">brzy</span>
+                  )}
                 </Link>
               );
             })}
-            {isClub && (
+            {effIsClub && (
               <Link
                 href="/klub"
                 onClick={() => setMenuOpen(false)}
@@ -203,7 +218,7 @@ export function Header() {
                 <Crown className="h-4 w-4" strokeWidth={2} /> Klub
               </Link>
             )}
-            {isAdmin && (
+            {effIsAdmin && (
               <Link
                 href="/admin"
                 onClick={() => setMenuOpen(false)}
@@ -213,8 +228,8 @@ export function Header() {
               </Link>
             )}
             <div className="mt-3 px-4">
-              <Link href="/clenstvi" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">
-                Začít hned
+              <Link href="/rezervace" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">
+                Rezervovat lekci
               </Link>
             </div>
           </nav>
