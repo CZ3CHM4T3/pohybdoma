@@ -261,7 +261,10 @@ export function WeekCalendar({
         <button type="button" disabled={!canNext} onClick={() => setWeekStart(addDays(weekStart, 7))} className="p-2 rounded-lg text-brand-dark hover:bg-brand-light disabled:opacity-30" aria-label="Další týden">→</button>
       </div>
 
-      <p className="text-xs text-gray-500 mb-3">Přehled celého týdne na časové ose – výška = délka lekce, mezery = volno. <strong>Klikni do prázdného místa v ose</strong> (nebo na datum dne) a dole přidáš lekci na ten čas.</p>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-xs text-gray-500">Přehled celého týdne na časové ose – výška = délka lekce, mezery = volno. <strong>Klikni do prázdného místa v ose</strong> (nebo na datum dne) a dole přidáš lekci na ten čas.</p>
+        <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="shrink-0 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">🖨 Vytisknout týden</button>
+      </div>
 
       {/* Časová osa */}
       <div className="overflow-x-auto">
@@ -533,6 +536,34 @@ export function WeekCalendar({
           </div>
         </>
       )}
+
+      {/* Tisková verze (A4 na šířku) – na obrazovce skrytá, ukáže se jen při tisku */}
+      <div className="wc-print hidden">
+        <div className="wc-print-head">POHYB DOMA — rozvrh týdne {rangeLabel}</div>
+        <div className="wc-print-grid">
+          {days.map((d) => {
+            const its = itemsForDay(d)
+              .filter((it) => it.kind === "fitness" || it.kind === "block" || it.kind === "rezervace" || it.kind === "zruseno")
+              .sort((a, b) => a.startMin - b.startMin);
+            return (
+              <div key={d.toISOString()} className="wc-print-day">
+                <div className="wc-print-dayhead">{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</div>
+                {its.length === 0 ? (
+                  <div className="wc-print-empty">—</div>
+                ) : (
+                  its.map((it) => (
+                    <div key={it.id} className={`wc-print-item${it.kind === "zruseno" ? " wc-print-cx" : ""}`}>
+                      <span className="wc-print-time">{it.time}</span> {it.name}
+                      {it.note ? <span className="wc-print-note"> · {it.note}</span> : null}
+                      {it.kind === "zruseno" ? " (zrušeno)" : ""}
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
