@@ -780,6 +780,13 @@ export default function AdminPage() {
     const { data } = await supabase.from("recurring_cancellations").select("recurring_id, date, cancelled_by, moved");
     if (data) setRecCancels(data as { recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]);
   }
+  // Obnovit zrušený termín (vrátit lekci) – smaže storno záznam
+  async function restoreOccurrence(recId: string, date: string) {
+    setError(null);
+    const { error } = await supabase.from("recurring_cancellations").delete().eq("recurring_id", recId).eq("date", date);
+    if (error) { setError("Obnovení lekce selhalo: " + error.message); return; }
+    setRecCancels((prev) => prev.filter((c) => !(c.recurring_id === recId && c.date === date)));
+  }
   // Přesun konkrétního termínu lektorem → uvolní původní, vytvoří nový, klientovi mail+bublina
   async function adminMoveOccurrence(recId: string, origDate: string, newDate: string, newTime: string) {
     setError(null);
@@ -1423,14 +1430,14 @@ export default function AdminPage() {
   }
 
   // Zrušené výskyty pravidelných lekcí (ne přesuny) – vidět na kalendáři jako „zrušeno" + nabídnout náhradu
-  const cancelledOccs: { date: string; time: string; name: string; byClient: boolean }[] = [];
+  const cancelledOccs: { date: string; time: string; name: string; byClient: boolean; recId: string }[] = [];
   {
     const recById = new Map(recurring.map((r) => [r.id, r] as const));
     for (const c of recCancels) {
       if (c.moved) continue; // přesun není zrušení
       const r = recById.get(c.recurring_id);
       if (!r) continue;
-      cancelledOccs.push({ date: c.date, time: r.time, name: r.client_name || "Klient", byClient: !!c.cancelled_by && c.cancelled_by !== user?.id });
+      cancelledOccs.push({ date: c.date, time: r.time, name: r.client_name || "Klient", byClient: !!c.cancelled_by && c.cancelled_by !== user?.id, recId: c.recurring_id });
     }
   }
 
@@ -1777,6 +1784,7 @@ export default function AdminPage() {
             onMoveOccurrence={adminMoveOccurrence}
             onCancelBlock={cancelBlockOccurrence}
             onRestoreBlock={restoreBlockOccurrence}
+            onRestoreOccurrence={restoreOccurrence}
             onOpenOnce={openOnce}
             onOpenWeekly={openWeekly}
             onCloseOpen={closeOpen}

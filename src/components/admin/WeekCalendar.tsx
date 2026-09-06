@@ -62,12 +62,13 @@ export function WeekCalendar({
   onToggleAttendance,
   onAddEvent,
   onDeleteEvent,
+  onRestoreOccurrence,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
   blocks: BlockOcc[];
   open?: { date: string; time: string }[];
-  cancelled?: { date: string; time: string; name: string; byClient: boolean }[];
+  cancelled?: { date: string; time: string; name: string; byClient: boolean; recId?: string }[];
   notes?: { date: string; time: string; note: string }[];
   blockMembers?: { block_id: string; name: string }[];
   blockAttendance?: { block_id: string; date: string; name: string }[];
@@ -88,6 +89,7 @@ export function WeekCalendar({
   onToggleAttendance?: (blockId: string, date: string, name: string, present: boolean) => Promise<void>;
   onAddEvent?: (date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
+  onRestoreOccurrence?: (recId: string, date: string) => Promise<void>;
 }) {
   const attSet = useMemo(() => new Set(blockAttendance.map((a) => `${a.block_id}|${a.date}|${a.name}`)), [blockAttendance]);
   const noteMap = useMemo(() => {
@@ -174,7 +176,7 @@ export function WeekCalendar({
     for (const cx of cancelled) {
       if (cx.date !== key) continue;
       const s = toMin(cx.time);
-      raw.push({ id: `cx:${key}:${cx.time}`, startMin: s, endMin: s + 60, name: cx.name, time: cx.time, color: "#9ca3af", kind: "zruseno", deletable: false, recurring: false, byClient: cx.byClient });
+      raw.push({ id: `cx:${cx.recId ?? ""}:${cx.date}`, startMin: s, endMin: s + 60, name: cx.name, time: cx.time, color: "#9ca3af", kind: "zruseno", deletable: false, recurring: false, byClient: cx.byClient });
     }
     for (const ev of events) {
       if (ev.date !== key || !ev.time) continue;
@@ -543,6 +545,9 @@ export function WeekCalendar({
             {pop.item && pop.item.kind === "zruseno" && !addMode && (
               <div className="space-y-1.5">
                 <p className="text-[11px] text-gray-400">zrušeno ({pop.item.byClient ? "klient" : "já"})</p>
+                {onRestoreOccurrence && pop.item.id.split(":")[1] && (
+                  <button type="button" onClick={async () => { const p = pop.item!.id.split(":"); await onRestoreOccurrence(p[1], p[2]); closePop(); }} className="w-full rounded-md border border-emerald-300 px-2.5 py-1.5 text-left font-semibold text-emerald-700 hover:bg-emerald-50">↩ Obnovit lekci (zrušit zrušení)</button>
+                )}
                 <button type="button" onClick={() => { setLTime(pop.item!.time); setLName(""); setLNote("náhrada"); setLRepeat(false); setAddMode(true); }} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat náhradu sem (vybrat klienta)</button>
               </div>
             )}
