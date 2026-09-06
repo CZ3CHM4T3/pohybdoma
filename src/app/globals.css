@@ -320,40 +320,35 @@
 }
 
 /* ── Tisk: skryj navigaci/patičku a prvky s .no-print ── */
+/* Tisková vrstva rozvrhu – na obrazovce skrytá, ukáže se jen při tisku */
+.pd-print { display: none; }
+
 @media print {
   @page { size: A4 landscape; margin: 6mm; }
-  header,
-  footer,
-  .no-print {
-    display: none !important;
-  }
-  main {
-    padding: 0 !important;
-  }
 
-  /* Tisk rozvrhu: ukázat JEN samotnou osu kalendáře (přesně jak vypadá) */
-  body * { visibility: hidden !important; }
-  .wc-cal, .wc-cal * { visibility: visible !important; }
+  /* Skryj úplně vše kromě tiskové vrstvy rozvrhu */
+  body > *:not(.pd-print) { display: none !important; }
+
+  .pd-print {
+    display: block !important;
+    color: #000;
+    background: #fff;
+  }
   /* Barvy lekcí/bloků musí zůstat i na papíře */
-  .wc-cal, .wc-cal * {
+  .pd-print,
+  .pd-print * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-  .wc-cal {
-    position: absolute;
-    left: 0;
-    top: 0;
-    overflow: visible !important;
-    /* Vejde se celý týden na jednu A4 na šířku (výška 7–22 h je limit) */
-    transform: scale(0.95);
-    transform-origin: top left;
-  }
-  /* Tisková hlavička (na obrazovce skrytá) */
-  .wc-cal .wc-print-head {
-    display: block !important;
-    font-size: 11px;
+  .pd-print-head {
+    font-size: 12px;
     font-weight: 700;
     color: #062a6b;
     margin-bottom: 6px;
+  }
+  /* Roztáhni osu na celou šířku A4 (přebije inline min-width: 700) */
+  .pd-print .wc-grid {
+    min-width: 0 !important;
+    width: 100% !important;
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { BookingLite, LessonRow } from "./MonthCalendar";
 import { EVENT_TYPES, eventColorOf } from "@/lib/mock-data";
 
@@ -115,6 +116,8 @@ export function WeekCalendar({
   // Bublinové menu na kalendáři (klik na políčko/lekci)
   const [pop, setPop] = useState<{ x: number; y: number; date: string; time: string; item: Item | null } | null>(null);
   const [addMode, setAddMode] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   // Napozicování bubliny tak, aby byla celá vidět (jinak u spodních lekcí ukrojená)
   const popRef = useRef<HTMLDivElement>(null);
   const [popStyle, setPopStyle] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
@@ -252,6 +255,61 @@ export function WeekCalendar({
 
   const rangeLabel = `${days[0].toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${days[6].toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}`;
 
+  // Samotná časová osa – používá se na obrazovce i v tiskovém portálu.
+  const grid = (
+    <div className="wc-grid flex" style={{ minWidth: 700 }}>
+      {/* Osa hodin */}
+      <div className="w-10 shrink-0">
+        <div className="h-7" />
+        <div className="relative" style={{ height: TOTAL_PX }}>
+          {HOURS.map((h, i) => (
+            <div key={h} className="absolute right-1 text-[10px] text-gray-400" style={{ top: i * HOUR_PX - 6 }}>{h}:00</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dny */}
+      {days.map((d) => {
+        const isToday = dateKey(d) === dateKey(today);
+        const isSel = selectedDay && dateKey(d) === dateKey(selectedDay);
+        const items = itemsForDay(d);
+        return (
+          <div key={d.toISOString()} className="flex-1 min-w-[86px] border-l border-gray-100">
+            <button type="button" onClick={() => setSelectedDay(d)} className={`h-7 w-full text-center transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}>
+              <span className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</span>
+            </button>
+            <div className="relative cursor-pointer" style={{ height: TOTAL_PX }} onClick={(e) => handleColumnClick(e, d)} title="Klikni pro přidání lekce na tento čas">
+              {HOURS.map((h, i) => (
+                <div key={h} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: i * HOUR_PX }} />
+              ))}
+              {items.map((it) => {
+                const top = ((it.startMin - START_H * 60) / 60) * HOUR_PX;
+                const height = Math.max(15, ((it.endMin - it.startMin) / 60) * HOUR_PX - 2);
+                const w = 100 / it.lanes;
+                const isCx = it.kind === "zruseno" || it.cancelled;
+                return (
+                  <div
+                    key={it.id}
+                    title={isCx ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
+                    onClick={(e) => openItemPop(e, d, it)}
+                    className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${isCx ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
+                    style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: isCx ? "#f3f4f6" : it.color }}
+                  >
+                    <span className="block opacity-90">{isCx ? "zrušeno" : it.time}</span>
+                    <span className={`block truncate ${isCx ? "line-through" : ""}`}>{it.name}</span>
+                    {it.note && !isCx && (
+                      <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div>
       {/* Navigace */}
@@ -266,61 +324,19 @@ export function WeekCalendar({
         <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="shrink-0 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">🖨 Vytisknout týden</button>
       </div>
 
-      {/* Časová osa */}
-      <div className="wc-cal overflow-x-auto">
-        <div className="wc-print-head hidden">POHYB DOMA — rozvrh týdne {rangeLabel}</div>
-        <div className="flex" style={{ minWidth: 700 }}>
-          {/* Osa hodin */}
-          <div className="w-10 shrink-0">
-            <div className="h-7" />
-            <div className="relative" style={{ height: TOTAL_PX }}>
-              {HOURS.map((h, i) => (
-                <div key={h} className="absolute right-1 text-[10px] text-gray-400" style={{ top: i * HOUR_PX - 6 }}>{h}:00</div>
-              ))}
-            </div>
-          </div>
-
-          {/* Dny */}
-          {days.map((d) => {
-            const isToday = dateKey(d) === dateKey(today);
-            const isSel = selectedDay && dateKey(d) === dateKey(selectedDay);
-            const items = itemsForDay(d);
-            return (
-              <div key={d.toISOString()} className="flex-1 min-w-[86px] border-l border-gray-100">
-                <button type="button" onClick={() => setSelectedDay(d)} className={`h-7 w-full text-center transition-colors ${isSel ? "bg-brand-blue text-white" : "hover:bg-brand-light"}`}>
-                  <span className={`text-xs font-semibold ${isSel ? "text-white" : isToday ? "text-brand-blue" : "text-gray-500"}`}>{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</span>
-                </button>
-                <div className="relative cursor-pointer" style={{ height: TOTAL_PX }} onClick={(e) => handleColumnClick(e, d)} title="Klikni pro přidání lekce na tento čas">
-                  {HOURS.map((h, i) => (
-                    <div key={h} className="absolute left-0 right-0 border-t border-gray-100" style={{ top: i * HOUR_PX }} />
-                  ))}
-                  {items.map((it) => {
-                    const top = ((it.startMin - START_H * 60) / 60) * HOUR_PX;
-                    const height = Math.max(15, ((it.endMin - it.startMin) / 60) * HOUR_PX - 2);
-                    const w = 100 / it.lanes;
-                    const isCx = it.kind === "zruseno" || it.cancelled; // zrušená lekce nebo zrušený blok
-                    return (
-                      <div
-                        key={it.id}
-                        title={isCx ? `Zrušeno: ${it.name}` : `${it.time} ${it.name}`}
-                        onClick={(e) => openItemPop(e, d, it)}
-                        className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${isCx ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
-                        style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: isCx ? "#f3f4f6" : it.color }}
-                      >
-                        <span className="block opacity-90">{isCx ? "zrušeno" : it.time}</span>
-                        <span className={`block truncate ${isCx ? "line-through" : ""}`}>{it.name}</span>
-                        {it.note && !isCx && (
-                          <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Časová osa (na obrazovce) */}
+      <div className="overflow-x-auto print:hidden">
+        {grid}
       </div>
+
+      {/* Tisková vrstva – čistá A4 na šířku, jen kalendář (přes portál do body) */}
+      {mounted && createPortal(
+        <div className="pd-print" aria-hidden>
+          <div className="pd-print-head">POHYB DOMA — rozvrh týdne {rangeLabel}</div>
+          {grid}
+        </div>,
+        document.body
+      )}
 
       {/* Legenda */}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400">
