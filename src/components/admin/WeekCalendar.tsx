@@ -267,7 +267,8 @@ export function WeekCalendar({
       </div>
 
       {/* Časová osa */}
-      <div className="overflow-x-auto">
+      <div className="wc-cal overflow-x-auto">
+        <div className="wc-print-head hidden">POHYB DOMA — rozvrh týdne {rangeLabel}</div>
         <div className="flex" style={{ minWidth: 700 }}>
           {/* Osa hodin */}
           <div className="w-10 shrink-0">
@@ -537,33 +538,6 @@ export function WeekCalendar({
         </>
       )}
 
-      {/* Tisková verze (A4 na šířku) – na obrazovce skrytá, ukáže se jen při tisku */}
-      <div className="wc-print hidden">
-        <div className="wc-print-head">POHYB DOMA — rozvrh týdne {rangeLabel}</div>
-        <div className="wc-print-grid">
-          {days.map((d) => {
-            const its = itemsForDay(d)
-              .filter((it) => it.kind === "fitness" || it.kind === "block" || it.kind === "rezervace" || it.kind === "zruseno")
-              .sort((a, b) => a.startMin - b.startMin);
-            return (
-              <div key={d.toISOString()} className="wc-print-day">
-                <div className="wc-print-dayhead">{WD_CS[(d.getDay() + 6) % 7]} {d.getDate()}.{d.getMonth() + 1}.</div>
-                {its.length === 0 ? (
-                  <div className="wc-print-empty">—</div>
-                ) : (
-                  its.map((it) => (
-                    <div key={it.id} className={`wc-print-item${it.kind === "zruseno" ? " wc-print-cx" : ""}`}>
-                      <span className="wc-print-time">{it.time}</span> {it.name}
-                      {it.note ? <span className="wc-print-note"> · {it.note}</span> : null}
-                      {it.kind === "zruseno" ? " (zrušeno)" : ""}
-                    </div>
-                  ))
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
