@@ -2445,8 +2445,11 @@ export default function AdminPage() {
           const monthItems = items.filter((it) => it.date.slice(0, 7) === dochMonth);
           const byClient = new Map<string, Att[]>();
           for (const it of monthItems) { if (!byClient.has(it.client)) byClient.set(it.client, []); byClient.get(it.client)!.push(it); }
-          // Doplň i stálé klienty, kteří v daném měsíci zatím lekci neměli (ať jsou v seznamu vidět, s 0)
-          for (const r of recurring) { if (r.active && r.client_name && !byClient.has(r.client_name)) byClient.set(r.client_name, []); }
+          // Doplň všechny klienty ze všech zdrojů (ať v seznamu nikdo nechybí, klidně s 0):
+          // pravidelné lekce (i neaktivní), kartotéka, i jednorázové lekce za celé období.
+          for (const r of recurring) { if (r.client_name && !byClient.has(r.client_name)) byClient.set(r.client_name, []); }
+          for (const c of clients) { if (c.name && !byClient.has(c.name)) byClient.set(c.name, []); }
+          for (const l of lessons) { if (l.client_name && !byClient.has(l.client_name)) byClient.set(l.client_name, []); }
           const clientsSorted = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const byDay = new Map<string, Att[]>();
           for (const it of monthItems) { if (!byDay.has(it.date)) byDay.set(it.date, []); byDay.get(it.date)!.push(it); }
