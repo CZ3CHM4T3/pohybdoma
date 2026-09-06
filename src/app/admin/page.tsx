@@ -256,6 +256,7 @@ export default function AdminPage() {
   const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
+  const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [archClient, setArchClient] = useState("");
   const [subscribers, setSubscribers] = useState<{ id: string; email: string; created_at: string }[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -2440,12 +2441,24 @@ export default function AdminPage() {
             no_show: { label: "nedostavil se", cls: "bg-red-100 text-red-600" },
             zruseno: { label: "zrušeno", cls: "bg-gray-100 text-gray-400" },
           };
+          // Docházka po měsících: bereme jen záznamy vybraného měsíce
+          const monthItems = items.filter((it) => it.date.slice(0, 7) === dochMonth);
           const byClient = new Map<string, Att[]>();
-          for (const it of items) { if (!byClient.has(it.client)) byClient.set(it.client, []); byClient.get(it.client)!.push(it); }
+          for (const it of monthItems) { if (!byClient.has(it.client)) byClient.set(it.client, []); byClient.get(it.client)!.push(it); }
+          // Doplň i stálé klienty, kteří v daném měsíci zatím lekci neměli (ať jsou v seznamu vidět, s 0)
+          for (const r of recurring) { if (r.active && r.client_name && !byClient.has(r.client_name)) byClient.set(r.client_name, []); }
           const clientsSorted = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const byDay = new Map<string, Att[]>();
-          for (const it of items) { if (!byDay.has(it.date)) byDay.set(it.date, []); byDay.get(it.date)!.push(it); }
+          for (const it of monthItems) { if (!byDay.has(it.date)) byDay.set(it.date, []); byDay.get(it.date)!.push(it); }
           const daysSorted = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+          // Popisek měsíce + posun
+          const MON_CS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
+          const dmY = Number(dochMonth.slice(0, 4)), dmM = Number(dochMonth.slice(5, 7));
+          const dochMonthLabel = `${MON_CS[dmM - 1]} ${dmY}`;
+          const shiftMonth = (delta: number) => {
+            const d = new Date(dmY, dmM - 1 + delta, 1);
+            setDochMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+          };
           return (
             <section className="card p-6 mb-8">
               <h2 className="text-lg font-semibold text-brand-dark mb-1">Docházka</h2>
@@ -2455,6 +2468,14 @@ export default function AdminPage() {
                   <button key={k} type="button" onClick={() => setDochView(k)} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
                 ))}
               </div>
+
+              {dochView !== "lekce" && (
+                <div className="mb-5 flex items-center gap-2">
+                  <button type="button" onClick={() => shiftMonth(-1)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-sm text-brand-dark hover:bg-brand-light">←</button>
+                  <span className="min-w-[120px] text-center text-sm font-semibold capitalize text-brand-dark">{dochMonthLabel}</span>
+                  <button type="button" onClick={() => shiftMonth(1)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-sm text-brand-dark hover:bg-brand-light">→</button>
+                </div>
+              )}
 
               {dochView === "lekce" ? (
                 (() => {
@@ -2527,9 +2548,10 @@ export default function AdminPage() {
                     </div>
                   );
                 })()
-              ) : items.length === 0 ? (
-                <p className="text-sm text-gray-400">Zatím žádné záznamy.</p>
               ) : dochView === "klienti" ? (
+                clientsSorted.length === 0 ? (
+                <p className="text-sm text-gray-400">Zatím žádní stálí klienti.</p>
+                ) : (
                 <div className="space-y-3">
                   {clientsSorted.map(([client, list]) => {
                     const done = list.filter((x) => x.status === "probehla").length;
@@ -2557,6 +2579,9 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+                )
+              ) : monthItems.length === 0 ? (
+                <p className="text-sm text-gray-400">V {dochMonthLabel} zatím žádné záznamy.</p>
               ) : (
                 <div className="space-y-4">
                   {daysSorted.map(([date, list]) => (
