@@ -1317,12 +1317,20 @@ export default function AdminPage() {
 
   // ── Opakované lekce stálých klientů → konkrétní výskyty (pro kalendář i agendu) ──
   const recCancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
+  // Rozsah generování výskytů: od pondělí týdne s 1. 9. 2026 (žádné letní fantomy),
+  // ale i minulé týdny v rozsahu navigace kalendáře (~20 týdnů zpět), až ~18 měsíců dopředu.
+  const genStart = (() => {
+    const m = new Date(); m.setHours(0, 0, 0, 0);
+    m.setDate(m.getDate() - ((m.getDay() + 6) % 7) - 7 * 20); // 20 týdnů zpět
+    const floor = new Date(2026, 8, 1); floor.setHours(0, 0, 0, 0);
+    floor.setDate(floor.getDate() - ((floor.getDay() + 6) % 7)); // pondělí týdne s 1. 9. 2026
+    return m < floor ? floor : m;
+  })();
+  const genDays = 7 * 100;
   const recurringLessonRows: LessonRow[] = [];
   {
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne (ať je vidět i dřívější dny týdne)
-    for (let i = 0; i < 7 * 79; i++) { // ~18 měsíců dopředu (jako týdenní kalendář)
+    const base = new Date(genStart); // pondělí tohoto týdne (ať je vidět i dřívější dny týdne)
+    for (let i = 0; i < genDays; i++) { // ~18 měsíců dopředu (jako týdenní kalendář)
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay(); // 0=Ne … 6=So (stejně jako recurring.weekday)
@@ -1346,10 +1354,8 @@ export default function AdminPage() {
   const blockCancelSet = new Set(blockCancels.map((c) => `${c.block_id}|${c.date}`));
   const blockRows: LessonRow[] = [];
   {
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne
-    for (let i = 0; i < 7 * 79; i++) {
+    const base = new Date(genStart); // pondělí tohoto týdne
+    for (let i = 0; i < genDays; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay();
@@ -1379,10 +1385,8 @@ export default function AdminPage() {
   // Bloky jako CELÉ boxy (start–end) pro proporční časovou osu
   const blockOccs: { id: string; date: string; start_time: string; end_time: string; label: string; category: string; cancelled?: boolean }[] = [];
   {
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    base.setDate(base.getDate() - ((base.getDay() + 6) % 7)); // pondělí tohoto týdne
-    for (let i = 0; i < 7 * 79; i++) {
+    const base = new Date(genStart); // pondělí tohoto týdne
+    for (let i = 0; i < genDays; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const wd = d.getDay();
@@ -1411,12 +1415,10 @@ export default function AdminPage() {
   // Volné (otevřené) hodiny pro časovou osu: pevně otevřené (weekly is_free) + uvolněné od stálých klientů (omluvy)
   const openOccs: { date: string; time: string }[] = [];
   {
-    const base = new Date();
-    base.setHours(0, 0, 0, 0);
-    base.setDate(base.getDate() - ((base.getDay() + 6) % 7));
+    const base = new Date(genStart);
     const freeWeekly = weekly.filter((w) => w.is_free);
     if (freeWeekly.length > 0) {
-      for (let i = 0; i < 7 * 79; i++) {
+      for (let i = 0; i < genDays; i++) {
         const d = new Date(base);
         d.setDate(base.getDate() + i);
         const wd = d.getDay();
