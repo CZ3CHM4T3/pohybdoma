@@ -2408,43 +2408,53 @@ export default function AdminPage() {
 
         {tab === "dochazka" && (() => {
           const todayKey = new Date().toLocaleDateString("sv-SE");
-          const startD = new Date(); startD.setDate(startD.getDate() - 180);
-          const startRaw = startD.toLocaleDateString("sv-SE");
-          const startKey = startRaw < "2026-09-01" ? "2026-09-01" : startRaw; // docházku počítáme až od září 2026
-          const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
-          type Att = { date: string; time: string; client: string; status: "probehla" | "omluva" | "no_show" | "zruseno" };
+          const dmY = Number(dochMonth.slice(0, 4)), dmM = Number(dochMonth.slice(5, 7));
+          const lastDay = new Date(dmY, dmM, 0).getDate();
+          const monthStart = `${dochMonth}-01`;
+          const monthEnd = `${dochMonth}-${String(lastDay).padStart(2, "0")}`;
+          const FLOOR = "2026-09-01"; // dřív se nic nepočítá
+          // Omluvy (ne přesuny) a přesuny zvlášť – ať docházka sedí s kalendářem
+          const cancelSet = new Set(recCancels.filter((c) => !c.moved).map((c) => `${c.recurring_id}|${c.date}`));
+          const movedSet = new Set(recCancels.filter((c) => c.moved).map((c) => `${c.recurring_id}|${c.date}`));
+          type Att = { date: string; time: string; client: string; status: "probehla" | "omluva" | "no_show" | "zruseno" | "planovano" };
           const items: Att[] = [];
-          // Pravidelné lekce (minulé výskyty)
+          // Pravidelné lekce – CELÝ vybraný měsíc (přesně jako v kalendáři)
           for (const r of recurring) {
             if (!r.active) continue;
-            const d = new Date(startD); d.setHours(0, 0, 0, 0);
-            const end = new Date(); end.setHours(0, 0, 0, 0);
+            const d = new Date(dmY, dmM - 1, 1); d.setHours(0, 0, 0, 0);
+            const end = new Date(dmY, dmM - 1, lastDay); end.setHours(0, 0, 0, 0);
             while (d <= end) {
               if (d.getDay() === r.weekday) {
                 const dk = d.toLocaleDateString("sv-SE");
-                if (dk >= startKey) items.push({ date: dk, time: r.time, client: r.client_name || "—", status: cancelSet.has(`${r.id}|${dk}`) ? "omluva" : "probehla" });
+                if (dk >= FLOOR) {
+                  if (movedSet.has(`${r.id}|${dk}`)) { /* přesunuto jinam – počítá se u nového termínu */ }
+                  else if (cancelSet.has(`${r.id}|${dk}`)) items.push({ date: dk, time: r.time, client: r.client_name || "—", status: "omluva" });
+                  else items.push({ date: dk, time: r.time, client: r.client_name || "—", status: dk <= todayKey ? "probehla" : "planovano" });
+                }
               }
               d.setDate(d.getDate() + 1);
             }
           }
-          // Jednorázové lekce (minulé)
+          // Jednorázové lekce ve vybraném měsíci
           for (const l of lessons) {
-            if (l.date >= startKey && l.date <= todayKey) items.push({ date: l.date, time: l.time, client: l.client_name || "—", status: "probehla" });
+            if (l.date >= monthStart && l.date <= monthEnd && l.date >= FLOOR) {
+              items.push({ date: l.date, time: l.time, client: l.client_name || "—", status: l.date <= todayKey ? "probehla" : "planovano" });
+            }
           }
-          // Rezervace z webu
+          // Rezervace z webu ve vybraném měsíci
           for (const b of bookings) {
-            if (b.date < startKey || b.date > todayKey) continue;
-            const status: Att["status"] = b.status === "no_show" ? "no_show" : b.status === "cancelled" ? "zruseno" : "probehla";
+            if (b.date < monthStart || b.date > monthEnd || b.date < FLOOR) continue;
+            const status: Att["status"] = b.status === "no_show" ? "no_show" : b.status === "cancelled" ? "zruseno" : (b.date <= todayKey ? "probehla" : "planovano");
             items.push({ date: b.date, time: b.time, client: b.contact_name || "—", status });
           }
           const STATUS: Record<Att["status"], { label: string; cls: string }> = {
             probehla: { label: "proběhla", cls: "bg-emerald-100 text-emerald-700" },
+            planovano: { label: "naplánováno", cls: "bg-blue-100 text-blue-700" },
             omluva: { label: "omluvil se", cls: "bg-gray-100 text-gray-500" },
             no_show: { label: "nedostavil se", cls: "bg-red-100 text-red-600" },
             zruseno: { label: "zrušeno", cls: "bg-gray-100 text-gray-400" },
           };
-          // Docházka po měsících: bereme jen záznamy vybraného měsíce
-          const monthItems = items.filter((it) => it.date.slice(0, 7) === dochMonth);
+          const monthItems = items;
           const byClient = new Map<string, Att[]>();
           for (const it of monthItems) { if (!byClient.has(it.client)) byClient.set(it.client, []); byClient.get(it.client)!.push(it); }
           // Doplň všechny klienty ze všech zdrojů (ať v seznamu nikdo nechybí, klidně s 0):
@@ -2458,7 +2468,6 @@ export default function AdminPage() {
           const daysSorted = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
           // Popisek měsíce + posun
           const MON_CS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
-          const dmY = Number(dochMonth.slice(0, 4)), dmM = Number(dochMonth.slice(5, 7));
           const dochMonthLabel = `${MON_CS[dmM - 1]} ${dmY}`;
           const shiftMonth = (delta: number) => {
             const d = new Date(dmY, dmM - 1 + delta, 1);
@@ -2467,7 +2476,7 @@ export default function AdminPage() {
           return (
             <section className="card p-6 mb-8">
               <h2 className="text-lg font-semibold text-brand-dark mb-1">Docházka</h2>
-              <p className="text-sm text-gray-500 mb-4">Kdo kdy byl, kdo se omluvil, kdo nedorazil (posledních ~6 měsíců). Peníze počítají Faktury.</p>
+              <p className="text-sm text-gray-500 mb-4">Souhrn vybraného měsíce – přesně podle kalendáře (proběhlé i naplánované lekce, omluvy). Peníze počítají Faktury.</p>
               <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
                 {([["klienti", "Po klientech"], ["dny", "Den po dni"], ["lekce", "Po lekcích (skupiny)"]] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setDochView(k)} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
@@ -2560,6 +2569,7 @@ export default function AdminPage() {
                 <div className="space-y-3">
                   {clientsSorted.map(([client, list]) => {
                     const done = list.filter((x) => x.status === "probehla").length;
+                    const plan = list.filter((x) => x.status === "planovano").length;
                     const oml = list.filter((x) => x.status === "omluva").length;
                     const ns = list.filter((x) => x.status === "no_show").length;
                     const sorted = [...list].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
@@ -2568,6 +2578,7 @@ export default function AdminPage() {
                         <summary className="flex flex-wrap items-center gap-2 cursor-pointer px-4 py-2.5">
                           <span className="font-semibold text-brand-dark">{client}</span>
                           <span className="text-xs text-emerald-600 font-semibold">{done}× proběhlo</span>
+                          {plan > 0 && <span className="text-xs text-blue-600">· {plan}× naplánováno</span>}
                           {oml > 0 && <span className="text-xs text-gray-400">· {oml}× omluva</span>}
                           {ns > 0 && <span className="text-xs text-red-500">· {ns}× nedorazil</span>}
                         </summary>
