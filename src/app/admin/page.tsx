@@ -217,6 +217,7 @@ export default function AdminPage() {
   const [overrides, setOverrides] = useState<OverrideRow[]>([]);
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [lessonNotes, setLessonNotes] = useState<{ date: string; time: string; note: string }[]>([]);
+  const [billingMap, setBillingMap] = useState<{ name: string; bill_to: string }[]>([]);
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -451,6 +452,9 @@ export default function AdminPage() {
     });
     supabase.from("clients").select("id, name, email, note, bill_group").order("name").then(({ data }) => {
       if (data) setClients(data as ClientRow[]);
+    });
+    supabase.from("billing_map").select("name, bill_to").then(({ data }) => {
+      if (data) setBillingMap(data as { name: string; bill_to: string }[]);
     });
     // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
     supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
@@ -759,6 +763,20 @@ export default function AdminPage() {
     if (error) { setError("Úprava lekce selhala: " + error.message); return; }
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
     if (data) setRecurring(data as RecurringRow[]);
+  }
+  // Fakturační rodina: jméno → fakturovat pod (prázdné = sám za sebe)
+  async function saveBillTo(name: string, billTo: string) {
+    setError(null);
+    const to = billTo.trim();
+    if (!to || to === name) {
+      const { error } = await supabase.from("billing_map").delete().eq("name", name);
+      if (error) { setError("Uložení selhalo (spustil jsi billing_map.sql?): " + error.message); return; }
+      setBillingMap((prev) => prev.filter((b) => b.name !== name));
+      return;
+    }
+    const { error } = await supabase.from("billing_map").upsert({ name, bill_to: to }, { onConflict: "name" });
+    if (error) { setError("Uložení selhalo (spustil jsi billing_map.sql?): " + error.message); return; }
+    setBillingMap((prev) => [...prev.filter((b) => b.name !== name), { name, bill_to: to }]);
   }
   // Připomínka k lekci v kalendáři (datum + čas). Prázdný text = smazat.
   async function saveLessonNote(date: string, time: string, note: string) {
@@ -2728,17 +2746,28 @@ export default function AdminPage() {
             ...blockLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-          // Fakturační skupiny (rodiny): klienti se stejným bill_group se sečtou do jedné faktury
+          // Fakturační rodiny: „fakturovat pod" (billing_map) má přednost, pak bill_group z kartotéky.
           const groupOf = new Map<string, string>();
           for (const c of clients) { if (c.bill_group && c.bill_group.trim()) groupOf.set(c.name, c.bill_group.trim()); }
+          const billMapOf = new Map<string, string>(billingMap.map((b) => [b.name, b.bill_to]));
+          const resolveGroup = (name: string) => billMapOf.get(name) || groupOf.get(name) || name;
           const byClient = new Map<string, Line[]>();
           for (const ln of monthLines) {
-            const key = groupOf.get(ln.client) || ln.client;
+            const key = resolveGroup(ln.client);
             if (!byClient.has(key)) byClient.set(key, []);
             byClient.get(key)!.push(ln);
           }
           const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+          // Všechna jména, která můžou přijít na fakturu (pro nastavení rodin)
+          const allBillNames = Array.from(new Set([
+            ...clients.map((c) => c.name),
+            ...recurring.map((r) => r.client_name),
+            ...lessons.map((l) => l.client_name),
+            ...blockMembers.map((m) => m.name),
+            ...blockAttendance.map((a) => a.name),
+            ...bookings.map((b) => b.contact_name),
+          ].filter((n): n is string => !!n && n.trim().length > 0))).sort((a, b) => a.localeCompare(b, "cs"));
 
           // Příjmy odjinud (ručně – fitko apod.) pro vybraný měsíc
           const monthFin = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === invMonth);
@@ -2912,6 +2941,30 @@ export default function AdminPage() {
                 })}
               </div>
             )}
+
+            {/* Fakturační rodiny – sloučit pod jednoho plátce */}
+            <details className="mb-6 rounded-xl border border-gray-100">
+              <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-brand-dark">👪 Fakturační rodiny <span className="font-normal text-gray-400">· sloučit pod jednoho plátce</span></summary>
+              <div className="border-t border-gray-100 p-4">
+                <p className="text-xs text-gray-500 mb-3">U koho chceš platby sloučit, napiš <strong>„fakturovat pod"</strong> jméno plátce (např. u dětí na PPT i u kruháče napiš „Karolína Nováková"). Nech prázdné = platí sám za sebe. Platí napříč všemi měsíci.</p>
+                <div className="space-y-1.5 max-h-80 overflow-y-auto">
+                  {allBillNames.map((nm) => (
+                    <div key={nm} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="w-48 shrink-0 truncate text-brand-dark">{nm}</span>
+                      <span className="text-xs text-gray-400">→ fakturovat pod:</span>
+                      <input
+                        list="bill-names"
+                        defaultValue={billingMap.find((b) => b.name === nm)?.bill_to ?? ""}
+                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (billingMap.find((b) => b.name === nm)?.bill_to ?? "")) saveBillTo(nm, v); }}
+                        placeholder="(sám za sebe)"
+                        className="flex-1 min-w-[160px] rounded-md border border-gray-200 px-2 py-1 text-sm"
+                      />
+                    </div>
+                  ))}
+                  <datalist id="bill-names">{allBillNames.map((n) => <option key={n} value={n} />)}</datalist>
+                </div>
+              </div>
+            </details>
             </>)}
 
             {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
