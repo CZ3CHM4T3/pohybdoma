@@ -2758,17 +2758,33 @@ export default function AdminPage() {
           const MSHORT = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
           const monthLabel = new Date(invMonth + "-01T00:00:00").toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
 
-          // Barvy zdrojů příjmů
+          // Barvy zdrojů příjmů – každá kategorie jinou barvou
           const CAT_COLOR: Record<string, string> = {
-            "MS GEM": "#4f46e5", "Fitness lekce": "#10b981", "Web (lekce)": "#7c3aed",
-            "Kurz": "#f59e0b", "MEMBER": "#1976FF", "VIP": "#a855f7", "VIP+": "#f59e0b", "Jiné": "#64748b",
+            "Fitness individuály": "#0f766e",
+            "Kruhový trénink": "#6d28d9",
+            "Příprava tenistů": "#b45309",
+            "Tenis s EMESKOU (MŠ)": "#be185d",
+            "Kroužek": "#4d7c0f",
+            "MS GEM": "#c2410c",
+            "Kurz": "#f59e0b",
+            "MEMBER": "#1976ff",
+            "VIP": "#a855f7",
+            "VIP+": "#ea580c",
+            "Jiné": "#64748b",
           };
-          const catColor = (c: string) => CAT_COLOR[c] ?? "#0ea5e9";
+          const FALLBACK_COLORS = ["#0ea5e9", "#14b8a6", "#f43f5e", "#8b5cf6", "#22c55e", "#eab308", "#f97316", "#06b6d4", "#db2777"];
+          let fbIdx = 0;
+          const catColorCache: Record<string, string> = {};
+          const catColor = (c: string) => {
+            if (CAT_COLOR[c]) return CAT_COLOR[c];
+            if (!catColorCache[c]) catColorCache[c] = FALLBACK_COLORS[(fbIdx++) % FALLBACK_COLORS.length];
+            return catColorCache[c];
+          };
 
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
           const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
           const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
-          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : "Lekce", l.amount); });
+          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : "Fitness individuály", l.amount); });
           finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, e.category, Number(e.amount_kc)));
           const yearByCat: Record<string, number> = {};
           monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
@@ -2900,8 +2916,9 @@ export default function AdminPage() {
 
             {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
             {finView === "mesic" && (<>
-            {/* Příjmy odjinud (MS GEM, fitness lekce) */}
-            <h3 className="text-sm font-semibold text-brand-dark mb-2 mt-6">Příjmy odjinud (MS GEM, fitness lekce…)</h3>
+            {/* Příjmy odjinud (ruční – MS GEM apod.) */}
+            <h3 className="text-sm font-semibold text-brand-dark mb-1 mt-6">Příjmy odjinud (ruční)</h3>
+            <p className="text-xs text-gray-500 mb-2">Sem zapisuješ jen příjmy, co appka nepočítá sama – hlavně <strong>MS GEM</strong> (skupinovky Po/St/Pá + školka St, fakturuješ zvlášť), kurzy, jiné. <span className="text-gray-400">Fitness individuály, Kruhový trénink a PPT se počítají automaticky z rozvrhu – ty sem nepiš.</span></p>
             {monthFin.length > 0 && (
               <div className="space-y-1.5 mb-3">
                 {monthFin.map((e) => (
@@ -2920,7 +2937,7 @@ export default function AdminPage() {
               <div>
                 <label className="block text-[11px] text-gray-400 mb-0.5">Odkud</label>
                 <select value={extCat} onChange={(e) => setExtCat(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
-                  {["MS GEM", "Fitness lekce", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  {["MS GEM", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="w-28">
