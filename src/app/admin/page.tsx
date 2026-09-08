@@ -169,7 +169,7 @@ type RecurringRow = {
   active: boolean;
 };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
-type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean };
+type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean; price_kc: number | null };
 // Barvy typů lekcí/bloků v rozvrhu (hex kvůli inline stylu na časové ose)
 const CAT_COLORS: Record<string, string> = {
   fitness: "#0f766e",   // klientská lekce – tyrkysová
@@ -239,13 +239,15 @@ export default function AdminPage() {
   const [blkEnd, setBlkEnd] = useState("18:00");
   const [blkLabel, setBlkLabel] = useState("");
   const [blkCategory, setBlkCategory] = useState("msgem");
-  // Úprava bloku (den/čas/název/typ)
+  const [blkPrice, setBlkPrice] = useState("");
+  // Úprava bloku (den/čas/název/typ/cena)
   const [editBlockId, setEditBlockId] = useState<string | null>(null);
   const [ebWeekday, setEbWeekday] = useState("1");
   const [ebStart, setEbStart] = useState("14:00");
   const [ebEnd, setEbEnd] = useState("18:00");
   const [ebLabel, setEbLabel] = useState("");
   const [ebCategory, setEbCategory] = useState("msgem");
+  const [ebPrice, setEbPrice] = useState("");
   // Skupinové lekce: soupiska lidí + docházka
   const [blockMembers, setBlockMembers] = useState<{ id: string; block_id: string; name: string }[]>([]);
   const [blockAttendance, setBlockAttendance] = useState<{ block_id: string; date: string; name: string }[]>([]);
@@ -852,9 +854,10 @@ export default function AdminPage() {
       end_time: blkEnd,
       label: blkLabel.trim(),
       category: blkCategory,
+      price_kc: blkPrice.trim() === "" ? null : Number(blkPrice),
     });
     if (error) { setError("Uložení bloku selhalo (spustil jsi recurring_blocks.sql?): " + error.message); return; }
-    setBlkLabel("");
+    setBlkLabel(""); setBlkPrice("");
     const { data } = await supabase.from("recurring_blocks").select("*").order("weekday").order("start_time");
     if (data) setBlocks(data as BlockRow[]);
   }
@@ -869,6 +872,7 @@ export default function AdminPage() {
     setError(null);
     const { error } = await supabase.from("recurring_blocks").update({
       weekday: Number(ebWeekday), start_time: ebStart, end_time: ebEnd, label: ebLabel.trim(), category: ebCategory,
+      price_kc: ebPrice.trim() === "" ? null : Number(ebPrice),
     }).eq("id", id);
     if (error) { setError("Úprava bloku selhala: " + error.message); return; }
     setEditBlockId(null);
@@ -1941,7 +1945,7 @@ export default function AdminPage() {
         {klientTab === "skupiny" && (
         <section className="card p-6 mb-8">
           <p className="text-sm text-gray-500 mb-5">
-            Skupinové/pravidelné bloky (MS GEM, kroužky, kruhák, příprava tenistů…). Zablokují termín v rozvrhu (nikdo si tam nezarezervuje) a ukážou se <span className="font-semibold text-slate-600">barevně jako blok</span>. Peníze si zapisuješ ve Faktury → Příjmy odjinud. U každé skupiny si vyplň <strong>soupisku lidí</strong> (nemusí být členové webu) – <strong>docházku</strong> pak zapisuješ klikem na lekci v Rozvrhu a vidíš ji v Docházka → Po lekcích. <span className="text-gray-400">(Spusť recurring_blocks.sql a group_attendance.sql.)</span>
+            Skupinové/pravidelné bloky (MS GEM, kroužky, kruhák, příprava tenistů…). Zablokují termín v rozvrhu (nikdo si tam nezarezervuje) a ukážou se <span className="font-semibold text-slate-600">barevně jako blok</span>. Vyplň <strong>Cena/lekci</strong> a každý výskyt bloku se <strong>počítá do Faktur po měsících</strong> (bez ceny se nepočítá – např. MS GEM, který fakturuješ zvlášť). U každé skupiny si vyplň <strong>soupisku lidí</strong> (nemusí být členové webu) – <strong>docházku</strong> pak zapisuješ klikem na lekci v Rozvrhu a vidíš ji v Docházka → Po lekcích. <span className="text-gray-400">(Spusť recurring_blocks.sql, group_attendance.sql a block_price.sql.)</span>
           </p>
 
           {blocks.length > 0 && (
@@ -1956,7 +1960,7 @@ export default function AdminPage() {
                     <span className="font-semibold text-brand-dark truncate">{b.label}</span>
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{CAT_LABELS[b.category] || "Jiné"}</span>
                     <span className="ml-auto flex shrink-0 items-center gap-3">
-                      <button type="button" onClick={() => { setEditBlockId(editBlockId === b.id ? null : b.id); setEbWeekday(String(b.weekday)); setEbStart(b.start_time); setEbEnd(b.end_time); setEbLabel(b.label); setEbCategory(b.category); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">{editBlockId === b.id ? "Zavřít" : "Upravit"}</button>
+                      <button type="button" onClick={() => { setEditBlockId(editBlockId === b.id ? null : b.id); setEbWeekday(String(b.weekday)); setEbStart(b.start_time); setEbEnd(b.end_time); setEbLabel(b.label); setEbCategory(b.category); setEbPrice(b.price_kc != null ? String(b.price_kc) : ""); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">{editBlockId === b.id ? "Zavřít" : "Upravit"}</button>
                       <button type="button" onClick={() => deleteBlock(b.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">Smazat blok</button>
                     </span>
                   </div>
@@ -1990,6 +1994,10 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-[140px]">
                         <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
                         <input value={ebLabel} onChange={(e) => setEbLabel(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <div className="w-24">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Cena/lekci</label>
+                        <input type="number" value={ebPrice} onChange={(e) => setEbPrice(e.target.value)} placeholder="Kč" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
                       </div>
                       <button type="button" onClick={() => updateBlock(b.id)} disabled={!ebLabel.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Uložit</button>
                     </div>
@@ -2055,6 +2063,10 @@ export default function AdminPage() {
             <div className="flex-1 min-w-[160px]">
               <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
               <input value={blkLabel} onChange={(e) => setBlkLabel(e.target.value)} placeholder="MS GEM – tenisová akademie" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+            </div>
+            <div className="w-24">
+              <label className="block text-[11px] text-gray-500 mb-0.5">Cena/lekci</label>
+              <input type="number" value={blkPrice} onChange={(e) => setBlkPrice(e.target.value)} placeholder="Kč" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
             </div>
             <button type="button" onClick={addBlock} disabled={!blkLabel.trim()} className="rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
               Přidat blok
@@ -2622,7 +2634,7 @@ export default function AdminPage() {
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
-          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" };
+          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" };
           // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           const recLines: Line[] = [];
@@ -2644,12 +2656,32 @@ export default function AdminPage() {
               }
             }
           }
+          // Skupinové bloky s cenou (kruháč, PPT…) – každý proběhlý výskyt od 1.9., mimo zrušené
+          const blockLines: Line[] = [];
+          {
+            const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+            const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
+            for (const b of blocks) {
+              if (!b.active || !b.price_kc) continue;
+              const d = new Date(start0);
+              while (d <= today0) {
+                if (d.getDay() === b.weekday) {
+                  const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                  if (dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) {
+                    blockLines.push({ date: dk, time: b.start_time, client: b.label, what: CAT_LABELS[b.category] || "Skupinová lekce", amount: b.price_kc, kind: "blok" });
+                  }
+                }
+                d.setDate(d.getDate() + 1);
+              }
+            }
+          }
           const lessonLines: Line[] = [
             // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
             ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
               .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const })),
             ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const })),
             ...recLines,
+            ...blockLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
           // Fakturační skupiny (rodiny): klienti se stejným bill_group se sečtou do jedné faktury
@@ -2692,7 +2724,7 @@ export default function AdminPage() {
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
           const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
           const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
-          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, "Web (lekce)", l.amount); });
+          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what || "Skupinové lekce") : "Lekce", l.amount); });
           finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, e.category, Number(e.amount_kc)));
           const yearByCat: Record<string, number> = {};
           monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
