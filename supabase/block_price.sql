@@ -6,3 +6,6 @@
 -- ════════════════════════════════════════════════════════════════════════════
 
 alter table public.recurring_blocks add column if not exists price_kc integer;
+-- Způsob účtování: 'per_lesson' = platí se za každou odchozenou lekci (PPT),
+--                  'monthly'    = kdo přišel aspoň 1× za měsíc, platí celý měsíc (kruháč).
+alter table public.recurring_blocks add column if not exists bill_mode text;
