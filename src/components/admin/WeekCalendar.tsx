@@ -63,6 +63,8 @@ export function WeekCalendar({
   onAddEvent,
   onDeleteEvent,
   onRestoreOccurrence,
+  paidRefs,
+  onTogglePaid,
 }: {
   bookings: BookingLite[];
   lessons: LessonRow[];
@@ -90,6 +92,8 @@ export function WeekCalendar({
   onAddEvent?: (date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
   onRestoreOccurrence?: (recId: string, date: string) => Promise<void>;
+  paidRefs?: Set<string>;
+  onTogglePaid?: (ref: string, paid: boolean) => Promise<void>;
 }) {
   const attSet = useMemo(() => new Set(blockAttendance.map((a) => `${a.block_id}|${a.date}|${a.name}`)), [blockAttendance]);
   const noteMap = useMemo(() => {
@@ -297,7 +301,7 @@ export function WeekCalendar({
                     className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${isCx ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
                     style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: isCx ? "#f3f4f6" : it.color }}
                   >
-                    <span className="block opacity-90">{isCx ? "zrušeno" : it.time}</span>
+                    <span className="block opacity-90">{isCx ? "zrušeno" : it.time}{!isCx && paidRefs?.has(it.id) ? " ✓" : ""}</span>
                     <span className={`block truncate ${isCx ? "line-through" : ""}`}>{it.name}</span>
                     {it.note && !isCx && (
                       <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
@@ -371,6 +375,16 @@ export function WeekCalendar({
               </span>
               <button type="button" onClick={closePop} className="text-gray-300 hover:text-gray-600">✕</button>
             </div>
+
+            {pop.item && onTogglePaid && !pop.item.cancelled && (pop.item.kind === "fitness" || pop.item.kind === "rezervace") && (() => {
+              const paid = !!paidRefs?.has(pop.item!.id);
+              return (
+                <button type="button" onClick={() => onTogglePaid(pop.item!.id, !paid)} className={`mb-2 flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left font-semibold ${paid ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded border ${paid ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300"}`}>{paid ? "✓" : ""}</span>
+                  {paid ? "Zaplaceno" : "Označit jako zaplaceno"}
+                </button>
+              );
+            })()}
 
             {pop.item && onSaveNote && !pop.item.cancelled && (pop.item.kind === "fitness" || pop.item.kind === "block" || pop.item.kind === "rezervace") && (
               <div className="mb-2 rounded-md border border-amber-200 bg-amber-50/60 p-2">

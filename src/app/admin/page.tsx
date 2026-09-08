@@ -218,6 +218,7 @@ export default function AdminPage() {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [lessonNotes, setLessonNotes] = useState<{ date: string; time: string; note: string }[]>([]);
   const [billingMap, setBillingMap] = useState<{ name: string; bill_to: string }[]>([]);
+  const [paidRefs, setPaidRefs] = useState<Set<string>>(new Set());
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -455,6 +456,9 @@ export default function AdminPage() {
     });
     supabase.from("billing_map").select("name, bill_to").then(({ data }) => {
       if (data) setBillingMap(data as { name: string; bill_to: string }[]);
+    });
+    supabase.from("lesson_payments").select("ref").then(({ data }) => {
+      if (data) setPaidRefs(new Set((data as { ref: string }[]).map((r) => r.ref)));
     });
     // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
     supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
@@ -763,6 +767,19 @@ export default function AdminPage() {
     if (error) { setError("Úprava lekce selhala: " + error.message); return; }
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
     if (data) setRecurring(data as RecurringRow[]);
+  }
+  // Zaplaceno – přepnutí úhrady u konkrétní položky (ref)
+  async function togglePaid(ref: string, paid: boolean) {
+    setError(null);
+    if (paid) {
+      const { error } = await supabase.from("lesson_payments").upsert({ ref }, { onConflict: "ref" });
+      if (error) { setError("Uložení úhrady selhalo (spustil jsi lesson_payments.sql?): " + error.message); return; }
+      setPaidRefs((prev) => new Set(prev).add(ref));
+    } else {
+      const { error } = await supabase.from("lesson_payments").delete().eq("ref", ref);
+      if (error) { setError("Uložení úhrady selhalo: " + error.message); return; }
+      setPaidRefs((prev) => { const n = new Set(prev); n.delete(ref); return n; });
+    }
   }
   // Fakturační rodina: jméno → fakturovat pod (prázdné = sám za sebe)
   async function saveBillTo(name: string, billTo: string) {
@@ -1804,6 +1821,8 @@ export default function AdminPage() {
             clientNames={clientNameOptions}
             onSaveNote={saveLessonNote}
             onToggleAttendance={toggleAttendance}
+            paidRefs={paidRefs}
+            onTogglePaid={togglePaid}
             onAddEvent={addEventFromCalendar}
             onDeleteEvent={deleteEvent}
             onAddLesson={addLesson}
@@ -2670,7 +2689,7 @@ export default function AdminPage() {
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
-          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" };
+          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok"; ref: string };
           // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           const recLines: Line[] = [];
@@ -2685,7 +2704,7 @@ export default function AdminPage() {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                   // Pravidelné lekce počítáme do faktur až od září 2026 (dřív se netrénovalo).
                   if (dk >= "2026-09-01" && !cancelSet.has(`${r.id}|${dk}`)) {
-                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0, kind: "staly" });
+                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0, kind: "staly", ref: `rec:${r.id}:${dk}` });
                   }
                 }
                 d.setDate(d.getDate() + 1);
@@ -2717,7 +2736,7 @@ export default function AdminPage() {
                   }
                   const people = new Set(att.filter((a) => a.date.slice(0, 7) === mk).map((a) => a.name));
                   for (const person of people) {
-                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (celý měsíc, ${occ}×)`, amount: occ * (b.price_kc as number), kind: "blok" });
+                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (celý měsíc, ${occ}×)`, amount: occ * (b.price_kc as number), kind: "blok", ref: `blk:${b.id}:${mk}:${person}` });
                   }
                 }
               } else {
@@ -2729,7 +2748,7 @@ export default function AdminPage() {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                   if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) {
                     for (const person of roster) {
-                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: b.price_kc as number, kind: "blok" });
+                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: b.price_kc as number, kind: "blok", ref: `blk:${b.id}:${dk}:${person}` });
                     }
                   }
                   d.setDate(d.getDate() + 1);
@@ -2740,8 +2759,8 @@ export default function AdminPage() {
           const lessonLines: Line[] = [
             // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
             ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
-              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const })),
-            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const })),
+              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const, ref: b.id })),
+            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const, ref: l.id })),
             ...recLines,
             ...blockLines,
           ];
@@ -2907,11 +2926,18 @@ export default function AdminPage() {
               <div className="space-y-4 mb-6">
                 {invGroups.map(([client, lines], ci) => {
                   const sub = lines.reduce((s, x) => s + x.amount, 0);
+                  const subPaid = lines.filter((l) => paidRefs.has(l.ref)).reduce((s, x) => s + x.amount, 0);
+                  const allPaid = sub > 0 && subPaid >= sub;
                   return (
                     <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">
                       <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2">
                         <span className="font-semibold text-brand-dark">{client}</span>
                         <div className="flex items-center gap-3">
+                          {allPaid ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">ZAPLACENO</span>
+                          ) : subPaid > 0 ? (
+                            <span className="text-[11px] text-gray-400">zapl. {subPaid.toLocaleString("cs-CZ")} / {sub.toLocaleString("cs-CZ")}</span>
+                          ) : null}
                           <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
                           <button
                             type="button"
@@ -2923,18 +2949,22 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div className="divide-y divide-gray-50">
-                        {lines.map((ln, i) => (
-                          <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                        {lines.map((ln, i) => {
+                          const isPaid = paidRefs.has(ln.ref);
+                          return (
+                          <div key={i} onClick={() => togglePaid(ln.ref, !isPaid)} title="Klikni = zaplaceno / nezaplaceno" className={`flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 ${isPaid ? "opacity-60" : ""}`}>
+                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isPaid ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300"}`}>{isPaid ? "✓" : ""}</span>
                             <span
-                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : "bg-brand-blue"}`}
-                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : "rezervace z webu"}
+                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : ln.kind === "blok" ? "bg-orange-500" : "bg-brand-blue"}`}
+                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : ln.kind === "blok" ? "skupinová lekce" : "rezervace z webu"}
                             />
                             <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(ln.date)}</span>
                             <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
-                            <span className="text-gray-600 truncate flex-1">{ln.what}</span>
+                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}</span>
                             <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
