@@ -2006,7 +2006,7 @@ export default function AdminPage() {
                       <div>
                         <label className="block text-[11px] text-gray-500 mb-0.5">Účtování</label>
                         <select value={ebMode} onChange={(e) => setEbMode(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
-                          <option value="per_lesson">za každou lekci (PPT)</option>
+                          <option value="per_lesson">za každou lekci · celá soupiska (PPT)</option>
                           <option value="monthly">měsíčně, kdo přišel 1× (kruháč)</option>
                         </select>
                       </div>
@@ -2082,7 +2082,7 @@ export default function AdminPage() {
             <div>
               <label className="block text-[11px] text-gray-500 mb-0.5">Účtování</label>
               <select value={blkMode} onChange={(e) => setBlkMode(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm">
-                <option value="per_lesson">za každou lekci (PPT)</option>
+                <option value="per_lesson">za každou lekci · celá soupiska (PPT)</option>
                 <option value="monthly">měsíčně, kdo přišel 1× (kruháč)</option>
               </select>
             </div>
@@ -2674,33 +2674,48 @@ export default function AdminPage() {
               }
             }
           }
-          // Skupinové bloky s cenou (kruháč, PPT…) – rozpočítané na KONKRÉTNÍ LIDI podle docházky.
-          //  • per_lesson (PPT): každá odchozená lekce daného člověka × cena
-          //  • monthly (kruháč): kdo byl aspoň 1× v měsíci, platí celý měsíc (počet výskytů × cena)
+          // Skupinové bloky s cenou (kruháč, PPT…) – rozpočítané na KONKRÉTNÍ LIDI.
+          //  • per_lesson (PPT): každý ze soupisky platí KAŽDOU (nezrušenou) lekci, ať přišel nebo ne
+          //  • monthly (kruháč): kdo byl aspoň 1× v měsíci (dle docházky), platí celý měsíc (počet výskytů × cena)
           const blockLines: Line[] = [];
-          for (const b of blocks) {
-            if (!b.active || !b.price_kc) continue;
-            const catLabel = CAT_LABELS[b.category] || b.label;
-            const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");
-            if (b.bill_mode === "monthly") {
-              const months = new Set(att.map((a) => a.date.slice(0, 7)));
-              for (const mk of months) {
-                const [yy, mm] = mk.split("-").map(Number);
-                let occ = 0;
-                const d = new Date(yy, mm - 1, 1); const end = new Date(yy, mm, 0);
-                while (d <= end) {
+          {
+            const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+            const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
+            for (const b of blocks) {
+              if (!b.active || !b.price_kc) continue;
+              const catLabel = CAT_LABELS[b.category] || b.label;
+              if (b.bill_mode === "monthly") {
+                // kruháč: platí, kdo se v daném měsíci objevil v docházce aspoň 1×
+                const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");
+                const months = new Set(att.map((a) => a.date.slice(0, 7)));
+                for (const mk of months) {
+                  const [yy, mm] = mk.split("-").map(Number);
+                  let occ = 0;
+                  const d = new Date(yy, mm - 1, 1); const end = new Date(yy, mm, 0);
+                  while (d <= end) {
+                    const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                    if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) occ++;
+                    d.setDate(d.getDate() + 1);
+                  }
+                  const people = new Set(att.filter((a) => a.date.slice(0, 7) === mk).map((a) => a.name));
+                  for (const person of people) {
+                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (celý měsíc, ${occ}×)`, amount: occ * (b.price_kc as number), kind: "blok" });
+                  }
+                }
+              } else {
+                // PPT: každý ze soupisky platí každou proběhlou (nezrušenou) lekci
+                const roster = blockMembers.filter((m) => m.block_id === b.id).map((m) => m.name);
+                if (roster.length === 0) continue;
+                const d = new Date(start0);
+                while (d <= today0) {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                  if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) occ++;
+                  if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) {
+                    for (const person of roster) {
+                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: b.price_kc as number, kind: "blok" });
+                    }
+                  }
                   d.setDate(d.getDate() + 1);
                 }
-                const people = new Set(att.filter((a) => a.date.slice(0, 7) === mk).map((a) => a.name));
-                for (const person of people) {
-                  blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (celý měsíc, ${occ}×)`, amount: occ * (b.price_kc as number), kind: "blok" });
-                }
-              }
-            } else {
-              for (const a of att) {
-                blockLines.push({ date: a.date, time: b.start_time, client: a.name, what: catLabel, amount: b.price_kc as number, kind: "blok" });
               }
             }
           }
