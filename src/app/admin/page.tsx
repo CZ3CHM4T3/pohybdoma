@@ -322,6 +322,13 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [tab, setTab] = useState<string>("dnes");
+  // Po refreshi zůstaň na stejné záložce (uloženo v prohlížeči)
+  useEffect(() => {
+    try { const t = localStorage.getItem("pd_admin_tab"); if (t) setTab(t); } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem("pd_admin_tab", tab); } catch { /* ignore */ }
+  }, [tab]);
 
   // Produkty (editace dlaždic na /produkty)
   const [products, setProducts] = useState<ProductRow[]>([]);
