@@ -2778,7 +2778,9 @@ export default function AdminPage() {
           }
           const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
-          // Všechna jména, která můžou přijít na fakturu (pro nastavení rodin)
+          // Všechna jména, která můžou přijít na fakturu (pro nastavení rodin):
+          //  klienti, stálí, jednorázoví, děti/účastníci ze soupisek a docházky bloků,
+          //  rezervace + jména už použitá ve fakturačních rodinách (i vytvoření rodiče).
           const allBillNames = Array.from(new Set([
             ...clients.map((c) => c.name),
             ...recurring.map((r) => r.client_name),
@@ -2786,6 +2788,8 @@ export default function AdminPage() {
             ...blockMembers.map((m) => m.name),
             ...blockAttendance.map((a) => a.name),
             ...bookings.map((b) => b.contact_name),
+            ...billingMap.map((b) => b.name),
+            ...billingMap.map((b) => b.bill_to),
           ].filter((n): n is string => !!n && n.trim().length > 0))).sort((a, b) => a.localeCompare(b, "cs"));
 
           // Příjmy odjinud (ručně – fitko apod.) pro vybraný měsíc
@@ -2976,7 +2980,7 @@ export default function AdminPage() {
             <details className="mb-6 rounded-xl border border-gray-100">
               <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-brand-dark">👪 Fakturační rodiny <span className="font-normal text-gray-400">· sloučit pod jednoho plátce</span></summary>
               <div className="border-t border-gray-100 p-4">
-                <p className="text-xs text-gray-500 mb-3">U koho chceš platby sloučit, napiš <strong>„fakturovat pod"</strong> jméno plátce (např. u dětí na PPT i u kruháče napiš „Karolína Nováková"). Nech prázdné = platí sám za sebe. Platí napříč všemi měsíci.</p>
+                <p className="text-xs text-gray-500 mb-3">U koho chceš platby sloučit, napiš do „fakturovat pod" <strong>jméno plátce</strong>. Klidně <strong>úplně nové jméno rodiče, který u tebe necvičí</strong> (např. „Novákovi – rodič") – stačí ho napsat, nemusí být klient. U sourozenců napiš stejné jméno. Nech prázdné = platí sám za sebe. Platí napříč měsíci. <span className="text-gray-400">Pozn.: dítě z PPT se tu objeví, jen když je v <strong>soupisce</strong> té skupiny (Stálí klienti → Skupinové lekce → soupiska).</span></p>
                 <div className="space-y-1.5 max-h-80 overflow-y-auto">
                   {allBillNames.map((nm) => (
                     <div key={nm} className="flex flex-wrap items-center gap-2 text-sm">
