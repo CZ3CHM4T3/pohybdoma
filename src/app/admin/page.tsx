@@ -219,6 +219,11 @@ export default function AdminPage() {
   const [lessonNotes, setLessonNotes] = useState<{ date: string; time: string; note: string }[]>([]);
   const [billingMap, setBillingMap] = useState<{ name: string; bill_to: string }[]>([]);
   const [paidRefs, setPaidRefs] = useState<Set<string>>(new Set());
+  const [extras, setExtras] = useState<{ id: string; month: string; client: string; label: string; amount_kc: number }[]>([]);
+  // Formulář na mimořádnou položku
+  const [exClient, setExClient] = useState("");
+  const [exLabel, setExLabel] = useState("");
+  const [exAmount, setExAmount] = useState("");
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -466,6 +471,9 @@ export default function AdminPage() {
     });
     supabase.from("lesson_payments").select("ref").then(({ data }) => {
       if (data) setPaidRefs(new Set((data as { ref: string }[]).map((r) => r.ref)));
+    });
+    supabase.from("invoice_extras").select("id, month, client, label, amount_kc").then(({ data }) => {
+      if (data) setExtras(data as { id: string; month: string; client: string; label: string; amount_kc: number }[]);
     });
     // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
     supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
@@ -787,6 +795,23 @@ export default function AdminPage() {
       if (error) { setError("Uložení úhrady selhalo: " + error.message); return; }
       setPaidRefs((prev) => { const n = new Set(prev); n.delete(ref); return n; });
     }
+  }
+  // Mimořádná položka na faktuře (extra k člověku a měsíci)
+  async function addExtra(month: string) {
+    const client = exClient.trim(), label = exLabel.trim();
+    if (!client || !label) { setError("Vyplň komu a název položky."); return; }
+    const amt = exAmount.trim() === "" ? 0 : Number(exAmount);
+    setError(null);
+    const { data, error } = await supabase.from("invoice_extras").insert({ month, client, label, amount_kc: Number.isFinite(amt) ? amt : 0 }).select("id, month, client, label, amount_kc").single();
+    if (error) { setError("Přidání položky selhalo (spustil jsi invoice_extras.sql?): " + error.message); return; }
+    if (data) setExtras((prev) => [...prev, data as { id: string; month: string; client: string; label: string; amount_kc: number }]);
+    setExLabel(""); setExAmount("");
+  }
+  async function delExtra(id: string) {
+    setError(null);
+    const { error } = await supabase.from("invoice_extras").delete().eq("id", id);
+    if (error) { setError("Smazání položky selhalo: " + error.message); return; }
+    setExtras((prev) => prev.filter((e) => e.id !== id));
   }
   // Fakturační rodina: jméno → fakturovat pod (prázdné = sám za sebe)
   async function saveBillTo(name: string, billTo: string) {
@@ -2699,7 +2724,9 @@ export default function AdminPage() {
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
-          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok"; ref: string };
+          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" | "extra"; ref: string };
+          // Mimořádné položky (extra k člověku a měsíci)
+          const extraLines: Line[] = extras.map((e) => ({ date: `${e.month}-01`, time: "", client: e.client, what: e.label, amount: e.amount_kc, kind: "extra" as const, ref: `extra:${e.id}` }));
           // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           const recLines: Line[] = [];
@@ -2773,6 +2800,7 @@ export default function AdminPage() {
             ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const, ref: l.id })),
             ...recLines,
             ...blockLines,
+            ...extraLines,
           ];
           const monthLines = lessonLines.filter((x) => x.date.slice(0, 7) === invMonth).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
           // Fakturační rodiny: „fakturovat pod" (billing_map) má přednost, pak bill_group z kartotéky.
@@ -2800,6 +2828,7 @@ export default function AdminPage() {
             ...bookings.map((b) => b.contact_name),
             ...billingMap.map((b) => b.name),
             ...billingMap.map((b) => b.bill_to),
+            ...extras.map((e) => e.client),
           ].filter((n): n is string => !!n && n.trim().length > 0))).sort((a, b) => a.localeCompare(b, "cs"));
 
           // Příjmy odjinud (ručně – fitko apod.) pro vybraný měsíc
@@ -2832,6 +2861,7 @@ export default function AdminPage() {
             "MEMBER": "#1976ff",
             "VIP": "#a855f7",
             "VIP+": "#ea580c",
+            "Extra / mimořádné": "#0891b2",
             "Jiné": "#64748b",
           };
           const FALLBACK_COLORS = ["#0ea5e9", "#14b8a6", "#f43f5e", "#8b5cf6", "#22c55e", "#eab308", "#f97316", "#06b6d4", "#db2777"];
@@ -2846,7 +2876,7 @@ export default function AdminPage() {
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
           const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
           const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
-          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : "Fitness individuály", l.amount); });
+          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : l.kind === "extra" ? "Extra / mimořádné" : "Fitness individuály", l.amount); });
           finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, e.category, Number(e.amount_kc)));
           const yearByCat: Record<string, number> = {};
           monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
@@ -2969,13 +2999,16 @@ export default function AdminPage() {
                           <div key={i} onClick={() => togglePaid(ln.ref, !isPaid)} title="Klikni = zaplaceno / nezaplaceno" className={`flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 ${isPaid ? "opacity-60" : ""}`}>
                             <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isPaid ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300"}`}>{isPaid ? "✓" : ""}</span>
                             <span
-                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : ln.kind === "blok" ? "bg-orange-500" : "bg-brand-blue"}`}
-                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : ln.kind === "blok" ? "skupinová lekce" : "rezervace z webu"}
+                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : ln.kind === "blok" ? "bg-orange-500" : ln.kind === "extra" ? "bg-cyan-500" : "bg-brand-blue"}`}
+                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : ln.kind === "blok" ? "skupinová lekce" : ln.kind === "extra" ? "mimořádná položka" : "rezervace z webu"}
                             />
-                            <span className="capitalize text-gray-600 w-40 shrink-0">{fmtDateCs(ln.date)}</span>
+                            <span className="capitalize text-gray-600 w-40 shrink-0">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
                             <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
-                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}</span>
+                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}{ln.kind === "extra" ? " · extra" : ""}</span>
                             <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                            {ln.kind === "extra" && (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); delExtra(ln.ref.replace(/^extra:/, "")); }} title="Smazat položku" className="shrink-0 text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                            )}
                           </div>
                           );
                         })}
@@ -2985,6 +3018,27 @@ export default function AdminPage() {
                 })}
               </div>
             )}
+
+            {/* Přidat mimořádnou položku k člověku (i novému) */}
+            <div className="mb-6 rounded-xl border border-gray-100 p-4">
+              <p className="text-sm font-semibold text-brand-dark mb-1">+ Přidat mimořádnou položku</p>
+              <p className="text-xs text-gray-500 mb-3">Hodina/služba mimo kalendář, nebo člověk jen tento měsíc. Přičte se k jeho vyúčtování za <strong>{monthLabel}</strong>. Napiš i úplně nové jméno.</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-[11px] text-gray-500 mb-0.5">Komu</label>
+                  <input list="bill-names" value={exClient} onChange={(e) => setExClient(e.target.value)} placeholder="jméno (i nové)" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="block text-[11px] text-gray-500 mb-0.5">Název</label>
+                  <input value={exLabel} onChange={(e) => setExLabel(e.target.value)} placeholder="např. masáž, extra hodina" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                </div>
+                <div className="w-24">
+                  <label className="block text-[11px] text-gray-500 mb-0.5">Částka Kč</label>
+                  <input type="number" value={exAmount} onChange={(e) => setExAmount(e.target.value)} placeholder="Kč" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                </div>
+                <button type="button" onClick={() => addExtra(invMonth)} disabled={!exClient.trim() || !exLabel.trim()} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Přidat</button>
+              </div>
+            </div>
 
             {/* Fakturační rodiny – sloučit pod jednoho plátce */}
             <details className="mb-6 rounded-xl border border-gray-100">
