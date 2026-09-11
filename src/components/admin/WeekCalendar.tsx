@@ -524,7 +524,7 @@ export function WeekCalendar({
                   {addReplacementBtn}
                   {onToggleAttendance && (
                     <div className="rounded-md border border-gray-200 p-2">
-                      <p className="mb-1 text-[11px] font-semibold text-brand-dark">Docházka – kdo je tu?</p>
+                      <p className="mb-1 text-[11px] font-semibold text-brand-dark">Docházka <span className="capitalize text-brand-blue">{new Date(bdate + "T00:00:00").toLocaleDateString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric" })}</span> – kdo je tu?</p>
                       {roster.length === 0 ? (
                         <p className="text-[11px] text-gray-400">Nikdo v soupisce. Přidej lidi ve Stálí klienti → Skupinové lekce.</p>
                       ) : (

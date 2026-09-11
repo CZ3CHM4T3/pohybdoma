@@ -945,8 +945,11 @@ export default function AdminPage() {
   // Přepnutí docházky (přítomen/nepřítomen) pro daný den skupiny
   async function toggleAttendance(blockId: string, date: string, name: string, present: boolean) {
     setError(null);
+    // Pojistka: bez platného data (YYYY-MM-DD) nikdy nezapisuj – ať se nepřepíše jiný den.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { setError("Docházku nešlo uložit: chybí datum lekce."); return; }
     if (present) {
-      const { error } = await supabase.from("block_attendance").upsert({ block_id: blockId, date, name }, { onConflict: "block_id,date,name" });
+      // ignoreDuplicates = jen VLOŽ, nikdy neUPDATuj jiný řádek (žádné přepsání jiného dne)
+      const { error } = await supabase.from("block_attendance").upsert({ block_id: blockId, date, name }, { onConflict: "block_id,date,name", ignoreDuplicates: true });
       if (error) { setError("Uložení docházky selhalo (spustil jsi group_attendance.sql?): " + error.message); return; }
       setBlockAttendance((prev) => prev.some((a) => a.block_id === blockId && a.date === date && a.name === name) ? prev : [...prev, { block_id: blockId, date, name }]);
     } else {
