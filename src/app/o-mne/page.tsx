@@ -128,10 +128,9 @@ export default function AboutPage() {
               ne proti němu – a každý rok se cítím líp.
             </p>
             <p>
-              Jsem licencovaný fitness trenér a sportovní masér. Propojuji
-              biomechaniku, funkční trénink, práci s fasciemi, regeneraci
-              i každodenní pohyb a neřeším jen symptomy, ale především jejich
-              příčinu. Klienta vnímám jako propojený celek.
+              Propojuji biomechaniku, funkční trénink, práci s fasciemi,
+              regeneraci i každodenní pohyb a neřeším jen symptomy, ale
+              především jejich příčinu. Klienta vnímám jako propojený celek.
             </p>
             <p>
               Jako táta vím, jak těžké je skloubit rodinu s péčí o vlastní zdraví –
