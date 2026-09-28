@@ -117,7 +117,7 @@ export default function AboutPage() {
             />
 
             <p>
-              Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu.
+              Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu, fitness trenér, cvičitel plavání II. třídy a sportovní masér.
               Pohyb a lidské tělo mě fascinují odjakživa – staly se mojí profesí
               i celoživotním studiem.
             </p>
