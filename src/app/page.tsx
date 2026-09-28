@@ -136,10 +136,14 @@ export default async function HomePage() {
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Reveal variant="up">
             <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-8 items-center">
-              {/* Foto (placeholder – doplní se po focení) */}
-              <div className="mx-auto sm:mx-0 flex h-44 w-44 shrink-0 items-center justify-center rounded-2xl bg-brand-light text-brand-blue/50 ring-1 ring-brand-blue/10">
-                <span className="text-xs font-semibold">Foto brzy</span>
-              </div>
+              {/* Foto */}
+              <Image
+                src="/honza-uvod.jpg"
+                alt="Mgr. Jan Schröffel — POHYB DOMA"
+                width={176}
+                height={176}
+                className="mx-auto sm:mx-0 h-44 w-44 shrink-0 rounded-2xl object-cover ring-1 ring-brand-blue/10"
+              />
               <div>
                 <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Kdo tě povede</p>
                 <h2 className="text-2xl lg:text-3xl font-semibold text-brand-dark mb-3">
