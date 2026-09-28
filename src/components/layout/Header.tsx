@@ -10,7 +10,7 @@ import { NotificationBell } from "@/components/layout/NotificationBell";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeTier } from "@/lib/tiers";
-import { isNavReady } from "@/lib/launch";
+import { isNavReady, LAUNCH_MODE } from "@/lib/launch";
 import { useViewAs } from "@/components/ViewAs";
 import type { User } from "@supabase/supabase-js";
 
@@ -79,7 +79,9 @@ export function Header() {
   const effIsClub = previewing ? viewAs === "VIP_PLUS" : isClub;
 
   const MEMBER_PREFIXES = ["/ucet", "/videoknihovna", "/kurzy", "/kruhy", "/denik", "/odznaky", "/chlubirna", "/buddies", "/klub"];
-  const showMemberNav = effSignedIn && MEMBER_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
+  // Členská lišta se schová během launch režimu (členská sekce ještě není hotová;
+  //  živé odkazy Přehled/Rezervace jsou i v horním menu). Až se spustí, vrátí se.
+  const showMemberNav = !LAUNCH_MODE && effSignedIn && MEMBER_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + "/") || pathname === p);
 
   return (
     <>
