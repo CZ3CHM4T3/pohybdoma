@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
@@ -327,6 +328,8 @@ export default function AdminPage() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
   const [tab, setTab] = useState<string>("dnes");
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   // Po refreshi zůstaň na stejné záložce (uloženo v prohlížeči)
   useEffect(() => {
     try { const t = localStorage.getItem("pd_admin_tab"); if (t) setTab(t); } catch { /* ignore */ }
@@ -2909,19 +2912,67 @@ export default function AdminPage() {
               až poběží Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
             </p>
 
-            {/* Subzáložky */}
-            <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
-              {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setFinView(k)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${finView === k ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"}`}
-                >
-                  {l}
+            {/* Subzáložky + tisk měsíce */}
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg bg-gray-100 p-1">
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setFinView(k)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${finView === k ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"}`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+              {finView !== "archiv" && (
+                <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">
+                  🖨 Vytisknout měsíc
                 </button>
-              ))}
+              )}
             </div>
+
+            {/* Tisková verze měsíčního vyúčtování (A4) – na obrazovce skrytá */}
+            {mounted && createPortal(
+              <div className="pd-print pd-print-doc">
+                <div className="pd-doc-head">POHYB DOMA — vyúčtování · <span style={{ textTransform: "capitalize" }}>{monthLabel}</span></div>
+                {invGroups.length === 0 ? (
+                  <p>V tomto měsíci nejsou žádné lekce.</p>
+                ) : (
+                  invGroups.map(([client, lines]) => {
+                    const sub = lines.reduce((s, x) => s + x.amount, 0);
+                    const sorted = [...lines].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+                    return (
+                      <div key={client} className="pd-doc-group">
+                        <div className="pd-doc-ghead"><span>{client}</span><span>{sub.toLocaleString("cs-CZ")} Kč</span></div>
+                        {sorted.map((ln, i) => (
+                          <div key={i} className="pd-doc-line">
+                            <span className="pd-doc-date">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
+                            <span className="pd-doc-what">{ln.what}{paidRefs.has(ln.ref) ? " · zaplaceno" : ""}</span>
+                            <span className="pd-doc-amt">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })
+                )}
+                {monthFin.length > 0 && (
+                  <div className="pd-doc-group">
+                    <div className="pd-doc-ghead"><span>Příjmy odjinud</span><span>{manualTotal.toLocaleString("cs-CZ")} Kč</span></div>
+                    {monthFin.map((e) => (
+                      <div key={e.id} className="pd-doc-line">
+                        <span className="pd-doc-date">{e.category}</span>
+                        <span className="pd-doc-what">{e.note || ""}</span>
+                        <span className="pd-doc-amt">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="pd-doc-total"><span>Celkem za {monthLabel}</span><span>{monthGrand.toLocaleString("cs-CZ")} Kč</span></div>
+              </div>,
+              document.body
+            )}
 
             {/* Výběr měsíce + celkový příjem (Měsíc + Individuály) */}
             {finView !== "archiv" && (

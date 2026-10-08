@@ -351,4 +351,42 @@
     min-width: 0 !important;
     width: 100% !important;
   }
+
+  /* ── Vyúčtování měsíce (A4 na výšku) ── */
+  @page pd-portrait { size: A4 portrait; margin: 12mm; }
+  .pd-print-doc { page: pd-portrait; font-size: 12px; }
+  .pd-doc-head {
+    font-size: 15px;
+    font-weight: 700;
+    color: #062a6b;
+    border-bottom: 2px solid #062a6b;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+  .pd-doc-group { break-inside: avoid; margin-bottom: 10px; }
+  .pd-doc-ghead {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    border-bottom: 1px solid #999;
+    padding: 2px 0;
+  }
+  .pd-doc-line {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    padding: 1px 0;
+  }
+  .pd-doc-date { width: 34mm; flex-shrink: 0; color: #333; }
+  .pd-doc-what { flex: 1; color: #333; }
+  .pd-doc-amt { width: 22mm; flex-shrink: 0; text-align: right; font-weight: 600; }
+  .pd-doc-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    font-weight: 700;
+    border-top: 2px solid #062a6b;
+    margin-top: 10px;
+    padding-top: 6px;
+  }
 }
