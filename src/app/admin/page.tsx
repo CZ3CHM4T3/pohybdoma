@@ -2854,19 +2854,21 @@ export default function AdminPage() {
 
           // Barvy zdrojů příjmů – každá kategorie jinou barvou
           const CAT_COLOR: Record<string, string> = {
-            "Fitness individuály": "#0f766e",
-            "Kruhový trénink": "#6d28d9",
-            "Příprava tenistů": "#b45309",
-            "Tenis s EMESKOU (MŠ)": "#be185d",
-            "Kroužek": "#4d7c0f",
-            "MS GEM": "#c2410c",
-            "Kurz": "#f59e0b",
-            "MEMBER": "#1976ff",
+            "Fitness lekce": "#1976ff",        // fitness individuály + fitness lekce = jedno, modrá
+            "Kruhový trénink": "#6d28d9",      // fialová
+            "Příprava tenistů": "#0d9488",     // teal – odlišné od MS GEM
+            "Tenis s EMESKOU (MŠ)": "#be185d", // růžová
+            "Kroužek": "#65a30d",              // zelená
+            "MS GEM": "#c2410c",               // oranžová
+            "Kurz": "#eab308",                 // zlatá
+            "MEMBER": "#0ea5e9",               // světle modrá (jiná než fitness)
             "VIP": "#a855f7",
             "VIP+": "#ea580c",
             "Extra / mimořádné": "#0891b2",
             "Jiné": "#64748b",
           };
+          // Fitness individuály i ruční „Fitness lekce" se vykazují jako JEDNO
+          const normCat = (c: string) => (c === "Fitness individuály" || c === "Fitness lekce") ? "Fitness lekce" : c;
           const FALLBACK_COLORS = ["#0ea5e9", "#14b8a6", "#f43f5e", "#8b5cf6", "#22c55e", "#eab308", "#f97316", "#06b6d4", "#db2777"];
           let fbIdx = 0;
           const catColorCache: Record<string, string> = {};
@@ -2879,8 +2881,8 @@ export default function AdminPage() {
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
           const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
           const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
-          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : l.kind === "extra" ? "Extra / mimořádné" : "Fitness individuály", l.amount); });
-          finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, e.category, Number(e.amount_kc)));
+          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : l.kind === "extra" ? "Extra / mimořádné" : "Fitness lekce", l.amount); });
+          finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, normCat(e.category), Number(e.amount_kc)));
           const yearByCat: Record<string, number> = {};
           monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
           const orderedCats = Object.keys(yearByCat).sort((a, b) => yearByCat[b] - yearByCat[a]);
