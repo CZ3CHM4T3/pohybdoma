@@ -13,7 +13,7 @@ export const READY_PATHS = ["/rezervace", "/recenze", "/o-mne", "/kontakt"];
 const ALWAYS_PATHS = [
   "/ucet", "/obnova-hesla", "/auth", "/vstup",
   "/gdpr", "/obchodni-podminky", "/zdravotni-upozorneni",
-  "/admin", "/api", "/brzy",
+  "/admin", "/api", "/brzy", "/faktura",
 ];
 
 function hit(list: string[], p: string): boolean {

@@ -14,6 +14,8 @@ import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { INVOICE_SUPPLIER, INVOICE_SETTINGS, invoiceConfigured } from "@/lib/invoice-config";
 import { spdString } from "@/lib/qr-payment";
+import { BUSINESS } from "@/lib/invoice-business";
+import { buildSpayd, qrUrl, fmtCzDate } from "@/lib/invoice";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -170,6 +172,13 @@ type RecurringRow = {
   active: boolean;
 };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
+type InvoiceRow = {
+  id: string; number: number; token: string; payer_name: string; bill_name: string | null;
+  address: string | null; ico: string | null; email: string | null; month: string;
+  issued_on: string; due_on: string; amount: number; vs: string;
+  lines: { date: string; what: string; amount: number }[];
+  status: string; sent_at: string | null; paid_at: string | null;
+};
 type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean; price_kc: number | null; bill_mode: string | null };
 // Barvy typů lekcí/bloků v rozvrhu (hex kvůli inline stylu na časové ose)
 const CAT_COLORS: Record<string, string> = {
@@ -221,6 +230,11 @@ export default function AdminPage() {
   const [billingMap, setBillingMap] = useState<{ name: string; bill_to: string }[]>([]);
   const [paidRefs, setPaidRefs] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<{ id: string; month: string; client: string; label: string; amount_kc: number }[]>([]);
+  // Fakturace: údaje plátců + vystavené faktury
+  const [billProfiles, setBillProfiles] = useState<{ name: string; bill_name: string | null; address: string | null; ico: string | null; email: string | null }[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number } | null>(null);
+  const [invBusy, setInvBusy] = useState(false);
   // Formulář na mimořádnou položku
   const [exClient, setExClient] = useState("");
   const [exLabel, setExLabel] = useState("");
@@ -265,7 +279,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
@@ -477,6 +491,16 @@ export default function AdminPage() {
     });
     supabase.from("invoice_extras").select("id, month, client, label, amount_kc").then(({ data }) => {
       if (data) setExtras(data as { id: string; month: string; client: string; label: string; amount_kc: number }[]);
+    });
+    // Fakturace – údaje plátců, nastavení číselníku, vystavené faktury
+    supabase.from("billing_profiles").select("name, bill_name, address, ico, email").then(({ data }) => {
+      if (data) setBillProfiles(data as typeof billProfiles);
+    });
+    supabase.from("invoice_config").select("due_days, next_number").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setInvCfg(data as { due_days: number; next_number: number });
+    });
+    supabase.from("invoices").select("*").order("number", { ascending: false }).then(({ data }) => {
+      if (data) setInvoices(data as InvoiceRow[]);
     });
     // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
     supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
@@ -829,6 +853,124 @@ export default function AdminPage() {
     const { error } = await supabase.from("billing_map").upsert({ name, bill_to: to }, { onConflict: "name" });
     if (error) { setError("Uložení selhalo (spustil jsi billing_map.sql?): " + error.message); return; }
     setBillingMap((prev) => [...prev.filter((b) => b.name !== name), { name, bill_to: to }]);
+  }
+  // ── Fakturace ──────────────────────────────────────────────────────────────
+  // Fakturační údaje plátce (e-mail, adresa, IČO, jméno na fakturu)
+  async function saveBillProfile(name: string, patch: Partial<{ bill_name: string; address: string; ico: string; email: string }>) {
+    setError(null);
+    const prev = billProfiles.find((p) => p.name === name) ?? { name, bill_name: null, address: null, ico: null, email: null };
+    const next = {
+      name,
+      bill_name: (patch.bill_name ?? prev.bill_name ?? "") || null,
+      address: (patch.address ?? prev.address ?? "") || null,
+      ico: (patch.ico ?? prev.ico ?? "") || null,
+      email: (patch.email ?? prev.email ?? "") || null,
+    };
+    const { error } = await supabase.from("billing_profiles").upsert(next, { onConflict: "name" });
+    if (error) { setError("Uložení údajů plátce selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
+    setBillProfiles((list) => [...list.filter((p) => p.name !== name), next].sort((a, b) => a.name.localeCompare(b.name, "cs")));
+  }
+  // Vygenerování faktur za měsíc – pro každého plátce (skupinu), který ještě fakturu nemá
+  async function generateInvoices(month: string, groups: { payer: string; lines: { date: string; what: string; amount: number }[]; total: number }[]) {
+    if (invBusy) return;
+    setError(null); setInvBusy(true);
+    try {
+      const existing = new Set(invoices.filter((i) => i.month === month).map((i) => i.payer_name));
+      const dueDays = invCfg?.due_days ?? 7;
+      const issued = new Date().toLocaleDateString("sv-SE");
+      const dd = new Date(); dd.setDate(dd.getDate() + dueDays);
+      const dueDate = dd.toLocaleDateString("sv-SE");
+      const created: InvoiceRow[] = [];
+      for (const g of groups) {
+        if (g.total <= 0 || existing.has(g.payer)) continue;
+        const { data: num, error: nErr } = await supabase.rpc("next_invoice_number");
+        if (nErr || num == null) { setError("Nepodařilo se získat číslo faktury (spustil jsi invoicing.sql?): " + (nErr?.message ?? "")); break; }
+        const number = Number(num);
+        const token = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)).replace(/-/g, "") + Math.random().toString(36).slice(2, 8);
+        const prof = billProfiles.find((p) => p.name === g.payer);
+        const row = {
+          number, token, payer_name: g.payer,
+          bill_name: prof?.bill_name || null, address: prof?.address || null, ico: prof?.ico || null,
+          email: prof?.email || null, month,
+          issued_on: issued, due_on: dueDate, amount: g.total, vs: String(number),
+          lines: g.lines, status: "issued",
+        };
+        const { data: ins, error: iErr } = await supabase.from("invoices").insert(row).select("*").single();
+        if (iErr) { setError("Uložení faktury selhalo: " + iErr.message); break; }
+        if (ins) created.push(ins as InvoiceRow);
+      }
+      if (created.length) setInvoices((prev) => [...created, ...prev].sort((a, b) => b.number - a.number));
+      const { data: cfg } = await supabase.from("invoice_config").select("due_days, next_number").eq("id", 1).maybeSingle();
+      if (cfg) setInvCfg(cfg as { due_days: number; next_number: number });
+    } finally { setInvBusy(false); }
+  }
+  // Smazání faktury (např. omyl před odesláním) – číslo se už nevrací do číselníku
+  async function deleteInvoice(id: string) {
+    setError(null);
+    const { error } = await supabase.from("invoices").delete().eq("id", id);
+    if (error) { setError("Smazání faktury selhalo: " + error.message); return; }
+    setInvoices((prev) => prev.filter((i) => i.id !== id));
+  }
+  function invoiceEmailHtml(inv: InvoiceRow): string {
+    const spayd = buildSpayd({ iban: BUSINESS.iban, amountKc: inv.amount, vs: inv.vs, number: inv.number });
+    const qr = qrUrl(spayd);
+    const link = `https://pohybdoma.cz/faktura/${inv.token}`;
+    const billTo = inv.bill_name || inv.payer_name;
+    const amt = inv.amount.toLocaleString("cs-CZ");
+    return `
+<div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B;max-width:520px">
+  <h2 style="color:#062A6B;margin:0 0 6px">Faktura č. ${inv.number}</h2>
+  <p style="margin:0 0 14px;color:#334155">Dobrý den, ${billTo},<br>posílám fakturu za období <strong>${inv.month}</strong>.</p>
+  <table style="border-collapse:collapse;font-size:14px;margin:0 0 14px">
+    <tr><td style="padding:2px 14px 2px 0;color:#64748b">Částka</td><td style="font-weight:bold">${amt} Kč</td></tr>
+    <tr><td style="padding:2px 14px 2px 0;color:#64748b">Účet</td><td>${BUSINESS.account}</td></tr>
+    <tr><td style="padding:2px 14px 2px 0;color:#64748b">Variabilní symbol</td><td style="font-weight:bold">${inv.vs}</td></tr>
+    <tr><td style="padding:2px 14px 2px 0;color:#64748b">Splatnost</td><td style="font-weight:bold">${fmtCzDate(inv.due_on)}</td></tr>
+  </table>
+  <p style="margin:0 0 6px;color:#334155">Nejrychleji zaplatíte naskenováním QR kódu v bankovní aplikaci:</p>
+  <p style="margin:0 0 16px"><img src="${qr}" alt="QR platba" width="180" height="180" style="border:1px solid #e2e8f0;border-radius:10px"></p>
+  <p style="margin:0 0 18px"><a href="${link}" style="background:#1976FF;color:#fff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:bold">Zobrazit a stáhnout fakturu</a></p>
+  <p style="color:#94a3b8;font-size:12px;margin:0 0 2px">${BUSINESS.name} · ${BUSINESS.address} · IČO ${BUSINESS.ico}</p>
+  <p style="color:#94a3b8;font-size:12px;margin:0">${BUSINESS.vatNote}</p>
+  <p style="color:#062A6B;font-weight:bold;margin:14px 0 0">Honza — POHYB DOMA</p>
+</div>`.trim();
+  }
+  // Rozeslání jedné faktury na e-mail plátce + označení „odesláno"
+  async function sendInvoice(inv: InvoiceRow): Promise<boolean> {
+    if (!inv.email) { setError(`Faktura ${inv.number}: chybí e-mail plátce „${inv.payer_name}".`); return false; }
+    const { error: mErr } = await supabase.rpc("admin_send_email", {
+      p_to: inv.email, p_subject: `Faktura ${inv.number} — POHYB DOMA`, p_html: invoiceEmailHtml(inv),
+    });
+    if (mErr) { setError(`Odeslání faktury ${inv.number} selhalo: ` + mErr.message); return false; }
+    const sentAt = new Date().toISOString();
+    const { error: uErr } = await supabase.from("invoices").update({ status: "sent", sent_at: sentAt }).eq("id", inv.id);
+    if (uErr) { setError(`Faktura ${inv.number} odeslána, ale nešlo označit jako odeslaná: ` + uErr.message); }
+    setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: "sent", sent_at: sentAt } : i)));
+    return true;
+  }
+  // Rozeslat všechny dosud neodeslané faktury za daný měsíc
+  async function sendAllInvoices(month: string) {
+    if (invBusy) return;
+    setError(null); setInvBusy(true);
+    try {
+      const todo = invoices.filter((i) => i.month === month && i.status === "issued" && i.email);
+      const noMail = invoices.filter((i) => i.month === month && i.status === "issued" && !i.email);
+      let ok = 0;
+      for (const inv of todo) { if (await sendInvoice(inv)) ok++; }
+      if (ok || noMail.length) {
+        const msg = `Odesláno ${ok} faktur.` + (noMail.length ? ` Bez e-mailu (neodesláno): ${noMail.map((i) => i.payer_name).join(", ")}.` : "");
+        setError(msg);
+      }
+    } finally { setInvBusy(false); }
+  }
+  // Přepnutí „zaplaceno" na faktuře
+  async function setInvoicePaid(inv: InvoiceRow, paid: boolean) {
+    setError(null);
+    const paidAt = paid ? new Date().toISOString() : null;
+    const status = paid ? "paid" : (inv.sent_at ? "sent" : "issued");
+    const { error } = await supabase.from("invoices").update({ status, paid_at: paidAt }).eq("id", inv.id);
+    if (error) { setError("Uložení úhrady faktury selhalo: " + error.message); return; }
+    setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status, paid_at: paidAt } : i)));
   }
   // Připomínka k lekci v kalendáři (datum + čas). Prázdný text = smazat.
   async function saveLessonNote(date: string, time: string, note: string) {
@@ -2917,7 +3059,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -2928,7 +3070,7 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
-              {finView !== "archiv" && (
+              {(finView === "mesic" || finView === "individualy") && (
                 <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">
                   🖨 Vytisknout měsíc
                 </button>
@@ -3225,6 +3367,150 @@ export default function AdminPage() {
               <Pie slices={pieSlices} />
             </div>
             </>)}
+
+            {/* ROZESLAT – vygenerování a odeslání faktur za měsíc */}
+            {finView === "fakturace" && (() => {
+              const groups = invGroups
+                .map(([payer, lines]) => ({
+                  payer,
+                  total: lines.reduce((s, x) => s + x.amount, 0),
+                  lines: lines.map((l) => ({ date: l.date, what: l.time ? `${l.what} (${l.time})` : l.what, amount: l.amount })),
+                }))
+                .filter((g) => g.total > 0);
+              const invByPayer = new Map(invoices.filter((i) => i.month === invMonth).map((i) => [i.payer_name, i]));
+              const toGenerate = groups.filter((g) => !invByPayer.has(g.payer));
+              const monthInvoices = invoices.filter((i) => i.month === invMonth).sort((a, b) => a.number - b.number);
+              const issuedWithMail = monthInvoices.filter((i) => i.status === "issued" && i.email);
+              const STAT: Record<string, { label: string; cls: string }> = {
+                issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
+                sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
+                paid: { label: "zaplaceno", cls: "bg-emerald-100 text-emerald-700" },
+              };
+              return (
+              <div>
+                <div className="mb-4 rounded-xl bg-brand-light/60 p-4 text-sm text-brand-dark">
+                  <p className="font-semibold mb-1">Jak to funguje</p>
+                  <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
+                    <li>U každého plátce vyplň <strong>e-mail</strong> (a případně jméno/adresu/IČO na fakturu).</li>
+                    <li>Zkontroluj částky a klikni <strong>Vygenerovat faktury</strong> – přidělí se čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní.</li>
+                    <li>Projdi náhled (odkaz u každé), pak <strong>Rozeslat vše</strong> – klientům přijde e-mail s QR kódem a odkazem na fakturu.</li>
+                  </ol>
+                </div>
+
+                {groups.length === 0 && monthInvoices.length === 0 ? (
+                  <p className="text-sm text-gray-400">V tomto měsíci není co fakturovat.</p>
+                ) : (
+                  <>
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={invBusy || toGenerate.length === 0}
+                        onClick={() => generateInvoices(invMonth, toGenerate)}
+                        className="rounded-lg bg-brand-dark px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      >
+                        {invBusy ? "Pracuji…" : `Vygenerovat faktury (${toGenerate.length})`}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={invBusy || issuedWithMail.length === 0}
+                        onClick={() => { if (confirm(`Opravdu rozeslat ${issuedWithMail.length} faktur e-mailem klientům?`)) sendAllInvoices(invMonth); }}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
+                      >
+                        ✉ Rozeslat vše ({issuedWithMail.length})
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {groups.map((g) => {
+                        const prof = billProfiles.find((p) => p.name === g.payer);
+                        const inv = invByPayer.get(g.payer);
+                        const st = inv ? (STAT[inv.status] ?? STAT.issued) : null;
+                        return (
+                          <div key={g.payer} className="rounded-xl border border-gray-100 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-brand-dark">{g.payer}</span>
+                              <span className="ml-auto font-semibold text-brand-dark">{g.total.toLocaleString("cs-CZ")} Kč</span>
+                              {inv && st && (
+                                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
+                              )}
+                            </div>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              <input
+                                type="email" placeholder="E-mail plátce *"
+                                defaultValue={prof?.email ?? ""}
+                                onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.email ?? "")) saveBillProfile(g.payer, { email: v }); }}
+                                className={`px-3 py-2 rounded-lg border text-sm ${prof?.email ? "border-gray-200" : "border-amber-300 bg-amber-50"}`}
+                              />
+                              <input
+                                type="text" placeholder="Jméno / název na faktuře (když jiné)"
+                                defaultValue={prof?.bill_name ?? ""}
+                                onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.bill_name ?? "")) saveBillProfile(g.payer, { bill_name: v }); }}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                              />
+                              <input
+                                type="text" placeholder="Adresa (nepovinné)"
+                                defaultValue={prof?.address ?? ""}
+                                onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.address ?? "")) saveBillProfile(g.payer, { address: v }); }}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                              />
+                              <input
+                                type="text" placeholder="IČO (nepovinné)"
+                                defaultValue={prof?.ico ?? ""}
+                                onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.ico ?? "")) saveBillProfile(g.payer, { ico: v }); }}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                              />
+                            </div>
+                            {inv && (
+                              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                                <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
+                                {inv.status === "issued" && inv.email && (
+                                  <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                                )}
+                                <label className="inline-flex items-center gap-1.5 text-gray-600">
+                                  <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
+                                  zaplaceno
+                                </label>
+                                {inv.status !== "paid" && (
+                                  <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}? Číslo se už nevrátí do pořadí.`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat fakturu"><Trash2 className="h-4 w-4" /></button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Faktury bez odpovídající skupiny (např. smazaná lekce) */}
+                      {monthInvoices.filter((i) => !groups.some((g) => g.payer === i.payer_name)).map((inv) => {
+                        const st = STAT[inv.status] ?? STAT.issued;
+                        return (
+                          <div key={inv.id} className="rounded-xl border border-gray-100 p-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-brand-dark">{inv.payer_name}</span>
+                              <span className="ml-auto font-semibold text-brand-dark">{inv.amount.toLocaleString("cs-CZ")} Kč</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
+                              {inv.status === "issued" && inv.email && (
+                                <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                              )}
+                              <label className="inline-flex items-center gap-1.5 text-gray-600">
+                                <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
+                                zaplaceno
+                              </label>
+                              {inv.status !== "paid" && (
+                                <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}?`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat fakturu"><Trash2 className="h-4 w-4" /></button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+              );
+            })()}
 
             {/* ARCHIV – historie lekcí podle klienta */}
             {finView === "archiv" && (

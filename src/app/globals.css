@@ -389,4 +389,18 @@
     margin-top: 10px;
     padding-top: 6px;
   }
+
+  /* ── Veřejná faktura /faktura/[token] – tiskne se celá stránka ── */
+  body:has(.fakt-wrap) > *:not(.pd-print) { display: block !important; }
+  body:has(.fakt-wrap) header,
+  body:has(.fakt-wrap) footer,
+  body:has(.fakt-wrap) .no-print { display: none !important; }
+  .fakt-wrap { page: pd-portrait; max-width: none !important; padding: 0 !important; }
+  .fakt-doc {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
