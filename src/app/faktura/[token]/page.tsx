@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { BUSINESS } from "@/lib/invoice-business";
-import { buildSpayd, fmtCzDate, type InvoiceLine } from "@/lib/invoice";
+import { buildSpayd, fmtCzDate, monthLabelCs, type InvoiceLine } from "@/lib/invoice";
 import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -16,17 +16,10 @@ type Inv = {
   due_on: string;
   amount: number;
   vs: string;
+  intro: string | null;
   lines: InvoiceLine[];
   status: string;
 };
-
-const MONTHS = ["", "leden", "únor", "březen", "duben", "květen", "červen",
-  "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
-function monthLabel(m: string): string {
-  const [y, mm] = m.split("-");
-  const i = Number(mm);
-  return `${MONTHS[i] ?? mm} ${y}`;
-}
 
 export default async function FakturaPage({
   params,
@@ -98,13 +91,16 @@ export default async function FakturaPage({
           <div className="sm:text-right text-sm leading-7">
             <div><span className="text-slate-400">Vystaveno: </span>{fmtCzDate(inv.issued_on)}</div>
             <div><span className="text-slate-400">Splatnost: </span><strong>{fmtCzDate(inv.due_on)}</strong></div>
-            <div><span className="text-slate-400">Období: </span>{monthLabel(inv.month)}</div>
+            <div><span className="text-slate-400">Období: </span>{monthLabelCs(inv.month)}</div>
             <div><span className="text-slate-400">Variabilní symbol: </span><strong>{inv.vs}</strong></div>
           </div>
         </div>
 
+        {/* Úvodní věta */}
+        {inv.intro && <p className="mt-8 text-slate-700">{inv.intro}</p>}
+
         {/* Položky */}
-        <table className="mt-8 w-full border-collapse text-sm">
+        <table className="mt-4 w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-400">
               <th className="py-2 pr-3 font-medium">Datum</th>

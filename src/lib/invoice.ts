@@ -25,4 +25,19 @@ export function fmtCzDate(d: string | Date): string {
   return date.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
 }
 
+const CS_MONTHS = ["", "leden", "únor", "březen", "duben", "květen", "červen",
+  "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
+
+/** "YYYY-MM" → "říjen 2026". */
+export function monthLabelCs(m: string): string {
+  const [y, mm] = m.split("-");
+  return `${CS_MONTHS[Number(mm)] ?? mm} ${y}`;
+}
+
+/** Doplní do šablony úvodní věty název měsíce místo {mesic}. */
+export function fillIntro(template: string | null | undefined, month: string): string {
+  const base = (template && template.trim()) || "Dobrý den, fakturuji Vám za {mesic} tyto lekce:";
+  return base.replace(/\{mesic\}/gi, monthLabelCs(month));
+}
+
 export type InvoiceLine = { date: string; what: string; amount: number };

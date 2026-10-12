@@ -21,16 +21,23 @@ create table if not exists public.invoice_config (
   vat_payer        boolean not null default false,
   next_number      bigint not null default 1,
   footer_note      text,
+  intro_note       text,   -- úvodní věta na faktuře, {mesic} = název měsíce
   constraint invoice_config_singleton check (id = 1)
 );
+-- Kdyby tabulka už existovala bez nových sloupců:
+alter table public.invoice_config add column if not exists intro_note text;
 
 insert into public.invoice_config
-  (id, business_name, business_address, business_ico, iban, account_display, due_days, vat_payer, next_number, footer_note)
+  (id, business_name, business_address, business_ico, iban, account_display, due_days, vat_payer, next_number, footer_note, intro_note)
 values
   (1, 'Mgr. Jan Schröffel', 'Chovatelů 159, Hradištko, 252 09', '04531817',
    'CZ4130300000003470043017', '3470043017/3030', 7, false, 20260163,
-   'Nejsem plátce DPH.')
+   'Nejsem plátce DPH.', 'Dobrý den, fakturuji Vám za {mesic} tyto lekce:')
 on conflict (id) do nothing;
+-- Když řádek už existoval a větu nemá, doplň výchozí:
+update public.invoice_config
+  set intro_note = 'Dobrý den, fakturuji Vám za {mesic} tyto lekce:'
+  where id = 1 and (intro_note is null or intro_note = '');
 
 alter table public.invoice_config enable row level security;
 drop policy if exists "admin invoice config" on public.invoice_config;
@@ -66,12 +73,14 @@ create table if not exists public.invoices (
   due_on     date not null,
   amount     integer not null,
   vs         text not null,
+  intro      text,                            -- úvodní věta (snapshot v době vystavení)
   lines      jsonb not null default '[]'::jsonb,
   status     text not null default 'issued', -- issued | sent | paid
   sent_at    timestamptz,
   paid_at    timestamptz,
   created_at timestamptz not null default now()
 );
+alter table public.invoices add column if not exists intro text;
 create index if not exists invoices_month_idx on public.invoices (month);
 create index if not exists invoices_payer_month_idx on public.invoices (payer_name, month);
 
@@ -93,14 +102,15 @@ end; $$;
 grant execute on function public.next_invoice_number() to authenticated;
 
 -- ── Veřejné čtení jedné faktury přes tajný token (bez přihlášení) ────────────
+drop function if exists public.get_invoice(text);
 create or replace function public.get_invoice(p_token text)
 returns table (
   number bigint, payer_name text, bill_name text, address text, ico text,
   month text, issued_on date, due_on date, amount integer, vs text,
-  lines jsonb, status text
+  intro text, lines jsonb, status text
 ) language sql security definer set search_path = public stable as $$
   select i.number, i.payer_name, i.bill_name, i.address, i.ico, i.month,
-         i.issued_on, i.due_on, i.amount, i.vs, i.lines, i.status
+         i.issued_on, i.due_on, i.amount, i.vs, i.intro, i.lines, i.status
   from public.invoices i where i.token = p_token;
 $$;
 grant execute on function public.get_invoice(text) to anon, authenticated;

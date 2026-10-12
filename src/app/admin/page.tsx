@@ -15,7 +15,7 @@ import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { INVOICE_SUPPLIER, INVOICE_SETTINGS, invoiceConfigured } from "@/lib/invoice-config";
 import { spdString } from "@/lib/qr-payment";
 import { BUSINESS } from "@/lib/invoice-business";
-import { buildSpayd, qrUrl, fmtCzDate } from "@/lib/invoice";
+import { buildSpayd, qrUrl, fmtCzDate, fillIntro } from "@/lib/invoice";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -176,6 +176,7 @@ type InvoiceRow = {
   id: string; number: number; token: string; payer_name: string; bill_name: string | null;
   address: string | null; ico: string | null; email: string | null; month: string;
   issued_on: string; due_on: string; amount: number; vs: string;
+  intro: string | null;
   lines: { date: string; what: string; amount: number }[];
   status: string; sent_at: string | null; paid_at: string | null;
 };
@@ -233,7 +234,7 @@ export default function AdminPage() {
   // Fakturace: údaje plátců + vystavené faktury
   const [billProfiles, setBillProfiles] = useState<{ name: string; bill_name: string | null; address: string | null; ico: string | null; email: string | null }[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
-  const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number } | null>(null);
+  const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number; intro_note: string | null } | null>(null);
   const [invBusy, setInvBusy] = useState(false);
   // Formulář na mimořádnou položku
   const [exClient, setExClient] = useState("");
@@ -496,8 +497,8 @@ export default function AdminPage() {
     supabase.from("billing_profiles").select("name, bill_name, address, ico, email").then(({ data }) => {
       if (data) setBillProfiles(data as typeof billProfiles);
     });
-    supabase.from("invoice_config").select("due_days, next_number").eq("id", 1).maybeSingle().then(({ data }) => {
-      if (data) setInvCfg(data as { due_days: number; next_number: number });
+    supabase.from("invoice_config").select("due_days, next_number, intro_note").eq("id", 1).maybeSingle().then(({ data }) => {
+      if (data) setInvCfg(data as { due_days: number; next_number: number; intro_note: string | null });
     });
     supabase.from("invoices").select("*").order("number", { ascending: false }).then(({ data }) => {
       if (data) setInvoices(data as InvoiceRow[]);
@@ -870,6 +871,14 @@ export default function AdminPage() {
     if (error) { setError("Uložení údajů plátce selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
     setBillProfiles((list) => [...list.filter((p) => p.name !== name), next].sort((a, b) => a.name.localeCompare(b.name, "cs")));
   }
+  // Úvodní věta na faktuře ({mesic} = název měsíce). Uloží se do nastavení.
+  async function saveIntroNote(text: string) {
+    setError(null);
+    const v = text.trim();
+    const { error } = await supabase.from("invoice_config").update({ intro_note: v }).eq("id", 1);
+    if (error) { setError("Uložení úvodní věty selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
+    setInvCfg((c) => (c ? { ...c, intro_note: v } : c));
+  }
   // Vygenerování faktur za měsíc – pro každého plátce (skupinu), který ještě fakturu nemá
   async function generateInvoices(month: string, groups: { payer: string; lines: { date: string; what: string; amount: number }[]; total: number }[]) {
     if (invBusy) return;
@@ -893,6 +902,7 @@ export default function AdminPage() {
           bill_name: prof?.bill_name || null, address: prof?.address || null, ico: prof?.ico || null,
           email: prof?.email || null, month,
           issued_on: issued, due_on: dueDate, amount: g.total, vs: String(number),
+          intro: fillIntro(invCfg?.intro_note, month),
           lines: g.lines, status: "issued",
         };
         const { data: ins, error: iErr } = await supabase.from("invoices").insert(row).select("*").single();
@@ -900,8 +910,8 @@ export default function AdminPage() {
         if (ins) created.push(ins as InvoiceRow);
       }
       if (created.length) setInvoices((prev) => [...created, ...prev].sort((a, b) => b.number - a.number));
-      const { data: cfg } = await supabase.from("invoice_config").select("due_days, next_number").eq("id", 1).maybeSingle();
-      if (cfg) setInvCfg(cfg as { due_days: number; next_number: number });
+      const { data: cfg } = await supabase.from("invoice_config").select("due_days, next_number, intro_note").eq("id", 1).maybeSingle();
+      if (cfg) setInvCfg(cfg as { due_days: number; next_number: number; intro_note: string | null });
     } finally { setInvBusy(false); }
   }
   // Smazání faktury (např. omyl před odesláním) – číslo se už nevrací do číselníku
@@ -915,14 +925,23 @@ export default function AdminPage() {
     const spayd = buildSpayd({ iban: BUSINESS.iban, amountKc: inv.amount, vs: inv.vs, number: inv.number });
     const qr = qrUrl(spayd);
     const link = `https://pohybdoma.cz/faktura/${inv.token}`;
-    const billTo = inv.bill_name || inv.payer_name;
     const amt = inv.amount.toLocaleString("cs-CZ");
+    const intro = inv.intro || "Dobrý den, fakturuji Vám tyto lekce:";
+    const itemRows = (inv.lines || []).map((l) =>
+      `<tr>
+        <td style="padding:3px 10px 3px 0;color:#94a3b8;white-space:nowrap">${l.date ? fmtCzDate(l.date) : ""}</td>
+        <td style="padding:3px 10px 3px 0;color:#334155">${l.what}</td>
+        <td style="padding:3px 0;text-align:right;white-space:nowrap">${l.amount.toLocaleString("cs-CZ")} Kč</td>
+      </tr>`).join("");
     return `
 <div style="font-family:Arial,Helvetica,sans-serif;color:#062A6B;max-width:520px">
   <h2 style="color:#062A6B;margin:0 0 6px">Faktura č. ${inv.number}</h2>
-  <p style="margin:0 0 14px;color:#334155">Dobrý den, ${billTo},<br>posílám fakturu za období <strong>${inv.month}</strong>.</p>
-  <table style="border-collapse:collapse;font-size:14px;margin:0 0 14px">
-    <tr><td style="padding:2px 14px 2px 0;color:#64748b">Částka</td><td style="font-weight:bold">${amt} Kč</td></tr>
+  <p style="margin:0 0 12px;color:#334155">${intro}</p>
+  <table style="border-collapse:collapse;font-size:14px;width:100%;margin:0 0 6px">
+    ${itemRows}
+    <tr><td colspan="2" style="padding:8px 10px 2px 0;text-align:right;font-weight:bold;border-top:2px solid #062A6B">Celkem k úhradě</td><td style="padding:8px 0 2px;text-align:right;font-weight:bold;border-top:2px solid #062A6B;white-space:nowrap">${amt} Kč</td></tr>
+  </table>
+  <table style="border-collapse:collapse;font-size:14px;margin:14px 0">
     <tr><td style="padding:2px 14px 2px 0;color:#64748b">Účet</td><td>${BUSINESS.account}</td></tr>
     <tr><td style="padding:2px 14px 2px 0;color:#64748b">Variabilní symbol</td><td style="font-weight:bold">${inv.vs}</td></tr>
     <tr><td style="padding:2px 14px 2px 0;color:#64748b">Splatnost</td><td style="font-weight:bold">${fmtCzDate(inv.due_on)}</td></tr>
@@ -3395,6 +3414,20 @@ export default function AdminPage() {
                     <li>Zkontroluj částky a klikni <strong>Vygenerovat faktury</strong> – přidělí se čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní.</li>
                     <li>Projdi náhled (odkaz u každé), pak <strong>Rozeslat vše</strong> – klientům přijde e-mail s QR kódem a odkazem na fakturu.</li>
                   </ol>
+                </div>
+
+                {/* Úvodní věta na faktuře */}
+                <div className="mb-4 rounded-xl border border-gray-100 p-4">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Úvodní věta na faktuře</label>
+                  <textarea
+                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za {mesic} tyto lekce:"}
+                    onBlur={(e) => { const v = e.target.value; if (v.trim() !== (invCfg?.intro_note ?? "").trim()) saveIntroNote(v); }}
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Objeví se nad položkami. <code>{"{mesic}"}</code> se nahradí názvem měsíce (např. „říjen 2026"). Pod větou se vypíšou lekce s cenou a dole celkový součet.
+                  </p>
                 </div>
 
                 {groups.length === 0 && monthInvoices.length === 0 ? (
