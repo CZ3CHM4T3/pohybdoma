@@ -2963,8 +2963,9 @@ export default function AdminPage() {
             }
           }
           // Skupinové bloky s cenou (kruháč, PPT…) – rozpočítané na KONKRÉTNÍ LIDI.
-          //  • per_lesson (PPT): každý ze soupisky platí KAŽDOU (nezrušenou) lekci, ať přišel nebo ne
-          //  • monthly (kruháč): kdo byl aspoň 1× v měsíci (dle docházky), platí celý měsíc (počet výskytů × cena)
+          //  Režim účtování řídí CENÍK dané služby (fallback: nastavení bloku).
+          //  • per_lesson: každý ze soupisky platí KAŽDOU (nezrušenou) lekci, ať přišel nebo ne
+          //  • monthly (kruháč, PPT): kdo byl aspoň 1× v měsíci (dle docházky), platí všechny lekce měsíce
           const blockLines: Line[] = [];
           {
             const today0 = new Date(); today0.setHours(0, 0, 0, 0);
@@ -2974,7 +2975,8 @@ export default function AdminPage() {
               const svc = b.category;
               const catLabel = svcLabelOf(svc, b.label);
               const unit = svcUnitOf(svc);
-              if (b.bill_mode === "monthly") {
+              const mode = catMap.get(svc)?.bill_mode || b.bill_mode;
+              if (mode === "monthly") {
                 // kruháč: kdo v daném měsíci přišel aspoň 1× → platí VŠECHNY lekce toho měsíce (lekce × cena);
                 //         kdo nepřišel vůbec → neplatí nic. Vypíše se po jednotlivých lekcích.
                 const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");

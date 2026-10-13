@@ -23,7 +23,7 @@ insert into public.service_catalog (key, label, unit, intro_term, price, bill_mo
   ('fitness', 'Fitness trénink',        'lekce', 'fitness tréninky',  900, 'per_lesson', 1),
   ('masaz',   'Sportovní masáž',        'masáž', 'sportovní masáže',  600, 'per_lesson', 2),
   ('kruhac',  'Kruhový trénink',        'lekce', 'kruhové tréninky',  250, 'monthly',    3),
-  ('tenis',   'Příprava tenistů',       'lekce', 'skupinové tréninky',200, 'per_lesson', 4),
+  ('tenis',   'Příprava tenistů',       'lekce', 'skupinové tréninky',200, 'monthly',    4),
   ('msgem',   'MS GEM',                 'lekce', 'skupinové tréninky',  0, 'per_lesson', 5),
   ('skolka',  'Tenis s EMESKOU (MŠ)',   'lekce', 'skupinové tréninky',  0, 'per_lesson', 6),
   ('krouzek', 'Kroužek',                'lekce', 'skupinové tréninky',  0, 'per_lesson', 7),
