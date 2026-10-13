@@ -13,8 +13,8 @@ create table if not exists public.service_catalog (
   label      text not null,               -- název na faktuře
   unit       text not null default 'lekce',   -- jednotka: lekce | měsíc | masáž
   intro_term text,                         -- výraz do úvodní věty (fitness tréninky…)
-  price      integer not null default 0,   -- výchozí cena (0 = ber cenu z lekce/bloku)
-  bill_mode  text not null default 'per_lesson', -- per_lesson | monthly
+  price      integer not null default 0,   -- cena ZA LEKCI (0 = ber cenu z lekce/bloku)
+  bill_mode  text not null default 'per_lesson', -- per_lesson = za každou lekci | monthly = když přišel ≥1×, platí všechny lekce v měsíci
   active     boolean not null default true,
   position   int not null default 0
 );
@@ -22,7 +22,7 @@ create table if not exists public.service_catalog (
 insert into public.service_catalog (key, label, unit, intro_term, price, bill_mode, position) values
   ('fitness', 'Fitness trénink',        'lekce', 'fitness tréninky',  900, 'per_lesson', 1),
   ('masaz',   'Sportovní masáž',        'masáž', 'sportovní masáže',  600, 'per_lesson', 2),
-  ('kruhac',  'Kruhový trénink',        'měsíc', 'kruhové tréninky',  250, 'monthly',    3),
+  ('kruhac',  'Kruhový trénink',        'lekce', 'kruhové tréninky',  250, 'monthly',    3),
   ('tenis',   'Příprava tenistů',       'lekce', 'skupinové tréninky',200, 'per_lesson', 4),
   ('msgem',   'MS GEM',                 'lekce', 'skupinové tréninky',  0, 'per_lesson', 5),
   ('skolka',  'Tenis s EMESKOU (MŠ)',   'lekce', 'skupinové tréninky',  0, 'per_lesson', 6),

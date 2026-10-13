@@ -2975,23 +2975,26 @@ export default function AdminPage() {
               const catLabel = svcLabelOf(svc, b.label);
               const unit = svcUnitOf(svc);
               if (b.bill_mode === "monthly") {
-                // kruháč: kdo se v daném měsíci objevil v docházce aspoň 1× → platí paušál za měsíc
+                // kruháč: kdo v daném měsíci přišel aspoň 1× → platí VŠECHNY lekce toho měsíce (lekce × cena);
+                //         kdo nepřišel vůbec → neplatí nic. Vypíše se po jednotlivých lekcích.
                 const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");
                 const months = new Set(att.map((a) => a.date.slice(0, 7)));
                 for (const mk of months) {
                   const [yy, mm] = mk.split("-").map(Number);
-                  let occ = 0;
+                  const sessions: string[] = [];
                   const d = new Date(yy, mm - 1, 1); const end = new Date(yy, mm, 0);
                   while (d <= end) {
                     const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                    if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) occ++;
+                    if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) sessions.push(dk);
                     d.setDate(d.getDate() + 1);
                   }
                   const people = new Set(att.filter((a) => a.date.slice(0, 7) === mk).map((a) => a.name));
                   for (const person of people) {
                     const price = priceFor(person, svc, b.price_kc ?? 0);
                     if (price <= 0) continue;
-                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (${occ}×)`, amount: price, kind: "blok", ref: `blk:${b.id}:${mk}:${person}`, svc, svcLabel: catLabel, unit });
+                    for (const dk of sessions) {
+                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: price, kind: "blok", ref: `blk:${b.id}:${dk}:${person}`, svc, svcLabel: catLabel, unit });
+                    }
                   }
                 }
               } else {
@@ -3646,7 +3649,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 {/* Ceník služeb */}
                 <div>
-                  <p className="text-sm text-gray-500 mb-3">Co nabízíš a za kolik. Cena odtud se použije ve fakturaci. <strong>0 Kč</strong> = ber cenu zadanou u konkrétní lekce/bloku. Jednotka „měsíc" = paušál za měsíc (kruháč), „lekce"/„masáž" = cena za kus.</p>
+                  <p className="text-sm text-gray-500 mb-3">Co nabízíš a za kolik (cena je vždy <strong>za jednu lekci</strong>). Cena odtud se použije ve fakturaci. <strong>0 Kč</strong> = ber cenu zadanou u konkrétní lekce/bloku. Účtování: <strong>za každou lekci</strong> = platí se jen co proběhlo; <strong>celý měsíc</strong> = kdo přišel aspoň 1× za měsíc (kruháč), zaplatí všechny lekce toho měsíce, kdo nepřišel, neplatí nic.</p>
                   <div className="space-y-2">
                     {serviceCatalog.map((s) => (
                       <div key={s.key} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-gray-100 p-3 sm:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_auto] sm:items-center">
@@ -3657,8 +3660,8 @@ export default function AdminPage() {
                           <span className="text-xs text-gray-400">Kč</span>
                         </div>
                         <select defaultValue={s.bill_mode} onChange={(e) => saveCatalogField(s.key, { bill_mode: e.target.value })} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm" title="Jak se účtuje">
-                          <option value="per_lesson">za lekci</option>
-                          <option value="monthly">paušál / měsíc</option>
+                          <option value="per_lesson">za každou lekci</option>
+                          <option value="monthly">celý měsíc (když přišel)</option>
                         </select>
                         <label className="flex items-center gap-1.5 text-xs text-gray-500" title="Zobrazit při zadávání lekce / počítat ve fakturaci">
                           <input type="checkbox" checked={s.active} onChange={(e) => saveCatalogField(s.key, { active: e.target.checked })} /> aktivní
