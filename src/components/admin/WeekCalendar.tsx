@@ -48,6 +48,7 @@ export function WeekCalendar({
   events = [],
   catColors,
   clientNames = [],
+  services = [],
   onAddLesson,
   onAddRecurring,
   onDeleteLesson,
@@ -77,8 +78,9 @@ export function WeekCalendar({
   events?: EventLite[];
   catColors: Record<string, string>;
   clientNames?: string[];
-  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void | boolean>;
-  onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null) => Promise<void>;
+  services?: { key: string; label: string }[];
+  onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) => Promise<void | boolean>;
+  onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
   onMoveOccurrence?: (recId: string, origDate: string, newDate: string, newTime: string) => Promise<void>;
@@ -111,8 +113,9 @@ export function WeekCalendar({
   const [lTime, setLTime] = useState("15:00");
   const [lName, setLName] = useState("");
   const [lNote, setLNote] = useState("");
-  const [lPrice, setLPrice] = useState("1000");
+  const [lPrice, setLPrice] = useState("");
   const [lRepeat, setLRepeat] = useState(false);
+  const [lService, setLService] = useState("fitness");
   const [lSaving, setLSaving] = useState(false);
   const [lErr, setLErr] = useState<string | null>(null);
   // Přesun lekce lektorem
@@ -238,11 +241,11 @@ export function WeekCalendar({
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
     const p = Number.isFinite(priceKc as number) ? priceKc : null;
     const ok = (lRepeat && onAddRecurring)
-      ? await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p)
-      : await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p);
+      ? await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p, lService)
+      : await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p, lService);
     setLSaving(false);
     if (ok === false) { setLErr("Nepodařilo se uložit. Zkontroluj, že je v Supabase spuštěný planner.sql (tabulka lesson_plans)."); return; }
-    setLName(""); setLNote(""); setLRepeat(false); closePop();
+    setLName(""); setLNote(""); setLRepeat(false); setLPrice(""); setLService("fitness"); closePop();
   }
 
   // Po otevření/změně obsahu bubliny ji posuň, ať se celá vejde na obrazovku.
@@ -426,10 +429,16 @@ export function WeekCalendar({
                   </select>
                 )}
                 <input type="text" value={lName} onChange={(e) => setLName(e.target.value)} placeholder="…nebo napiš jméno" className="w-full rounded-md border border-gray-200 px-2 py-1.5" />
+                {services.length > 0 && (
+                  <select value={lService} onChange={(e) => setLService(e.target.value)} className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5" title="Co to bylo za službu (určí cenu z ceníku)">
+                    {services.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                )}
                 <div className="flex gap-1.5">
-                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="Pozn." className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
-                  <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="Kč" className="w-16 rounded-md border border-gray-200 px-2 py-1.5" />
+                  <input type="text" value={lNote} onChange={(e) => setLNote(e.target.value)} placeholder="Pozn. (nepovinné)" className="flex-1 rounded-md border border-gray-200 px-2 py-1.5" />
+                  <input type="number" value={lPrice} onChange={(e) => setLPrice(e.target.value)} placeholder="Kč*" title="Nech prázdné = cena z ceníku. Vyplň jen když chceš jinou cenu." className="w-16 rounded-md border border-gray-200 px-2 py-1.5" />
                 </div>
+                <p className="text-[10px] text-gray-400">Cenu nech prázdnou – vezme se z ceníku/slevy. Vyplň jen výjimečnou cenu.</p>
                 {onAddRecurring && !pop.item && (
                   <label className="flex items-center gap-2 text-brand-dark"><input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" /> Opakovat (stálý klient)</label>
                 )}

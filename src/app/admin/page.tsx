@@ -159,6 +159,7 @@ type LessonRow = {
   client_name: string;
   note: string | null;
   price_kc: number | null;
+  service_key?: string | null;
   recurring?: boolean;
   block?: boolean; // pravidelný blok (MS GEM, kroužek…) – jen blokuje kalendář, nefakturuje se
 };
@@ -170,7 +171,10 @@ type RecurringRow = {
   price_kc: number | null;
   note: string | null;
   active: boolean;
+  service_key?: string | null;
 };
+type ServiceCatalog = { key: string; label: string; unit: string; intro_term: string | null; price: number; bill_mode: string; active: boolean; position: number };
+type ClientPrice = { client_name: string; service_key: string; price: number };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
 type InvoiceRow = {
   id: string; number: number; token: string; payer_name: string; bill_name: string | null;
@@ -236,6 +240,10 @@ export default function AdminPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number; intro_note: string | null } | null>(null);
   const [invBusy, setInvBusy] = useState(false);
+  const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalog[]>([]);
+  const [clientPrices, setClientPrices] = useState<ClientPrice[]>([]);
+  const [cenikSvc, setCenikSvc] = useState("fitness");
+  const [cenikNewName, setCenikNewName] = useState("");
   // Formulář na mimořádnou položku
   const [exClient, setExClient] = useState("");
   const [exLabel, setExLabel] = useState("");
@@ -280,7 +288,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "cenik" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
@@ -503,6 +511,12 @@ export default function AdminPage() {
     supabase.from("invoices").select("*").order("number", { ascending: false }).then(({ data }) => {
       if (data) setInvoices(data as InvoiceRow[]);
     });
+    supabase.from("service_catalog").select("*").order("position").then(({ data }) => {
+      if (data) setServiceCatalog(data as ServiceCatalog[]);
+    });
+    supabase.from("client_service_price").select("client_name, service_key, price").then(({ data }) => {
+      if (data) setClientPrices(data as ClientPrice[]);
+    });
     // Připomínky k jednotlivým lekcím v kalendáři (klíč datum+čas)
     supabase.from("lesson_notes").select("date, time, note").then(({ data }) => {
       if (data) setLessonNotes(data as { date: string; time: string; note: string }[]);
@@ -711,11 +725,11 @@ export default function AdminPage() {
   }
 
   // ── Vlastní lekce (plánovač) ──
-  async function addLesson(date: string, time: string, clientName: string, note: string, priceKc: number | null): Promise<boolean> {
+  async function addLesson(date: string, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null): Promise<boolean> {
     setError(null);
     const { error } = await supabase
       .from("lesson_plans")
-      .insert({ date, time, client_name: clientName, note: note || null, price_kc: priceKc });
+      .insert({ date, time, client_name: clientName, note: note || null, price_kc: priceKc, service_key: serviceKey || "fitness" });
     if (error) { setError("Lekci se nepodařilo uložit (spustil jsi planner.sql?): " + error.message); return false; }
     const { data } = await supabase.from("lesson_plans").select("*").order("date").order("time");
     if (data) setLessons(data as LessonRow[]);
@@ -879,8 +893,28 @@ export default function AdminPage() {
     if (error) { setError("Uložení úvodní věty selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
     setInvCfg((c) => (c ? { ...c, intro_note: v } : c));
   }
+  // Ceník: úprava služby (cena, název, jednotka, výraz do věty, účtování, aktivní)
+  async function saveCatalogField(key: string, patch: Partial<Omit<ServiceCatalog, "key" | "position">>) {
+    setError(null);
+    const { error } = await supabase.from("service_catalog").update(patch).eq("key", key);
+    if (error) { setError("Uložení ceníku selhalo (spustil jsi service_pricing.sql?): " + error.message); return; }
+    setServiceCatalog((list) => list.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  }
+  // Individuální cena klienta pro službu (prázdné = smazat → platí ceník)
+  async function setClientPrice(client: string, service: string, price: number | null) {
+    setError(null);
+    if (price == null) {
+      const { error } = await supabase.from("client_service_price").delete().eq("client_name", client).eq("service_key", service);
+      if (error) { setError("Uložení ceny selhalo: " + error.message); return; }
+      setClientPrices((list) => list.filter((p) => !(p.client_name === client && p.service_key === service)));
+      return;
+    }
+    const { error } = await supabase.from("client_service_price").upsert({ client_name: client, service_key: service, price }, { onConflict: "client_name,service_key" });
+    if (error) { setError("Uložení ceny selhalo (spustil jsi service_pricing.sql?): " + error.message); return; }
+    setClientPrices((list) => [...list.filter((p) => !(p.client_name === client && p.service_key === service)), { client_name: client, service_key: service, price }]);
+  }
   // Vygenerování faktur za měsíc – pro každého plátce (skupinu), který ještě fakturu nemá
-  async function generateInvoices(month: string, groups: { payer: string; lines: { date: string; what: string; amount: number }[]; total: number }[]) {
+  async function generateInvoices(month: string, groups: { payer: string; lines: { date: string; what: string; amount: number }[]; total: number; intro?: string }[]) {
     if (invBusy) return;
     setError(null); setInvBusy(true);
     try {
@@ -902,7 +936,7 @@ export default function AdminPage() {
           bill_name: prof?.bill_name || null, address: prof?.address || null, ico: prof?.ico || null,
           email: prof?.email || null, month,
           issued_on: issued, due_on: dueDate, amount: g.total, vs: String(number),
-          intro: fillIntro(invCfg?.intro_note, month),
+          intro: g.intro || fillIntro(invCfg?.intro_note, month),
           lines: g.lines, status: "issued",
         };
         const { data: ins, error: iErr } = await supabase.from("invoices").insert(row).select("*").single();
@@ -1148,7 +1182,7 @@ export default function AdminPage() {
     }
   }
   // Pravidelná lekce založená přímo z kalendáře (den → weekday). Propojí účet klienta, pokud sedí e-mail.
-  async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null) {
+  async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) {
     if (!clientName.trim()) return;
     setError(null);
     const roster = clients.find((c) => c.name === clientName.trim());
@@ -1164,6 +1198,7 @@ export default function AdminPage() {
       time,
       price_kc: priceKc,
       note: note.trim() || null,
+      service_key: serviceKey || "fitness",
     });
     if (error) { setError("Uložení pravidelné lekce selhalo (spustil jsi recurring.sql?): " + error.message); return; }
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
@@ -2018,6 +2053,7 @@ export default function AdminPage() {
             events={events}
             catColors={CAT_COLORS}
             clientNames={clientNameOptions}
+            services={serviceCatalog.filter((s) => s.active).map((s) => ({ key: s.key, label: s.label }))}
             onSaveNote={saveLessonNote}
             onToggleAttendance={toggleAttendance}
             paidRefs={paidRefs}
@@ -2888,9 +2924,21 @@ export default function AdminPage() {
 
         {tab === "faktury" && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
-          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" | "extra"; ref: string };
+          type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" | "extra"; ref: string; svc: string; svcLabel: string; unit: string };
+          // Ceník + individuální ceny: cena = sleva klienta → ceník → (fallback) cena u lekce/bloku.
+          const catMap = new Map(serviceCatalog.map((s) => [s.key, s]));
+          const ovMap = new Map(clientPrices.map((p) => [`${p.client_name}|${p.service_key}`, p.price]));
+          const priceFor = (client: string, svc: string, fallback: number): number => {
+            const ov = ovMap.get(`${client}|${svc}`);
+            if (ov != null) return ov;
+            const cat = catMap.get(svc);
+            if (cat && cat.price > 0) return cat.price;
+            return fallback;
+          };
+          const svcLabelOf = (svc: string, fallback: string) => catMap.get(svc)?.label || CAT_LABELS[svc] || fallback;
+          const svcUnitOf = (svc: string) => catMap.get(svc)?.unit || "lekce";
           // Mimořádné položky (extra k člověku a měsíci)
-          const extraLines: Line[] = extras.map((e) => ({ date: `${e.month}-01`, time: "", client: e.client, what: e.label, amount: e.amount_kc, kind: "extra" as const, ref: `extra:${e.id}` }));
+          const extraLines: Line[] = extras.map((e) => ({ date: `${e.month}-01`, time: "", client: e.client, what: e.label, amount: e.amount_kc, kind: "extra" as const, ref: `extra:${e.id}`, svc: "jine", svcLabel: e.label, unit: "" }));
           // Proběhlé pravidelné lekce stálých klientů (posledních ~12 měsíců, mimo včas zrušené).
           const cancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
           const recLines: Line[] = [];
@@ -2905,7 +2953,9 @@ export default function AdminPage() {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                   // Pravidelné lekce počítáme do faktur až od září 2026 (dřív se netrénovalo).
                   if (dk >= "2026-09-01" && !cancelSet.has(`${r.id}|${dk}`)) {
-                    recLines.push({ date: dk, time: r.time, client: r.client_name || "Stálý klient", what: "Pravidelná lekce", amount: r.price_kc ?? 0, kind: "staly", ref: `rec:${r.id}:${dk}` });
+                    const svc = r.service_key || "fitness";
+                    const client = r.client_name || "Stálý klient";
+                    recLines.push({ date: dk, time: r.time, client, what: svcLabelOf(svc, "Pravidelná lekce"), amount: priceFor(client, svc, r.price_kc ?? 0), kind: "staly", ref: `rec:${r.id}:${dk}`, svc, svcLabel: svcLabelOf(svc, "Pravidelná lekce"), unit: svcUnitOf(svc) });
                   }
                 }
                 d.setDate(d.getDate() + 1);
@@ -2920,10 +2970,12 @@ export default function AdminPage() {
             const today0 = new Date(); today0.setHours(0, 0, 0, 0);
             const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
             for (const b of blocks) {
-              if (!b.active || !b.price_kc) continue;
-              const catLabel = CAT_LABELS[b.category] || b.label;
+              if (!b.active) continue;
+              const svc = b.category;
+              const catLabel = svcLabelOf(svc, b.label);
+              const unit = svcUnitOf(svc);
               if (b.bill_mode === "monthly") {
-                // kruháč: platí, kdo se v daném měsíci objevil v docházce aspoň 1×
+                // kruháč: kdo se v daném měsíci objevil v docházce aspoň 1× → platí paušál za měsíc
                 const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");
                 const months = new Set(att.map((a) => a.date.slice(0, 7)));
                 for (const mk of months) {
@@ -2937,7 +2989,9 @@ export default function AdminPage() {
                   }
                   const people = new Set(att.filter((a) => a.date.slice(0, 7) === mk).map((a) => a.name));
                   for (const person of people) {
-                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (celý měsíc, ${occ}×)`, amount: occ * (b.price_kc as number), kind: "blok", ref: `blk:${b.id}:${mk}:${person}` });
+                    const price = priceFor(person, svc, b.price_kc ?? 0);
+                    if (price <= 0) continue;
+                    blockLines.push({ date: `${mk}-01`, time: b.start_time, client: person, what: `${catLabel} (${occ}×)`, amount: price, kind: "blok", ref: `blk:${b.id}:${mk}:${person}`, svc, svcLabel: catLabel, unit });
                   }
                 }
               } else {
@@ -2949,7 +3003,9 @@ export default function AdminPage() {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
                   if (d.getDay() === b.weekday && dk >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${dk}`)) {
                     for (const person of roster) {
-                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: b.price_kc as number, kind: "blok", ref: `blk:${b.id}:${dk}:${person}` });
+                      const price = priceFor(person, svc, b.price_kc ?? 0);
+                      if (price <= 0) continue;
+                      blockLines.push({ date: dk, time: b.start_time, client: person, what: catLabel, amount: price, kind: "blok", ref: `blk:${b.id}:${dk}:${person}`, svc, svcLabel: catLabel, unit });
                     }
                   }
                   d.setDate(d.getDate() + 1);
@@ -2960,8 +3016,12 @@ export default function AdminPage() {
           const lessonLines: Line[] = [
             // Fakturuje se, co proběhlo, nebo pozdní storno (poplatek). Čekající/zrušené se nepočítají.
             ...bookings.filter((b) => b.status === "completed" || b.status === "no_show")
-              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const, ref: b.id })),
-            ...lessons.map((l) => ({ date: l.date, time: l.time, client: l.client_name || "—", what: l.note || "Lekce", amount: l.price_kc ?? 0, kind: "lekce" as const, ref: l.id })),
+              .map((b) => ({ date: b.date, time: b.time, client: b.contact_name || "—", what: b.status === "no_show" ? `${b.service_name} (storno)` : b.service_name, amount: b.price_kc || 0, kind: "web" as const, ref: b.id, svc: "fitness", svcLabel: b.service_name || "Lekce", unit: "lekce" })),
+            ...lessons.map((l) => {
+              const svc = l.service_key || "fitness";
+              const client = l.client_name || "—";
+              return { date: l.date, time: l.time, client, what: svcLabelOf(svc, l.note || "Lekce"), amount: priceFor(client, svc, l.price_kc ?? 0), kind: "lekce" as const, ref: l.id, svc, svcLabel: svcLabelOf(svc, l.note || "Lekce"), unit: svcUnitOf(svc) };
+            }),
             ...recLines,
             ...blockLines,
             ...extraLines,
@@ -2980,6 +3040,34 @@ export default function AdminPage() {
           }
           const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+          // Agregace položek faktury po službách: „služba — Nx á cena".
+          const aggregateInvoiceLines = (lines: Line[]): { date: string; what: string; amount: number }[] => {
+            const map = new Map<string, { label: string; unit: string; count: number; unitAmt: number; total: number }>();
+            for (const l of lines) {
+              const key = `${l.svcLabel}|${l.amount}`;
+              const g = map.get(key) || { label: l.svcLabel, unit: l.unit, count: 0, unitAmt: l.amount, total: 0 };
+              g.count += 1; g.total += l.amount;
+              map.set(key, g);
+            }
+            return [...map.values()]
+              .sort((a, b) => a.label.localeCompare(b.label, "cs"))
+              .map((g) => {
+                const what = g.count > 1 ? `${g.label} — ${g.count}× á ${g.unitAmt.toLocaleString("cs-CZ")} Kč` : g.label;
+                return { date: "", what, amount: g.total };
+              });
+          };
+          // Úvodní věta: seznam služeb, které klient v měsíci opravdu měl (podle ceníku intro_term).
+          const introServices = (lines: Line[]): string => {
+            const terms: string[] = [];
+            const seen = new Set<string>();
+            for (const l of lines) {
+              const t = catMap.get(l.svc)?.intro_term;
+              if (t && !seen.has(t)) { seen.add(t); terms.push(t); }
+            }
+            if (terms.length === 0) return "poskytnuté služby";
+            if (terms.length === 1) return terms[0];
+            return terms.slice(0, -1).join(", ") + " a " + terms[terms.length - 1];
+          };
           // Všechna jména, která můžou přijít na fakturu (pro nastavení rodin):
           //  klienti, stálí, jednorázoví, děti/účastníci ze soupisek a docházky bloků,
           //  rezervace + jména už použitá ve fakturačních rodinách (i vytvoření rodiče).
@@ -3078,7 +3166,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3393,7 +3481,8 @@ export default function AdminPage() {
                 .map(([payer, lines]) => ({
                   payer,
                   total: lines.reduce((s, x) => s + x.amount, 0),
-                  lines: lines.map((l) => ({ date: l.date, what: l.time ? `${l.what} (${l.time})` : l.what, amount: l.amount })),
+                  lines: aggregateInvoiceLines(lines),
+                  intro: fillIntro(invCfg?.intro_note, invMonth, introServices(lines)),
                 }))
                 .filter((g) => g.total > 0);
               const invByPayer = new Map(invoices.filter((i) => i.month === invMonth).map((i) => [i.payer_name, i]));
@@ -3420,13 +3509,13 @@ export default function AdminPage() {
                 <div className="mb-4 rounded-xl border border-gray-100 p-4">
                   <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Úvodní věta na faktuře</label>
                   <textarea
-                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za {mesic} tyto lekce:"}
+                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:"}
                     onBlur={(e) => { const v = e.target.value; if (v.trim() !== (invCfg?.intro_note ?? "").trim()) saveIntroNote(v); }}
                     rows={2}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
                   />
                   <p className="mt-1 text-xs text-gray-400">
-                    Objeví se nad položkami. <code>{"{mesic}"}</code> se nahradí názvem měsíce (např. „říjen 2026"). Pod větou se vypíšou lekce s cenou a dole celkový součet.
+                    Objeví se nad položkami. <code>{"{sluzby}"}</code> se nahradí výčtem služeb, které klient měl (např. „fitness tréninky a sportovní masáže"), <code>{"{mesic}"}</code> názvem měsíce. Pod větou se vypíšou služby s počtem a cenou a dole celkový součet.
                   </p>
                 </div>
 
@@ -3541,6 +3630,73 @@ export default function AdminPage() {
                     </div>
                   </>
                 )}
+              </div>
+              );
+            })()}
+
+            {/* CENÍK – služby, ceny a individuální slevy */}
+            {finView === "cenik" && (() => {
+              const svcOverrideNames = Array.from(new Set([
+                ...lessonLines.filter((l) => l.svc === cenikSvc).map((l) => l.client),
+                ...clientPrices.filter((p) => p.service_key === cenikSvc).map((p) => p.client_name),
+              ].filter((n) => n && n.trim()))).sort((a, b) => a.localeCompare(b, "cs"));
+              const ovOf = (client: string) => clientPrices.find((p) => p.client_name === client && p.service_key === cenikSvc)?.price;
+              const curSvc = serviceCatalog.find((s) => s.key === cenikSvc);
+              return (
+              <div className="space-y-6">
+                {/* Ceník služeb */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-3">Co nabízíš a za kolik. Cena odtud se použije ve fakturaci. <strong>0 Kč</strong> = ber cenu zadanou u konkrétní lekce/bloku. Jednotka „měsíc" = paušál za měsíc (kruháč), „lekce"/„masáž" = cena za kus.</p>
+                  <div className="space-y-2">
+                    {serviceCatalog.map((s) => (
+                      <div key={s.key} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-gray-100 p-3 sm:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_auto] sm:items-center">
+                        <input type="text" defaultValue={s.label} onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== s.label) saveCatalogField(s.key, { label: v }); }} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm font-semibold" />
+                        <input type="text" defaultValue={s.intro_term ?? ""} placeholder="výraz do věty" title="Jak se služba napíše v úvodní větě (např. 'fitness tréninky')" onBlur={(e) => { const v = e.target.value.trim(); if (v !== (s.intro_term ?? "")) saveCatalogField(s.key, { intro_term: v }); }} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                        <div className="flex items-center gap-1">
+                          <input type="number" defaultValue={s.price} onBlur={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v !== s.price) saveCatalogField(s.key, { price: v }); }} className="w-20 rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                          <span className="text-xs text-gray-400">Kč</span>
+                        </div>
+                        <select defaultValue={s.bill_mode} onChange={(e) => saveCatalogField(s.key, { bill_mode: e.target.value })} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm" title="Jak se účtuje">
+                          <option value="per_lesson">za lekci</option>
+                          <option value="monthly">paušál / měsíc</option>
+                        </select>
+                        <label className="flex items-center gap-1.5 text-xs text-gray-500" title="Zobrazit při zadávání lekce / počítat ve fakturaci">
+                          <input type="checkbox" checked={s.active} onChange={(e) => saveCatalogField(s.key, { active: e.target.checked })} /> aktivní
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Individuální ceny (slevy) */}
+                <div>
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-gray-400">Individuální ceny (slevy)</p>
+                  <p className="text-sm text-gray-500 mb-3">Vyber službu a nastav cenu konkrétnímu člověku. Prázdné pole = platí ceníková cena{curSvc ? ` (${curSvc.price} Kč)` : ""}.</p>
+                  <select value={cenikSvc} onChange={(e) => setCenikSvc(e.target.value)} className="mb-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm min-w-[220px]">
+                    {serviceCatalog.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  </select>
+                  <div className="space-y-1.5">
+                    {svcOverrideNames.length === 0 && <p className="text-xs text-gray-400">Zatím nikdo s touto službou. Přidej jméno níže, nebo se lidé objeví, jakmile budou mít lekci.</p>}
+                    {svcOverrideNames.map((nm) => (
+                      <div key={nm} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                        <span className="flex-1">{nm}</span>
+                        <input
+                          type="number"
+                          defaultValue={ovOf(nm) ?? ""}
+                          placeholder={`${curSvc?.price ?? 0}`}
+                          onBlur={(e) => { const raw = e.target.value.trim(); const v = raw === "" ? null : Number(raw); if ((v ?? null) !== (ovOf(nm) ?? null)) setClientPrice(nm, cenikSvc, v != null && Number.isFinite(v) ? v : null); }}
+                          className="w-24 rounded-md border border-gray-200 px-2 py-1.5"
+                        />
+                        <span className="text-xs text-gray-400">Kč</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Přidat člověka ručně */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <input type="text" list="bill-names" value={cenikNewName} onChange={(e) => setCenikNewName(e.target.value)} placeholder="Přidat jméno…" className="rounded-md border border-gray-200 px-3 py-2 text-sm" />
+                    <button type="button" disabled={!cenikNewName.trim()} onClick={() => { const nm = cenikNewName.trim(); if (nm) { setClientPrice(nm, cenikSvc, curSvc?.price ?? 0); setCenikNewName(""); } }} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Přidat cenu</button>
+                  </div>
+                </div>
               </div>
               );
             })()}

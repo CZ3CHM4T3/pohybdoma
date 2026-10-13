@@ -32,11 +32,11 @@ insert into public.invoice_config
 values
   (1, 'Mgr. Jan Schröffel', 'Chovatelů 159, Hradištko, 252 09', '04531817',
    'CZ4130300000003470043017', '3470043017/3030', 7, false, 20260163,
-   'Nejsem plátce DPH.', 'Dobrý den, fakturuji Vám za {mesic} tyto lekce:')
+   'Nejsem plátce DPH.', 'Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:')
 on conflict (id) do nothing;
 -- Když řádek už existoval a větu nemá, doplň výchozí:
 update public.invoice_config
-  set intro_note = 'Dobrý den, fakturuji Vám za {mesic} tyto lekce:'
+  set intro_note = 'Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:'
   where id = 1 and (intro_note is null or intro_note = '');
 
 alter table public.invoice_config enable row level security;

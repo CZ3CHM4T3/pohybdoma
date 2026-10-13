@@ -34,10 +34,13 @@ export function monthLabelCs(m: string): string {
   return `${CS_MONTHS[Number(mm)] ?? mm} ${y}`;
 }
 
-/** Doplní do šablony úvodní věty název měsíce místo {mesic}. */
-export function fillIntro(template: string | null | undefined, month: string): string {
-  const base = (template && template.trim()) || "Dobrý den, fakturuji Vám za {mesic} tyto lekce:";
-  return base.replace(/\{mesic\}/gi, monthLabelCs(month));
+/** Doplní do šablony úvodní věty název měsíce ({mesic}) a výčet služeb ({sluzby}). */
+export function fillIntro(template: string | null | undefined, month: string, services = ""): string {
+  const base = (template && template.trim()) ||
+    "Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:";
+  return base
+    .replace(/\{mesic\}/gi, monthLabelCs(month))
+    .replace(/\{sluzby\}/gi, services || "poskytnuté služby");
 }
 
 export type InvoiceLine = { date: string; what: string; amount: number };
