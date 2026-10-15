@@ -36,6 +36,7 @@ export type LessonRow = {
   client_name: string;
   note: string | null;
   price_kc: number | null;
+  service_key?: string | null;
   recurring?: boolean; // true = odvozený výskyt stálého klienta (nemazat jednotlivě)
   block?: boolean; // true = pravidelný blok (MS GEM, kroužek…)
 };

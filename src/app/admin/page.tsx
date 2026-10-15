@@ -1646,6 +1646,7 @@ export default function AdminPage() {
           client_name: r.client_name || "Stálý klient",
           note: r.note,
           price_kc: r.price_kc,
+          service_key: r.service_key,
           recurring: true,
         });
       }
@@ -1682,6 +1683,18 @@ export default function AdminPage() {
     }
   }
   const allLessons: LessonRow[] = [...lessons, ...recurringLessonRows, ...blockRows];
+
+  // Reálná cena služby k danému dni (sleva klienta → cena platná k datu → ceník → fallback). Pro kalendář.
+  const priceAt = (client: string, svc: string, date: string, fallback = 0): number => {
+    const ov = clientPrices.find((p) => p.client_name === client && p.service_key === svc);
+    if (ov) return ov.price;
+    const cat = serviceCatalog.find((s) => s.key === svc);
+    let price: number | null = cat && cat.price > 0 ? cat.price : null;
+    for (const h of priceHistory.filter((p) => p.service_key === svc).sort((a, b) => a.from_date.localeCompare(b.from_date))) {
+      if (h.from_date <= date) price = h.price; else break;
+    }
+    return price != null && price > 0 ? price : fallback;
+  };
 
   // Bloky jako CELÉ boxy (start–end) pro proporční časovou osu
   const blockOccs: { id: string; date: string; start_time: string; end_time: string; label: string; category: string; cancelled?: boolean }[] = [];
@@ -2069,6 +2082,7 @@ export default function AdminPage() {
           <WeekCalendar
             bookings={bookings}
             lessons={timelineLessons}
+            priceAt={priceAt}
             blocks={blockOccs}
             open={openOccs}
             notes={lessonNotes}

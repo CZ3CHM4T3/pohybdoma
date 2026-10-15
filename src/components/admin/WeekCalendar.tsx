@@ -33,7 +33,7 @@ function toMin(t: string): number { return parseInt(t.slice(0, 2), 10) * 60 + pa
 
 type Item = {
   id: string; startMin: number; endMin: number; name: string; time: string;
-  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno" | "event"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; cancelled?: boolean; lane: number; lanes: number;
+  color: string; kind: "fitness" | "block" | "rezervace" | "volno" | "zruseno" | "event"; deletable: boolean; recurring: boolean; byClient?: boolean; note?: string; cancelled?: boolean; price?: number | null; lane: number; lanes: number;
 };
 
 export function WeekCalendar({
@@ -49,6 +49,7 @@ export function WeekCalendar({
   catColors,
   clientNames = [],
   services = [],
+  priceAt,
   onAddLesson,
   onAddRecurring,
   onDeleteLesson,
@@ -79,6 +80,7 @@ export function WeekCalendar({
   catColors: Record<string, string>;
   clientNames?: string[];
   services?: { key: string; label: string }[];
+  priceAt?: (client: string, svc: string, date: string, fallback?: number) => number;
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) => Promise<void | boolean>;
   onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null, since?: string | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
@@ -163,11 +165,13 @@ export function WeekCalendar({
     for (const l of lessons) {
       if (l.date !== key) continue;
       const s = toMin(l.time);
-      raw.push({ id: l.id, startMin: s, endMin: s + 60, name: l.client_name || "Lekce", time: l.time, color: catColors.fitness, kind: "fitness", deletable: !l.recurring, recurring: !!l.recurring });
+      const price = priceAt ? priceAt(l.client_name || "", l.service_key || "fitness", l.date, l.price_kc ?? 0) : (l.price_kc ?? null);
+      raw.push({ id: l.id, startMin: s, endMin: s + 60, name: l.client_name || "Lekce", time: l.time, color: catColors.fitness, kind: "fitness", deletable: !l.recurring, recurring: !!l.recurring, price });
     }
     for (const b of blocks) {
       if (b.date !== key) continue;
-      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false, recurring: false, cancelled: b.cancelled });
+      const price = priceAt ? priceAt("", b.category, b.date, 0) : null;
+      raw.push({ id: b.id, startMin: toMin(b.start_time), endMin: toMin(b.end_time), name: b.label, time: b.start_time, color: catColors[b.category] || catColors.jine, kind: "block", deletable: false, recurring: false, cancelled: b.cancelled, price });
     }
     for (const bk of bookings) {
       if (bk.date !== key || bk.status === "cancelled" || bk.status === "no_show") continue;
@@ -306,7 +310,7 @@ export function WeekCalendar({
                     className={`absolute rounded px-1 py-0.5 text-[9px] font-semibold overflow-hidden leading-tight cursor-pointer ${isCx ? "border border-dashed border-gray-400 text-gray-600" : "text-white"}`}
                     style={{ top, height, left: `calc(${it.lane * w}% + 1px)`, width: `calc(${w}% - 2px)`, background: isCx ? "#f3f4f6" : it.color }}
                   >
-                    <span className="block opacity-90">{isCx ? "zrušeno" : it.time}{!isCx && paidRefs?.has(it.id) ? " ✓" : ""}</span>
+                    <span className="block opacity-90">{isCx ? "zrušeno" : it.time}{!isCx && paidRefs?.has(it.id) ? " ✓" : ""}{!isCx && it.price ? ` · ${it.price} Kč` : ""}</span>
                     <span className={`block truncate ${isCx ? "line-through" : ""}`}>{it.name}</span>
                     {it.note && !isCx && (
                       <span className="block truncate font-normal opacity-95">📝 {it.note}</span>
