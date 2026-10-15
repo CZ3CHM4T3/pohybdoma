@@ -172,6 +172,7 @@ type RecurringRow = {
   note: string | null;
   active: boolean;
   service_key?: string | null;
+  since?: string | null;
 };
 type ServiceCatalog = { key: string; label: string; unit: string; intro_term: string | null; price: number; bill_mode: string; active: boolean; position: number };
 type ClientPrice = { client_name: string; service_key: string; price: number };
@@ -258,6 +259,7 @@ export default function AdminPage() {
   const [edTime, setEdTime] = useState("15:00");
   const [edPrice, setEdPrice] = useState("1000");
   const [edClient, setEdClient] = useState("");
+  const [edSince, setEdSince] = useState("");
   const [recClient, setRecClient] = useState("");
   const [recWeekday, setRecWeekday] = useState("1");
   const [recTime, setRecTime] = useState("15:00");
@@ -818,7 +820,7 @@ export default function AdminPage() {
     setRecurring((prev) => prev.filter((x) => x.id !== id));
   }
   // Úprava pravidelné lekce (den / čas / cena / klient)
-  async function updateRecurring(id: string, patch: { client_name?: string; weekday?: number; time?: string; price_kc?: number | null }) {
+  async function updateRecurring(id: string, patch: { client_name?: string; weekday?: number; time?: string; price_kc?: number | null; since?: string | null }) {
     setError(null);
     const { error } = await supabase.from("recurring_lessons").update(patch).eq("id", id);
     if (error) { setError("Úprava lekce selhala: " + error.message); return; }
@@ -1182,7 +1184,7 @@ export default function AdminPage() {
     }
   }
   // Pravidelná lekce založená přímo z kalendáře (den → weekday). Propojí účet klienta, pokud sedí e-mail.
-  async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) {
+  async function addRecurringFromCalendar(weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null, since?: string | null) {
     if (!clientName.trim()) return;
     setError(null);
     const roster = clients.find((c) => c.name === clientName.trim());
@@ -1199,6 +1201,7 @@ export default function AdminPage() {
       price_kc: priceKc,
       note: note.trim() || null,
       service_key: serviceKey || "fitness",
+      since: since || null,
     });
     if (error) { setError("Uložení pravidelné lekce selhalo (spustil jsi recurring.sql?): " + error.message); return; }
     const { data } = await supabase.from("recurring_lessons").select("*").order("weekday").order("time");
@@ -2143,9 +2146,10 @@ export default function AdminPage() {
                       <span className="font-semibold">{["Ne", "Po", "Út", "St", "Čt", "Pá", "So"][r.weekday]}</span>
                       {" "}v {r.time} · <span className="font-medium">{r.client_name}</span>
                       {r.price_kc != null && <span className="text-gray-500"> · {r.price_kc} Kč</span>}
+                      {r.since && <span className="text-gray-400"> · od {new Date(r.since + "T00:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}</span>}
                     </span>
                     <span className="flex shrink-0 items-center gap-3">
-                      <button type="button" onClick={() => { setEditRecId(editRecId === r.id ? null : r.id); setEdClient(r.client_name); setEdWeekday(String(r.weekday)); setEdTime(r.time); setEdPrice(r.price_kc != null ? String(r.price_kc) : ""); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">
+                      <button type="button" onClick={() => { setEditRecId(editRecId === r.id ? null : r.id); setEdClient(r.client_name); setEdWeekday(String(r.weekday)); setEdTime(r.time); setEdPrice(r.price_kc != null ? String(r.price_kc) : ""); setEdSince(r.since ?? ""); }} className="text-xs font-semibold text-brand-blue hover:text-brand-dark">
                         {editRecId === r.id ? "Zavřít" : "Upravit"}
                       </button>
                       <button type="button" onClick={() => deleteRecurring(r.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">
@@ -2176,7 +2180,11 @@ export default function AdminPage() {
                         <label className="block text-[11px] text-gray-500 mb-0.5">Cena Kč</label>
                         <input type="number" value={edPrice} onChange={(e) => setEdPrice(e.target.value)} className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
                       </div>
-                      <button type="button" onClick={async () => { const p = edPrice.trim() === "" ? null : Number(edPrice); await updateRecurring(r.id, { client_name: edClient.trim() || r.client_name, weekday: Number(edWeekday), time: edTime, price_kc: Number.isFinite(p as number) ? p : null }); setEditRecId(null); }} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
+                      <div className="w-36">
+                        <label className="block text-[11px] text-gray-500 mb-0.5">Účtovat od</label>
+                        <input type="date" value={edSince} onChange={(e) => setEdSince(e.target.value)} title="Od tohoto data se lekce počítá do faktur. Prázdné = od začátku (1. 9. 2026)." className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      </div>
+                      <button type="button" onClick={async () => { const p = edPrice.trim() === "" ? null : Number(edPrice); await updateRecurring(r.id, { client_name: edClient.trim() || r.client_name, weekday: Number(edWeekday), time: edTime, price_kc: Number.isFinite(p as number) ? p : null, since: edSince || null }); setEditRecId(null); }} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
                         Uložit
                       </button>
                     </div>
@@ -2947,12 +2955,13 @@ export default function AdminPage() {
             const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
             for (const r of recurring) {
               if (!r.active) continue;
+              // Od kdy se lekce počítá: vlastní „since", nejdřív ale od 1. 9. 2026 (dřív se netrénovalo).
+              const since = (r.since && r.since > "2026-09-01") ? r.since : "2026-09-01";
               const d = new Date(start0);
               while (d <= today0) {
                 if (d.getDay() === r.weekday) {
                   const dk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-                  // Pravidelné lekce počítáme do faktur až od září 2026 (dřív se netrénovalo).
-                  if (dk >= "2026-09-01" && !cancelSet.has(`${r.id}|${dk}`)) {
+                  if (dk >= since && !cancelSet.has(`${r.id}|${dk}`)) {
                     const svc = r.service_key || "fitness";
                     const client = r.client_name || "Stálý klient";
                     recLines.push({ date: dk, time: r.time, client, what: svcLabelOf(svc, "Pravidelná lekce"), amount: priceFor(client, svc, r.price_kc ?? 0), kind: "staly", ref: `rec:${r.id}:${dk}`, svc, svcLabel: svcLabelOf(svc, "Pravidelná lekce"), unit: svcUnitOf(svc) });

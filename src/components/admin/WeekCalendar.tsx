@@ -80,7 +80,7 @@ export function WeekCalendar({
   clientNames?: string[];
   services?: { key: string; label: string }[];
   onAddLesson: (date: string, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) => Promise<void | boolean>;
-  onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null) => Promise<void>;
+  onAddRecurring?: (weekday: number, time: string, clientName: string, note: string, priceKc: number | null, serviceKey?: string | null, since?: string | null) => Promise<void>;
   onDeleteLesson: (id: string) => Promise<void>;
   onCancelOccurrence?: (recId: string, date: string) => Promise<void>;
   onMoveOccurrence?: (recId: string, origDate: string, newDate: string, newTime: string) => Promise<void>;
@@ -115,6 +115,7 @@ export function WeekCalendar({
   const [lNote, setLNote] = useState("");
   const [lPrice, setLPrice] = useState("");
   const [lRepeat, setLRepeat] = useState(false);
+  const [lFromMonthStart, setLFromMonthStart] = useState(false);
   const [lService, setLService] = useState("fitness");
   const [lSaving, setLSaving] = useState(false);
   const [lErr, setLErr] = useState<string | null>(null);
@@ -240,12 +241,13 @@ export function WeekCalendar({
     setLErr(null);
     const priceKc = lPrice.trim() === "" ? null : Number(lPrice);
     const p = Number.isFinite(priceKc as number) ? priceKc : null;
+    const since = lFromMonthStart ? `${pop.date.slice(0, 7)}-01` : pop.date;
     const ok = (lRepeat && onAddRecurring)
-      ? await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p, lService)
+      ? await onAddRecurring(new Date(pop.date + "T00:00:00").getDay(), lTime, lName.trim(), lNote.trim(), p, lService, since)
       : await onAddLesson(pop.date, lTime, lName.trim(), lNote.trim(), p, lService);
     setLSaving(false);
     if (ok === false) { setLErr("Nepodařilo se uložit. Zkontroluj, že je v Supabase spuštěný planner.sql (tabulka lesson_plans)."); return; }
-    setLName(""); setLNote(""); setLRepeat(false); setLPrice(""); setLService("fitness"); closePop();
+    setLName(""); setLNote(""); setLRepeat(false); setLFromMonthStart(false); setLPrice(""); setLService("fitness"); closePop();
   }
 
   // Po otevření/změně obsahu bubliny ji posuň, ať se celá vejde na obrazovku.
@@ -441,6 +443,13 @@ export function WeekCalendar({
                 <p className="text-[10px] text-gray-400">Cenu nech prázdnou – vezme se z ceníku/slevy. Vyplň jen výjimečnou cenu.</p>
                 {onAddRecurring && !pop.item && (
                   <label className="flex items-center gap-2 text-brand-dark"><input type="checkbox" checked={lRepeat} onChange={(e) => setLRepeat(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300 text-brand-blue" /> Opakovat (stálý klient)</label>
+                )}
+                {onAddRecurring && !pop.item && lRepeat && (
+                  <div className="rounded-md bg-gray-50 p-2 text-[11px] text-gray-600">
+                    <p className="mb-1 font-semibold text-brand-dark">Účtovat od:</p>
+                    <label className="flex items-center gap-2"><input type="radio" name="recfrom" checked={!lFromMonthStart} onChange={() => setLFromMonthStart(false)} /> od tohoto dne ({new Date(pop.date + "T00:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })})</label>
+                    <label className="flex items-center gap-2"><input type="radio" name="recfrom" checked={lFromMonthStart} onChange={() => setLFromMonthStart(true)} /> od začátku měsíce</label>
+                  </div>
                 )}
                 {lErr && <p className="rounded-md border border-red-200 bg-red-50 p-1.5 text-[11px] text-red-700">{lErr}</p>}
                 <div className="flex gap-1.5">
