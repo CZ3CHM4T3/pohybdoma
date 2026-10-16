@@ -3036,7 +3036,15 @@ export default function AdminPage() {
               const catLabel = svcLabelOf(svc, b.label);
               const unit = svcUnitOf(svc);
               const mode = catMap.get(svc)?.bill_mode || b.bill_mode;
-              if (mode === "monthly") {
+              if (mode === "per_attendance") {
+                // platí se přesně za návštěvy (dle docházky) × cena – pro toho, kdo chodí nepravidelně
+                const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01" && !blockCancelSet.has(`${b.id}|${a.date}`));
+                for (const a of att) {
+                  const price = priceFor(a.name, svc, a.date, b.price_kc ?? 0);
+                  if (price <= 0) continue;
+                  blockLines.push({ date: a.date, time: b.start_time, client: a.name, what: catLabel, amount: price, kind: "blok", ref: `blk:${b.id}:${a.date}:${a.name}`, svc, svcLabel: catLabel, unit });
+                }
+              } else if (mode === "monthly") {
                 // kruháč: kdo v daném měsíci přišel aspoň 1× → platí VŠECHNY lekce toho měsíce (lekce × cena);
                 //         kdo nepřišel vůbec → neplatí nic. Vypíše se po jednotlivých lekcích.
                 const att = blockAttendance.filter((a) => a.block_id === b.id && a.date >= "2026-09-01");
@@ -3085,7 +3093,9 @@ export default function AdminPage() {
             ...lessons.map((l) => {
               const svc = l.service_key || "fitness";
               const client = l.client_name || "—";
-              return { date: l.date, time: l.time, client, what: svcLabelOf(svc, l.note || "Lekce"), amount: priceFor(client, svc, l.date, l.price_kc ?? 0), kind: "lekce" as const, ref: l.id, svc, svcLabel: svcLabelOf(svc, l.note || "Lekce"), unit: svcUnitOf(svc) };
+              // Ručně zadaná cena u lekce má přednost (jednorázová/náhradní lekce). Prázdná = ceník/sleva.
+              const amount = l.price_kc != null ? l.price_kc : priceFor(client, svc, l.date, 0);
+              return { date: l.date, time: l.time, client, what: svcLabelOf(svc, l.note || "Lekce"), amount, kind: "lekce" as const, ref: l.id, svc, svcLabel: svcLabelOf(svc, l.note || "Lekce"), unit: svcUnitOf(svc) };
             }),
             ...recLines,
             ...blockLines,
@@ -3105,19 +3115,28 @@ export default function AdminPage() {
           }
           const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
-          // Agregace položek faktury po službách: „služba — Nx á cena".
-          const aggregateInvoiceLines = (lines: Line[]): { date: string; what: string; amount: number }[] => {
-            const map = new Map<string, { label: string; unit: string; count: number; unitAmt: number; total: number }>();
+          // Agregace položek faktury po službách a OSOBÁCH: „služba (Anička) — Nx á cena".
+          //  U rodin se u položky ukáže, čí lekce to je (osoba ≠ plátce).
+          const aggregateInvoiceLines = (lines: Line[], payer: string): { date: string; what: string; amount: number }[] => {
+            const map = new Map<string, { person: string; label: string; count: number; unitAmt: number; total: number }>();
             for (const l of lines) {
-              const key = `${l.svcLabel}|${l.amount}`;
-              const g = map.get(key) || { label: l.svcLabel, unit: l.unit, count: 0, unitAmt: l.amount, total: 0 };
+              const key = `${l.client}|${l.svcLabel}|${l.amount}`;
+              const g = map.get(key) || { person: l.client, label: l.svcLabel, count: 0, unitAmt: l.amount, total: 0 };
               g.count += 1; g.total += l.amount;
               map.set(key, g);
             }
             return [...map.values()]
-              .sort((a, b) => a.label.localeCompare(b.label, "cs"))
+              .sort((a, b) => {
+                const ap = a.person === payer ? 0 : 1, bp = b.person === payer ? 0 : 1;
+                if (ap !== bp) return ap - bp;                       // lekce plátce první
+                if (a.person !== b.person) return a.person.localeCompare(b.person, "cs");
+                return a.label.localeCompare(b.label, "cs");
+              })
               .map((g) => {
-                const what = g.count > 1 ? `${g.label} — ${g.count}× á ${g.unitAmt.toLocaleString("cs-CZ")} Kč` : g.label;
+                const who = g.person && g.person !== payer ? ` (${g.person})` : "";
+                const what = g.count > 1
+                  ? `${g.label}${who} — ${g.count}× á ${g.unitAmt.toLocaleString("cs-CZ")} Kč`
+                  : `${g.label}${who}`;
                 return { date: "", what, amount: g.total };
               });
           };
@@ -3265,7 +3284,7 @@ export default function AdminPage() {
                         {sorted.map((ln, i) => (
                           <div key={i} className="pd-doc-line">
                             <span className="pd-doc-date">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
-                            <span className="pd-doc-what">{ln.what}{paidRefs.has(ln.ref) ? " · zaplaceno" : ""}</span>
+                            <span className="pd-doc-what">{ln.what}{ln.client !== client ? ` (${ln.client})` : ""}{paidRefs.has(ln.ref) ? " · zaplaceno" : ""}</span>
                             <span className="pd-doc-amt">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
                           </div>
                         ))}
@@ -3352,7 +3371,7 @@ export default function AdminPage() {
                           <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
                           <button
                             type="button"
-                            onClick={() => openInvoice(client, lines.map((l) => ({ date: l.date, what: l.what, amount: l.amount })), ci + 1)}
+                            onClick={() => openInvoice(client, lines.map((l) => ({ date: l.date, what: l.client !== client ? `${l.what} (${l.client})` : l.what, amount: l.amount })), ci + 1)}
                             className="inline-flex items-center gap-1 rounded-md bg-brand-dark px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90"
                           >
                             <Receipt className="h-3.5 w-3.5" /> Fakturu
@@ -3371,7 +3390,7 @@ export default function AdminPage() {
                             />
                             <span className="capitalize text-gray-600 w-40 shrink-0">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
                             <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
-                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}{ln.kind === "extra" ? " · extra" : ""}</span>
+                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}{ln.client !== client ? <span className="font-semibold text-brand-dark"> · {ln.client}</span> : ""}{ln.kind === "extra" ? " · extra" : ""}</span>
                             <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
                             {ln.kind === "extra" && (
                               <button type="button" onClick={(e) => { e.stopPropagation(); delExtra(ln.ref.replace(/^extra:/, "")); }} title="Smazat položku" className="shrink-0 text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -3589,7 +3608,7 @@ export default function AdminPage() {
                 .map(([payer, lines]) => ({
                   payer,
                   total: lines.reduce((s, x) => s + x.amount, 0),
-                  lines: aggregateInvoiceLines(lines),
+                  lines: aggregateInvoiceLines(lines, payer),
                   intro: fillIntro(invCfg?.intro_note, invMonth, introServices(lines)),
                 }))
                 .filter((g) => g.total > 0);
@@ -3754,7 +3773,7 @@ export default function AdminPage() {
               <div className="space-y-6">
                 {/* Ceník služeb */}
                 <div>
-                  <p className="text-sm text-gray-500 mb-3">Co nabízíš a za kolik (cena je vždy <strong>za jednu lekci</strong>). Cena odtud se použije ve fakturaci. <strong>0 Kč</strong> = ber cenu zadanou u konkrétní lekce/bloku. Účtování: <strong>za každou lekci</strong> = platí se jen co proběhlo; <strong>celý měsíc</strong> = kdo přišel aspoň 1× za měsíc (kruháč), zaplatí všechny lekce toho měsíce, kdo nepřišel, neplatí nic.</p>
+                  <p className="text-sm text-gray-500 mb-3">Co nabízíš a za kolik (cena je vždy <strong>za jednu lekci</strong>). Cena odtud se použije ve fakturaci. <strong>0 Kč</strong> = ber cenu zadanou u konkrétní lekce/bloku. Účtování: <strong>za každou lekci</strong> = platí se každá lekce ze soupisky; <strong>celý měsíc</strong> = kdo přišel aspoň 1× za měsíc (kruháč), zaplatí všechny lekce měsíce, kdo nepřišel, nic; <strong>za návštěvu</strong> = platí se přesně kolikrát přišel (dle docházky) – pro nepravidelné (Anička ve skupince).</p>
                   <div className="space-y-2">
                     {serviceCatalog.map((s) => (
                       <div key={s.key} className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-gray-100 p-3 sm:grid-cols-[1.4fr_1fr_0.8fr_0.9fr_auto] sm:items-center">
@@ -3767,6 +3786,7 @@ export default function AdminPage() {
                         <select defaultValue={s.bill_mode} onChange={(e) => saveCatalogField(s.key, { bill_mode: e.target.value })} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm" title="Jak se účtuje">
                           <option value="per_lesson">za každou lekci</option>
                           <option value="monthly">celý měsíc (když přišel)</option>
+                          <option value="per_attendance">za návštěvu (dle docházky)</option>
                         </select>
                         <label className="flex items-center gap-1.5 text-xs text-gray-500" title="Zobrazit při zadávání lekce / počítat ve fakturaci">
                           <input type="checkbox" checked={s.active} onChange={(e) => saveCatalogField(s.key, { active: e.target.checked })} /> aktivní
