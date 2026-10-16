@@ -235,6 +235,8 @@ export default function AdminPage() {
   const [lessons, setLessons] = useState<LessonRow[]>([]);
   const [lessonNotes, setLessonNotes] = useState<{ date: string; time: string; note: string }[]>([]);
   const [billingMap, setBillingMap] = useState<{ name: string; bill_to: string }[]>([]);
+  const [famMember, setFamMember] = useState("");
+  const [famPayer, setFamPayer] = useState("");
   const [paidRefs, setPaidRefs] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<{ id: string; month: string; client: string; label: string; amount_kc: number }[]>([]);
   // Fakturace: údaje plátců + vystavené faktury
@@ -3406,28 +3408,71 @@ export default function AdminPage() {
             </div>
 
             {/* Fakturační rodiny – sloučit pod jednoho plátce */}
-            <details className="mb-6 rounded-xl border border-gray-100">
-              <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-brand-dark">👪 Fakturační rodiny <span className="font-normal text-gray-400">· sloučit pod jednoho plátce</span></summary>
-              <div className="border-t border-gray-100 p-4">
-                <p className="text-xs text-gray-500 mb-3">U koho chceš platby sloučit, napiš do „fakturovat pod" <strong>jméno plátce</strong>. Klidně <strong>úplně nové jméno rodiče, který u tebe necvičí</strong> (např. „Novákovi – rodič") – stačí ho napsat, nemusí být klient. U sourozenců napiš stejné jméno. Nech prázdné = platí sám za sebe. Platí napříč měsíci. <span className="text-gray-400">Pozn.: dítě z PPT se tu objeví, jen když je v <strong>soupisce</strong> té skupiny (Stálí klienti → Skupinové lekce → soupiska).</span></p>
-                <div className="space-y-1.5 max-h-80 overflow-y-auto">
-                  {allBillNames.map((nm) => (
-                    <div key={nm} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="w-48 shrink-0 truncate text-brand-dark">{nm}</span>
-                      <span className="text-xs text-gray-400">→ fakturovat pod:</span>
-                      <input
-                        list="bill-names"
-                        defaultValue={billingMap.find((b) => b.name === nm)?.bill_to ?? ""}
-                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (billingMap.find((b) => b.name === nm)?.bill_to ?? "")) saveBillTo(nm, v); }}
-                        placeholder="(sám za sebe)"
-                        className="flex-1 min-w-[160px] rounded-md border border-gray-200 px-2 py-1 text-sm"
-                      />
+            {(() => {
+              // Rodiny = seskupení billing_map podle plátce (bill_to → členové)
+              const famMap = new Map<string, string[]>();
+              for (const b of billingMap) {
+                if (!famMap.has(b.bill_to)) famMap.set(b.bill_to, []);
+                famMap.get(b.bill_to)!.push(b.name);
+              }
+              const families = [...famMap.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+              const payerOptions = Array.from(new Set(billingMap.map((b) => b.bill_to))).sort((a, b) => a.localeCompare(b, "cs"));
+              const addToFamily = () => {
+                const m = famMember.trim(), p = famPayer.trim();
+                if (!m || !p || m === p) return;
+                saveBillTo(m, p);
+                setFamMember("");
+              };
+              return (
+              <details className="mb-6 rounded-xl border border-gray-100" open>
+                <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-brand-dark">👪 Fakturační rodiny <span className="font-normal text-gray-400">· sloučit víc lidí na jednu fakturu</span></summary>
+                <div className="border-t border-gray-100 p-4">
+                  <p className="text-xs text-gray-500 mb-3">Spoj lidi pod jednoho <strong>plátce</strong> (např. rodiče) – jejich lekce se pak sečtou na <strong>jednu fakturu</strong>. Plátce může být i někdo, kdo u tebe necvičí (napiš nové jméno, třeba „Novákovi"). <span className="text-gray-400">Dítě z PPT se nabídne, jen když je v soupisce skupiny.</span></p>
+
+                  {/* Spojení osoby pod plátce */}
+                  <div className="flex flex-wrap items-end gap-2 rounded-lg bg-gray-50 p-3 mb-4">
+                    <div className="min-w-[160px] flex-1">
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Osoba (dítě / člen)</label>
+                      <input list="bill-names" value={famMember} onChange={(e) => setFamMember(e.target.value)} placeholder="koho sloučit" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
                     </div>
-                  ))}
+                    <div className="text-gray-400 pb-2">→</div>
+                    <div className="min-w-[160px] flex-1">
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Fakturovat pod (plátce)</label>
+                      <input list="fam-payers" value={famPayer} onChange={(e) => setFamPayer(e.target.value)} placeholder="jméno plátce (i nové)" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                    </div>
+                    <button type="button" onClick={addToFamily} disabled={!famMember.trim() || !famPayer.trim()} className="rounded-md bg-brand-dark px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Spojit</button>
+                  </div>
+
+                  {/* Karty rodin */}
+                  {families.length === 0 ? (
+                    <p className="text-xs text-gray-400">Zatím žádná rodina. Výše spoj první dvě jména pod stejného plátce.</p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {families.map(([payer, members]) => (
+                        <div key={payer} className="rounded-lg border border-gray-100 p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold text-brand-dark">👤 {payer}</span>
+                            <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{members.length} {members.length === 1 ? "osoba" : members.length < 5 ? "osoby" : "osob"}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {members.sort((a, b) => a.localeCompare(b, "cs")).map((m) => (
+                              <span key={m} className="inline-flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 text-xs text-brand-dark">
+                                {m}
+                                <button type="button" onClick={() => saveBillTo(m, "")} className="text-gray-400 hover:text-red-500" title="Odebrat z rodiny">✕</button>
+                              </span>
+                            ))}
+                            <button type="button" onClick={() => { setFamPayer(payer); setFamMember(""); }} className="rounded-full border border-dashed border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:border-brand-blue hover:text-brand-blue" title="Přidat dalšího do této rodiny">+ přidat</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <datalist id="bill-names">{allBillNames.map((n) => <option key={n} value={n} />)}</datalist>
+                  <datalist id="fam-payers">{payerOptions.map((n) => <option key={n} value={n} />)}</datalist>
                 </div>
-              </div>
-            </details>
+              </details>
+              );
+            })()}
             </>)}
 
             {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
