@@ -37,7 +37,7 @@ export function monthLabelCs(m: string): string {
 /** Doplní do šablony úvodní věty název měsíce ({mesic}) a výčet služeb ({sluzby}). */
 export function fillIntro(template: string | null | undefined, month: string, services = ""): string {
   const base = (template && template.trim()) ||
-    "Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:";
+    "Dobrý den, fakturuji Vám za {sluzby} poskytnuté v období {mesic}:";
   return base
     .replace(/\{mesic\}/gi, monthLabelCs(month))
     .replace(/\{sluzby\}/gi, services || "poskytnuté služby");

@@ -3726,7 +3726,7 @@ export default function AdminPage() {
                 <div className="mb-4 rounded-xl border border-gray-100 p-4">
                   <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Úvodní věta na faktuře</label>
                   <textarea
-                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za následující {sluzby} poskytnuté v období {mesic}:"}
+                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za {sluzby} poskytnuté v období {mesic}:"}
                     onBlur={(e) => { const v = e.target.value; if (v.trim() !== (invCfg?.intro_note ?? "").trim()) saveIntroNote(v); }}
                     rows={2}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
