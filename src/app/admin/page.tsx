@@ -16,6 +16,7 @@ import { INVOICE_SUPPLIER, INVOICE_SETTINGS, invoiceConfigured } from "@/lib/inv
 import { spdString } from "@/lib/qr-payment";
 import { BUSINESS } from "@/lib/invoice-business";
 import { buildSpayd, qrUrl, fmtCzDate, fillIntro } from "@/lib/invoice";
+import { InvoiceDocument, type InvoiceDocData } from "@/components/InvoiceDocument";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -242,6 +243,7 @@ export default function AdminPage() {
   // Fakturace: údaje plátců + vystavené faktury
   const [billProfiles, setBillProfiles] = useState<{ name: string; bill_name: string | null; address: string | null; ico: string | null; dic: string | null; email: string | null; monthly_fixed?: boolean; fixed_label?: string | null }[]>([]);
   const [invoiceSkip, setInvoiceSkip] = useState<{ month: string; payer_name: string }[]>([]);
+  const [previewDoc, setPreviewDoc] = useState<InvoiceDocData | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number; intro_note: string | null } | null>(null);
   const [invBusy, setInvBusy] = useState(false);
@@ -3669,8 +3671,28 @@ export default function AdminPage() {
               const toGenerate = groups.filter((g) => !invByPayer.has(g.payer) && !skipSet.has(g.payer));
               const monthInvoices = invoices.filter((i) => i.month === invMonth).sort((a, b) => a.number - b.number);
               const issuedWithMail = monthInvoices.filter((i) => i.status === "issued" && i.email);
-              // Pevní měsíční plátci (Jiří) – ukážou se vždy, ať zadáš částku
+              // Pevní měsíční plátci (Jiří) – ukážou se vždy NAHOŘE, s ručně zadávanou částkou
               const fixedPayers = billProfiles.filter((p) => p.monthly_fixed);
+              const fixedNames = new Set(fixedPayers.map((p) => p.name));
+              const realByPayer = new Map(groups.map((g) => [g.payer, g]));
+              const fixedCards = fixedPayers
+                .sort((a, b) => a.name.localeCompare(b.name, "cs"))
+                .map((p) => realByPayer.get(p.name) ?? { payer: p.name, total: 0, lines: [] as { date: string; what: string; amount: number }[], intro: fillIntro(invCfg?.intro_note, invMonth, "") });
+              const displayGroups = [...fixedCards, ...groups.filter((g) => !fixedNames.has(g.payer))];
+              // Náhled dokumentu faktury (ještě nevygenerované) z dat skupiny
+              const openGroupPreview = (payer: string, total: number, lines: { date: string; what: string; amount: number }[], intro: string) => {
+                const prof = billProfiles.find((p) => p.name === payer);
+                const dd = new Date(); dd.setDate(dd.getDate() + (invCfg?.due_days ?? 7));
+                setPreviewDoc({
+                  number: null,
+                  billTo: prof?.bill_name || payer,
+                  address: prof?.address ?? null, ico: prof?.ico ?? null, dic: prof?.dic ?? null,
+                  month: invMonth,
+                  issuedOn: new Date().toLocaleDateString("sv-SE"),
+                  dueOn: dd.toLocaleDateString("sv-SE"),
+                  amount: total, vs: null, intro, lines, paid: false, qr: null,
+                });
+              };
               const STAT: Record<string, { label: string; cls: string }> = {
                 issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
                 sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
@@ -3678,6 +3700,18 @@ export default function AdminPage() {
               };
               return (
               <div>
+                {/* Náhled celého dokumentu faktury (modal) */}
+                {previewDoc && mounted && createPortal(
+                  <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={() => setPreviewDoc(null)}>
+                    <div className="my-8 w-full max-w-[820px]" onClick={(e) => e.stopPropagation()}>
+                      <div className="mb-2 flex justify-end">
+                        <button type="button" onClick={() => setPreviewDoc(null)} className="rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-brand-dark shadow hover:bg-gray-50">Zavřít ✕</button>
+                      </div>
+                      <InvoiceDocument business={BUSINESS} data={previewDoc} />
+                    </div>
+                  </div>,
+                  document.body
+                )}
                 <div className="mb-4 rounded-xl bg-brand-light/60 p-4 text-sm text-brand-dark">
                   <p className="font-semibold mb-1">Jak to funguje</p>
                   <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
@@ -3702,34 +3736,7 @@ export default function AdminPage() {
                   </p>
                 </div>
 
-                {/* Pevné měsíční faktury (Jiří Machek – kolega, ne klient) */}
-                {fixedPayers.length > 0 && (
-                  <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-blue-400 mb-1">📌 Pevné měsíční faktury</p>
-                    <p className="text-xs text-gray-500 mb-3">Napiš částku za <strong className="capitalize">{monthLabel}</strong>. Po zadání se plátce objeví v seznamu dole jako každý jiný (náhled, odeslání). Prázdné = tento měsíc nefakturovat.</p>
-                    <div className="space-y-2">
-                      {fixedPayers.map((p) => {
-                        const ex = extras.find((e) => e.month === invMonth && e.client === p.name);
-                        const lbl = p.fixed_label || "Fakturace";
-                        return (
-                          <div key={p.name} className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="font-semibold text-brand-dark min-w-[120px]">{p.name}</span>
-                            <span className="text-gray-400 flex-1 min-w-[140px] truncate">{lbl}</span>
-                            <input
-                              type="number" placeholder="částka Kč"
-                              defaultValue={ex?.amount_kc ?? ""}
-                              onBlur={(e) => { const v = e.target.value; if ((v.trim() === "" ? 0 : Number(v)) !== (ex?.amount_kc ?? 0)) setFixedAmount(p.name, lbl, v); }}
-                              className="w-32 rounded-md border border-gray-200 px-2 py-1.5"
-                            />
-                            <span className="text-xs text-gray-400">Kč</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {groups.length === 0 && monthInvoices.length === 0 ? (
+                {groups.length === 0 && monthInvoices.length === 0 && fixedPayers.length === 0 ? (
                   <p className="text-sm text-gray-400">V tomto měsíci není co fakturovat.</p>
                 ) : (
                   <>
@@ -3753,40 +3760,43 @@ export default function AdminPage() {
                     </div>
 
                     <div className="space-y-3">
-                      {groups.map((g) => {
+                      {displayGroups.map((g) => {
                         const prof = billProfiles.find((p) => p.name === g.payer);
                         const inv = invByPayer.get(g.payer);
                         const st = inv ? (STAT[inv.status] ?? STAT.issued) : null;
                         const skipped = skipSet.has(g.payer);
+                        const isFixed = fixedNames.has(g.payer);
+                        const fixedLbl = prof?.fixed_label || "Fakturace";
+                        const fixedEx = extras.find((e) => e.month === invMonth && e.client === g.payer);
                         return (
-                          <div key={g.payer} className={`rounded-xl border p-4 ${skipped ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
+                          <div key={g.payer} className={`rounded-xl border p-4 ${isFixed ? "border-blue-200 bg-blue-50/40" : skipped ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-brand-dark">{g.payer}</span>
+                              {isFixed && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">pevná faktura</span>}
                               {skipped && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500">tento měsíc nefakturováno</span>}
-                              <span className="ml-auto font-semibold text-brand-dark">{g.total.toLocaleString("cs-CZ")} Kč</span>
+                              {isFixed && !inv ? (
+                                <span className="ml-auto flex items-center gap-1">
+                                  <input
+                                    type="number" placeholder="částka Kč"
+                                    defaultValue={fixedEx?.amount_kc ?? ""}
+                                    onBlur={(e) => { const v = e.target.value; if ((v.trim() === "" ? 0 : Number(v)) !== (fixedEx?.amount_kc ?? 0)) setFixedAmount(g.payer, fixedLbl, v); }}
+                                    className="w-28 rounded-md border border-blue-200 px-2 py-1 text-right text-sm font-semibold"
+                                  />
+                                  <span className="text-xs text-gray-400">Kč</span>
+                                </span>
+                              ) : (
+                                <span className="ml-auto font-semibold text-brand-dark">{g.total.toLocaleString("cs-CZ")} Kč</span>
+                              )}
                               {inv && st && (
                                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
                               )}
                             </div>
+                            {isFixed && <p className="mt-1 text-xs text-gray-400">{fixedLbl} — napiš částku za <span className="capitalize">{monthLabel}</span> (kolik ti Jiří pošle). Prázdné = tento měsíc nefakturovat.</p>}
 
-                            {/* Náhled: úvodní věta + položky (přesně jak to bude na faktuře) */}
-                            <details className="mt-2">
-                              <summary className="cursor-pointer text-xs font-semibold text-blue-600">Náhled faktury (věta + položky)</summary>
-                              <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm">
-                                <p className="text-gray-600 mb-2">{g.intro}</p>
-                                <div className="divide-y divide-gray-100">
-                                  {g.lines.map((ln, i) => (
-                                    <div key={i} className="flex items-center justify-between gap-2 py-1">
-                                      <span className="text-gray-600">{ln.what}</span>
-                                      <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
-                                    </div>
-                                  ))}
-                                  <div className="flex items-center justify-between gap-2 py-1.5 font-bold text-brand-dark">
-                                    <span>Celkem k úhradě</span><span>{g.total.toLocaleString("cs-CZ")} Kč</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </details>
+                            {/* Náhled celého dokumentu faktury */}
+                            {g.total > 0 && (
+                              <button type="button" onClick={() => openGroupPreview(g.payer, g.total, g.lines, g.intro)} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">👁 Náhled faktury (dokument)</button>
+                            )}
 
                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
                               <input
