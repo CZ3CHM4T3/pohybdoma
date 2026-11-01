@@ -390,6 +390,17 @@
     padding-top: 6px;
   }
 
+  /* ── Kompaktní vyúčtování: 2 sloupce, data za sebou, ať se vejde na málo stran ── */
+  .pd-doc-cols { column-count: 2; column-gap: 8mm; }
+  .pd-doc-cgroup { break-inside: avoid; margin-bottom: 7px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb; }
+  .pd-doc-chead {
+    display: flex; justify-content: space-between; gap: 6px;
+    font-size: 11px; font-weight: 700; color: #062a6b;
+  }
+  .pd-doc-cline { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; color: #333; }
+  .pd-doc-cwhat { flex: 1; }
+  .pd-doc-camt { flex-shrink: 0; font-weight: 600; white-space: nowrap; }
+
   /* ── Veřejná faktura /faktura/[token] – tiskne se celá stránka ── */
   body:has(.fakt-wrap) > *:not(.pd-print) { display: block !important; }
   body:has(.fakt-wrap) header,

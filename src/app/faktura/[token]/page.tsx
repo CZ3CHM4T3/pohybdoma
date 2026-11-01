@@ -11,6 +11,7 @@ type Inv = {
   bill_name: string | null;
   address: string | null;
   ico: string | null;
+  dic: string | null;
   month: string;
   issued_on: string;
   due_on: string;
@@ -87,6 +88,7 @@ export default async function FakturaPage({
             <div className="mt-1 font-semibold text-slate-900">{billTo}</div>
             {inv.address && <div className="text-slate-500">{inv.address}</div>}
             {inv.ico && <div className="text-slate-500">IČO: {inv.ico}</div>}
+            {inv.dic && <div className="text-slate-500">DIČ: {inv.dic}</div>}
           </div>
           <div className="sm:text-right text-sm leading-7">
             <div><span className="text-slate-400">Vystaveno: </span>{fmtCzDate(inv.issued_on)}</div>

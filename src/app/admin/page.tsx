@@ -180,7 +180,7 @@ type PriceChange = { service_key: string; from_date: string; price: number };
 type ClientRow = { id: string; name: string; email: string | null; note: string | null; bill_group: string | null };
 type InvoiceRow = {
   id: string; number: number; token: string; payer_name: string; bill_name: string | null;
-  address: string | null; ico: string | null; email: string | null; month: string;
+  address: string | null; ico: string | null; dic: string | null; email: string | null; month: string;
   issued_on: string; due_on: string; amount: number; vs: string;
   intro: string | null;
   lines: { date: string; what: string; amount: number }[];
@@ -240,7 +240,8 @@ export default function AdminPage() {
   const [paidRefs, setPaidRefs] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<{ id: string; month: string; client: string; label: string; amount_kc: number }[]>([]);
   // Fakturace: údaje plátců + vystavené faktury
-  const [billProfiles, setBillProfiles] = useState<{ name: string; bill_name: string | null; address: string | null; ico: string | null; email: string | null }[]>([]);
+  const [billProfiles, setBillProfiles] = useState<{ name: string; bill_name: string | null; address: string | null; ico: string | null; dic: string | null; email: string | null; monthly_fixed?: boolean; fixed_label?: string | null }[]>([]);
+  const [invoiceSkip, setInvoiceSkip] = useState<{ month: string; payer_name: string }[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number; intro_note: string | null } | null>(null);
   const [invBusy, setInvBusy] = useState(false);
@@ -510,8 +511,11 @@ export default function AdminPage() {
       if (data) setExtras(data as { id: string; month: string; client: string; label: string; amount_kc: number }[]);
     });
     // Fakturace – údaje plátců, nastavení číselníku, vystavené faktury
-    supabase.from("billing_profiles").select("name, bill_name, address, ico, email").then(({ data }) => {
+    supabase.from("billing_profiles").select("name, bill_name, address, ico, dic, email, monthly_fixed, fixed_label").then(({ data }) => {
       if (data) setBillProfiles(data as typeof billProfiles);
+    });
+    supabase.from("invoice_skip").select("month, payer_name").then(({ data }) => {
+      if (data) setInvoiceSkip(data as { month: string; payer_name: string }[]);
     });
     supabase.from("invoice_config").select("due_days, next_number, intro_note").eq("id", 1).maybeSingle().then(({ data }) => {
       if (data) setInvCfg(data as { due_days: number; next_number: number; intro_note: string | null });
@@ -881,20 +885,60 @@ export default function AdminPage() {
     setBillingMap((prev) => [...prev.filter((b) => b.name !== name), { name, bill_to: to }]);
   }
   // ── Fakturace ──────────────────────────────────────────────────────────────
-  // Fakturační údaje plátce (e-mail, adresa, IČO, jméno na fakturu)
-  async function saveBillProfile(name: string, patch: Partial<{ bill_name: string; address: string; ico: string; email: string }>) {
+  // Fakturační údaje plátce (e-mail, adresa, IČO, DIČ, jméno na fakturu)
+  async function saveBillProfile(name: string, patch: Partial<{ bill_name: string; address: string; ico: string; dic: string; email: string }>) {
     setError(null);
-    const prev = billProfiles.find((p) => p.name === name) ?? { name, bill_name: null, address: null, ico: null, email: null };
+    const prev = billProfiles.find((p) => p.name === name);
     const next = {
       name,
-      bill_name: (patch.bill_name ?? prev.bill_name ?? "") || null,
-      address: (patch.address ?? prev.address ?? "") || null,
-      ico: (patch.ico ?? prev.ico ?? "") || null,
-      email: (patch.email ?? prev.email ?? "") || null,
+      bill_name: (patch.bill_name ?? prev?.bill_name ?? "") || null,
+      address: (patch.address ?? prev?.address ?? "") || null,
+      ico: (patch.ico ?? prev?.ico ?? "") || null,
+      dic: (patch.dic ?? prev?.dic ?? "") || null,
+      email: (patch.email ?? prev?.email ?? "") || null,
+      // pevný plátce + popis necháváme, jak jsou
+      monthly_fixed: prev?.monthly_fixed ?? false,
+      fixed_label: prev?.fixed_label ?? null,
     };
     const { error } = await supabase.from("billing_profiles").upsert(next, { onConflict: "name" });
     if (error) { setError("Uložení údajů plátce selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
     setBillProfiles((list) => [...list.filter((p) => p.name !== name), next].sort((a, b) => a.name.localeCompare(b.name, "cs")));
+  }
+  // Pevná měsíční faktura (Jiří): zadaná částka se uloží jako položka (invoice_extras) na daný měsíc.
+  async function setFixedAmount(payer: string, label: string, amountRaw: string) {
+    setError(null);
+    const amt = amountRaw.trim() === "" ? 0 : Number(amountRaw);
+    const existing = extras.find((e) => e.month === invMonth && e.client === payer);
+    if (!amt || amt <= 0) {
+      if (existing) {
+        const { error } = await supabase.from("invoice_extras").delete().eq("id", existing.id);
+        if (error) { setError("Smazání částky selhalo: " + error.message); return; }
+        setExtras((prev) => prev.filter((e) => e.id !== existing.id));
+      }
+      return;
+    }
+    if (existing) {
+      const { error } = await supabase.from("invoice_extras").update({ amount_kc: amt, label }).eq("id", existing.id);
+      if (error) { setError("Uložení částky selhalo: " + error.message); return; }
+      setExtras((prev) => prev.map((e) => (e.id === existing.id ? { ...e, amount_kc: amt, label } : e)));
+    } else {
+      const { data, error } = await supabase.from("invoice_extras").insert({ month: invMonth, client: payer, label, amount_kc: amt }).select("id, month, client, label, amount_kc").single();
+      if (error) { setError("Uložení částky selhalo (spustil jsi invoice_extras.sql?): " + error.message); return; }
+      if (data) setExtras((prev) => [...prev, data as { id: string; month: string; client: string; label: string; amount_kc: number }]);
+    }
+  }
+  // Vyřadit / zařadit plátce z fakturace daného měsíce (nebyl / nefakturovat)
+  async function toggleSkip(month: string, payer: string, skip: boolean) {
+    setError(null);
+    if (skip) {
+      const { error } = await supabase.from("invoice_skip").upsert({ month, payer_name: payer }, { onConflict: "month,payer_name" });
+      if (error) { setError("Vyřazení selhalo (spustil jsi invoicing_v2.sql?): " + error.message); return; }
+      setInvoiceSkip((prev) => [...prev.filter((s) => !(s.month === month && s.payer_name === payer)), { month, payer_name: payer }]);
+    } else {
+      const { error } = await supabase.from("invoice_skip").delete().eq("month", month).eq("payer_name", payer);
+      if (error) { setError("Zařazení selhalo: " + error.message); return; }
+      setInvoiceSkip((prev) => prev.filter((s) => !(s.month === month && s.payer_name === payer)));
+    }
   }
   // Úvodní věta na faktuře ({mesic} = název měsíce). Uloží se do nastavení.
   async function saveIntroNote(text: string) {
@@ -958,7 +1002,7 @@ export default function AdminPage() {
         const prof = billProfiles.find((p) => p.name === g.payer);
         const row = {
           number, token, payer_name: g.payer,
-          bill_name: prof?.bill_name || null, address: prof?.address || null, ico: prof?.ico || null,
+          bill_name: prof?.bill_name || null, address: prof?.address || null, ico: prof?.ico || null, dic: prof?.dic || null,
           email: prof?.email || null, month,
           issued_on: issued, due_on: dueDate, amount: g.total, vs: String(number),
           intro: g.intro || fillIntro(invCfg?.intro_note, month),
@@ -3275,33 +3319,41 @@ export default function AdminPage() {
                 {invGroups.length === 0 ? (
                   <p>V tomto měsíci nejsou žádné lekce.</p>
                 ) : (
-                  invGroups.map(([client, lines]) => {
-                    const sub = lines.reduce((s, x) => s + x.amount, 0);
-                    const sorted = [...lines].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-                    return (
-                      <div key={client} className="pd-doc-group">
-                        <div className="pd-doc-ghead"><span>{client}</span><span>{sub.toLocaleString("cs-CZ")} Kč</span></div>
-                        {sorted.map((ln, i) => (
-                          <div key={i} className="pd-doc-line">
-                            <span className="pd-doc-date">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
-                            <span className="pd-doc-what">{ln.what}{ln.client !== client ? ` (${ln.client})` : ""}{paidRefs.has(ln.ref) ? " · zaplaceno" : ""}</span>
-                            <span className="pd-doc-amt">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                  <div className="pd-doc-cols">
+                    {invGroups.map(([client, lines]) => {
+                      const sub = lines.reduce((s, x) => s + x.amount, 0);
+                      // Seskup po službě + osobě + ceně, data vypiš za sebou (kompaktně).
+                      const m = new Map<string, { label: string; person: string; dates: string[]; total: number }>();
+                      for (const ln of [...lines].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))) {
+                        const key = `${ln.svcLabel}|${ln.client}|${ln.amount}`;
+                        const g = m.get(key) || { label: ln.svcLabel, person: ln.client, dates: [], total: 0 };
+                        if (ln.kind !== "extra" && ln.date) g.dates.push(new Date(ln.date + "T00:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" }));
+                        g.total += ln.amount;
+                        m.set(key, g);
+                      }
+                      return (
+                        <div key={client} className="pd-doc-cgroup">
+                          <div className="pd-doc-chead"><span>{client}</span><span>{sub.toLocaleString("cs-CZ")} Kč</span></div>
+                          {[...m.values()].map((g, i) => (
+                            <div key={i} className="pd-doc-cline">
+                              <span className="pd-doc-cwhat">{g.label}{g.person !== client ? ` (${g.person})` : ""}{g.dates.length ? `: ${g.dates.join(", ")}` : ""}{g.dates.length > 1 ? ` — ${g.dates.length}×` : ""}</span>
+                              <span className="pd-doc-camt">{g.total.toLocaleString("cs-CZ")} Kč</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    {monthFin.length > 0 && (
+                      <div className="pd-doc-cgroup">
+                        <div className="pd-doc-chead"><span>Příjmy odjinud</span><span>{manualTotal.toLocaleString("cs-CZ")} Kč</span></div>
+                        {monthFin.map((e) => (
+                          <div key={e.id} className="pd-doc-cline">
+                            <span className="pd-doc-cwhat">{e.category}{e.note ? ` · ${e.note}` : ""}</span>
+                            <span className="pd-doc-camt">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
                           </div>
                         ))}
                       </div>
-                    );
-                  })
-                )}
-                {monthFin.length > 0 && (
-                  <div className="pd-doc-group">
-                    <div className="pd-doc-ghead"><span>Příjmy odjinud</span><span>{manualTotal.toLocaleString("cs-CZ")} Kč</span></div>
-                    {monthFin.map((e) => (
-                      <div key={e.id} className="pd-doc-line">
-                        <span className="pd-doc-date">{e.category}</span>
-                        <span className="pd-doc-what">{e.note || ""}</span>
-                        <span className="pd-doc-amt">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
-                      </div>
-                    ))}
+                    )}
                   </div>
                 )}
                 <div className="pd-doc-total"><span>Celkem za {monthLabel}</span><span>{monthGrand.toLocaleString("cs-CZ")} Kč</span></div>
@@ -3604,6 +3656,7 @@ export default function AdminPage() {
 
             {/* ROZESLAT – vygenerování a odeslání faktur za měsíc */}
             {finView === "fakturace" && (() => {
+              const skipSet = new Set(invoiceSkip.filter((s) => s.month === invMonth).map((s) => s.payer_name));
               const groups = invGroups
                 .map(([payer, lines]) => ({
                   payer,
@@ -3613,9 +3666,11 @@ export default function AdminPage() {
                 }))
                 .filter((g) => g.total > 0);
               const invByPayer = new Map(invoices.filter((i) => i.month === invMonth).map((i) => [i.payer_name, i]));
-              const toGenerate = groups.filter((g) => !invByPayer.has(g.payer));
+              const toGenerate = groups.filter((g) => !invByPayer.has(g.payer) && !skipSet.has(g.payer));
               const monthInvoices = invoices.filter((i) => i.month === invMonth).sort((a, b) => a.number - b.number);
               const issuedWithMail = monthInvoices.filter((i) => i.status === "issued" && i.email);
+              // Pevní měsíční plátci (Jiří) – ukážou se vždy, ať zadáš částku
+              const fixedPayers = billProfiles.filter((p) => p.monthly_fixed);
               const STAT: Record<string, { label: string; cls: string }> = {
                 issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
                 sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
@@ -3626,9 +3681,10 @@ export default function AdminPage() {
                 <div className="mb-4 rounded-xl bg-brand-light/60 p-4 text-sm text-brand-dark">
                   <p className="font-semibold mb-1">Jak to funguje</p>
                   <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
-                    <li>U každého plátce vyplň <strong>e-mail</strong> (a případně jméno/adresu/IČO na fakturu).</li>
-                    <li>Zkontroluj částky a klikni <strong>Vygenerovat faktury</strong> – přidělí se čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní.</li>
-                    <li>Projdi náhled (odkaz u každé), pak <strong>Rozeslat vše</strong> – klientům přijde e-mail s QR kódem a odkazem na fakturu.</li>
+                    <li>U každého plátce vyplň <strong>e-mail</strong> (a případně jméno/adresu/IČO/DIČ). Kdo tento měsíc nebyl, zaškrtni <strong>„nefakturovat"</strong> – vypadne z hromady.</li>
+                    <li>Rozklikni <strong>Náhled</strong> u každého a zkontroluj větu i částky.</li>
+                    <li><strong>Vygenerovat faktury</strong> – přidělí čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní. Nic se ještě neposílá.</li>
+                    <li>Projdi hotové faktury (odkaz Náhled ↗), pak <strong>Rozeslat vše</strong> – teprve teď jdou e-maily s QR.</li>
                   </ol>
                 </div>
 
@@ -3645,6 +3701,33 @@ export default function AdminPage() {
                     Objeví se nad položkami. <code>{"{sluzby}"}</code> se nahradí výčtem služeb, které klient měl (např. „fitness tréninky a sportovní masáže"), <code>{"{mesic}"}</code> názvem měsíce. Pod větou se vypíšou služby s počtem a cenou a dole celkový součet.
                   </p>
                 </div>
+
+                {/* Pevné měsíční faktury (Jiří Machek – kolega, ne klient) */}
+                {fixedPayers.length > 0 && (
+                  <div className="mb-4 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-400 mb-1">📌 Pevné měsíční faktury</p>
+                    <p className="text-xs text-gray-500 mb-3">Napiš částku za <strong className="capitalize">{monthLabel}</strong>. Po zadání se plátce objeví v seznamu dole jako každý jiný (náhled, odeslání). Prázdné = tento měsíc nefakturovat.</p>
+                    <div className="space-y-2">
+                      {fixedPayers.map((p) => {
+                        const ex = extras.find((e) => e.month === invMonth && e.client === p.name);
+                        const lbl = p.fixed_label || "Fakturace";
+                        return (
+                          <div key={p.name} className="flex flex-wrap items-center gap-2 text-sm">
+                            <span className="font-semibold text-brand-dark min-w-[120px]">{p.name}</span>
+                            <span className="text-gray-400 flex-1 min-w-[140px] truncate">{lbl}</span>
+                            <input
+                              type="number" placeholder="částka Kč"
+                              defaultValue={ex?.amount_kc ?? ""}
+                              onBlur={(e) => { const v = e.target.value; if ((v.trim() === "" ? 0 : Number(v)) !== (ex?.amount_kc ?? 0)) setFixedAmount(p.name, lbl, v); }}
+                              className="w-32 rounded-md border border-gray-200 px-2 py-1.5"
+                            />
+                            <span className="text-xs text-gray-400">Kč</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {groups.length === 0 && monthInvoices.length === 0 ? (
                   <p className="text-sm text-gray-400">V tomto měsíci není co fakturovat.</p>
@@ -3674,15 +3757,37 @@ export default function AdminPage() {
                         const prof = billProfiles.find((p) => p.name === g.payer);
                         const inv = invByPayer.get(g.payer);
                         const st = inv ? (STAT[inv.status] ?? STAT.issued) : null;
+                        const skipped = skipSet.has(g.payer);
                         return (
-                          <div key={g.payer} className="rounded-xl border border-gray-100 p-4">
+                          <div key={g.payer} className={`rounded-xl border p-4 ${skipped ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-brand-dark">{g.payer}</span>
+                              {skipped && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500">tento měsíc nefakturováno</span>}
                               <span className="ml-auto font-semibold text-brand-dark">{g.total.toLocaleString("cs-CZ")} Kč</span>
                               {inv && st && (
                                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
                               )}
                             </div>
+
+                            {/* Náhled: úvodní věta + položky (přesně jak to bude na faktuře) */}
+                            <details className="mt-2">
+                              <summary className="cursor-pointer text-xs font-semibold text-blue-600">Náhled faktury (věta + položky)</summary>
+                              <div className="mt-2 rounded-lg bg-gray-50 p-3 text-sm">
+                                <p className="text-gray-600 mb-2">{g.intro}</p>
+                                <div className="divide-y divide-gray-100">
+                                  {g.lines.map((ln, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-2 py-1">
+                                      <span className="text-gray-600">{ln.what}</span>
+                                      <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                                    </div>
+                                  ))}
+                                  <div className="flex items-center justify-between gap-2 py-1.5 font-bold text-brand-dark">
+                                    <span>Celkem k úhradě</span><span>{g.total.toLocaleString("cs-CZ")} Kč</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </details>
+
                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
                               <input
                                 type="email" placeholder="E-mail plátce *"
@@ -3708,7 +3813,20 @@ export default function AdminPage() {
                                 onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.ico ?? "")) saveBillProfile(g.payer, { ico: v }); }}
                                 className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
                               />
+                              <input
+                                type="text" placeholder="DIČ (nepovinné)"
+                                defaultValue={prof?.dic ?? ""}
+                                onBlur={(e) => { const v = e.target.value.trim(); if (v !== (prof?.dic ?? "")) saveBillProfile(g.payer, { dic: v }); }}
+                                className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                              />
                             </div>
+
+                            {!inv && (
+                              <label className="mt-3 inline-flex items-center gap-1.5 text-xs text-gray-500">
+                                <input type="checkbox" checked={skipped} onChange={(e) => toggleSkip(invMonth, g.payer, e.target.checked)} />
+                                tento měsíc nefakturovat (nebyl / vyřadit z hromadného odeslání)
+                              </label>
+                            )}
                             {inv && (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                                 <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
