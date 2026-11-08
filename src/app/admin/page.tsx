@@ -357,7 +357,7 @@ export default function AdminPage() {
   const [finNote, setFinNote] = useState("");
   const [finDate, setFinDate] = useState("");
   // Rychlé zadání měsíčního příjmu odjinud (fitko apod.) v kartě Faktury
-  const [extCat, setExtCat] = useState("MS GEM");
+  const [extCat, setExtCat] = useState("Kurz");
   const [extAmount, setExtAmount] = useState("");
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [videos, setVideos] = useState<VideoRow[]>([]);
@@ -3264,7 +3264,17 @@ export default function AdminPage() {
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
           const monthCats = Array.from({ length: 12 }, () => ({}) as Record<string, number>);
           const addMC = (mIdx: number, cat: string, amt: number) => { monthCats[mIdx][cat] = (monthCats[mIdx][cat] ?? 0) + amt; };
-          lessonLines.forEach((l) => { if (l.date.slice(0, 4) === year && l.amount > 0) addMC(Number(l.date.slice(5, 7)) - 1, l.kind === "blok" ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce") : l.kind === "extra" ? "Extra / mimořádné" : "Fitness lekce", l.amount); });
+          // Pevní měsíční plátci (Jiří) = paušál za MS GEM + MŠ → ve financích patří do oranžového dílu „MS GEM".
+          const fixedPayerNames = new Set(billProfiles.filter((p) => p.monthly_fixed).map((p) => p.name));
+          lessonLines.forEach((l) => {
+            if (l.date.slice(0, 4) !== year || l.amount <= 0) return;
+            const cat = l.kind === "blok"
+              ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce")
+              : l.kind === "extra"
+                ? (fixedPayerNames.has(l.client) ? "MS GEM" : "Extra / mimořádné")
+                : "Fitness lekce";
+            addMC(Number(l.date.slice(5, 7)) - 1, cat, l.amount);
+          });
           finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, normCat(e.category), Number(e.amount_kc)));
           const yearByCat: Record<string, number> = {};
           monthCats.forEach((mc) => { for (const [c, v] of Object.entries(mc)) yearByCat[c] = (yearByCat[c] ?? 0) + v; });
@@ -3556,7 +3566,7 @@ export default function AdminPage() {
             {finView === "mesic" && (<>
             {/* Příjmy odjinud (ruční – MS GEM apod.) */}
             <h3 className="text-sm font-semibold text-brand-dark mb-1 mt-6">Příjmy odjinud (ruční)</h3>
-            <p className="text-xs text-gray-500 mb-2">Sem zapisuješ jen příjmy, co appka nepočítá sama – hlavně <strong>MS GEM</strong> (skupinovky Po/St/Pá + školka St, fakturuješ zvlášť), kurzy, jiné. <span className="text-gray-400">Fitness individuály, Kruhový trénink a PPT se počítají automaticky z rozvrhu – ty sem nepiš.</span></p>
+            <p className="text-xs text-gray-500 mb-2">Sem zapisuješ jen příjmy, co appka nepočítá sama – hlavně <strong>kurzy</strong> a jiné. <span className="text-gray-400">MS GEM (vč. školky) se teď bere automaticky z měsíční <strong>faktury Jirkovi</strong> (záložka Rozeslat) – sem ho už nepiš, ať se nepočítá dvakrát. Fitness individuály, Kruhový trénink a PPT se počítají automaticky z rozvrhu.</span></p>
             {monthFin.length > 0 && (
               <div className="space-y-1.5 mb-3">
                 {monthFin.map((e) => (
