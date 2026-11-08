@@ -1093,7 +1093,11 @@ export default function AdminPage() {
   async function sendInvoice(inv: InvoiceRow): Promise<boolean> {
     if (!inv.email) { setError(`Faktura ${inv.number}: chybí e-mail plátce „${inv.payer_name}".`); return false; }
     const { error: mErr } = await supabase.rpc("admin_send_email", {
-      p_to: inv.email, p_subject: `Mgr. Jan Schröffel — Faktura za ${monthLabelCs(inv.month)} (č. ${inv.number})`, p_html: invoiceEmailHtml(inv),
+      p_to: inv.email,
+      p_subject: `Mgr. Jan Schröffel — Faktura za ${monthLabelCs(inv.month)} (č. ${inv.number})`,
+      p_html: invoiceEmailHtml(inv),
+      p_attach_url: `https://pohybdoma.cz/api/faktura-pdf/${inv.token}`,
+      p_attach_name: `faktura-${inv.number}.pdf`,
     });
     if (mErr) { setError(`Odeslání faktury ${inv.number} selhalo: ` + mErr.message); return false; }
     const sentAt = new Date().toISOString();
