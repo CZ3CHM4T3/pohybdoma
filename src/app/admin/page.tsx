@@ -15,7 +15,7 @@ import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { INVOICE_SUPPLIER, INVOICE_SETTINGS, invoiceConfigured } from "@/lib/invoice-config";
 import { spdString } from "@/lib/qr-payment";
 import { BUSINESS } from "@/lib/invoice-business";
-import { buildSpayd, qrUrl, fmtCzDate, fillIntro } from "@/lib/invoice";
+import { buildSpayd, qrUrl, fmtCzDate, fillIntro, monthLabelCs } from "@/lib/invoice";
 import { InvoiceDocument, type InvoiceDocData } from "@/components/InvoiceDocument";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
 import {
@@ -3076,8 +3076,12 @@ export default function AdminPage() {
           {
             const today0 = new Date(); today0.setHours(0, 0, 0, 0);
             const start0 = new Date(today0); start0.setDate(start0.getDate() - 365);
+            // Externí aktivity, které se NEÚČTUJÍ jednotlivým lidem: MS GEM a Tenis s EMESKOU (MŠ) jdou
+            //  paušálem Jiřímu, kroužek (Beyblade) je externí. Nevstupují do faktur ani do upozornění.
+            const EXTERNAL_BLOCK_CATS = new Set(["msgem", "skolka", "krouzek"]);
             for (const b of blocks) {
               if (!b.active) continue;
+              if (EXTERNAL_BLOCK_CATS.has(b.category)) continue;
               const svc = b.category;
               const catLabel = svcLabelOf(svc, b.label);
               const unit = svcUnitOf(svc);
@@ -3679,6 +3683,14 @@ export default function AdminPage() {
                 .sort((a, b) => a.name.localeCompare(b.name, "cs"))
                 .map((p) => realByPayer.get(p.name) ?? { payer: p.name, total: 0, lines: [] as { date: string; what: string; amount: number }[], intro: fillIntro(invCfg?.intro_note, invMonth, "") });
               const displayGroups = [...fixedCards, ...groups.filter((g) => !fixedNames.has(g.payer))];
+              // POJISTKA: účtovatelné hodiny v měsíci, které zatím nejsou na žádné faktuře.
+              //  – „vyřazené" (skip) = NEBUDOU fakturovány → červeně, vždy varovat.
+              //  – „nevygenerované" = zahrne je tlačítko Vygenerovat → oranžově, jen když už se tento měsíc začalo generovat (ať to nekřičí na čistém startu).
+              const uncovered = groups.filter((g) => !invByPayer.has(g.payer) && !fixedNames.has(g.payer));
+              const uncoveredSkipped = uncovered.filter((g) => skipSet.has(g.payer));
+              const uncoveredPending = uncovered.filter((g) => !skipSet.has(g.payer));
+              const showPending = monthInvoices.length > 0;
+              const showUncovered = uncoveredSkipped.length > 0 || (showPending && uncoveredPending.length > 0);
               // Náhled dokumentu faktury (ještě nevygenerované) z dat skupiny
               const openGroupPreview = (payer: string, total: number, lines: { date: string; what: string; amount: number }[], intro: string) => {
                 const prof = billProfiles.find((p) => p.name === payer);
@@ -3712,6 +3724,30 @@ export default function AdminPage() {
                   </div>,
                   document.body
                 )}
+                {/* POJISTKA – neúčtované hodiny za vybraný měsíc */}
+                {showUncovered && (
+                  <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm">
+                    <p className="font-bold text-amber-900">⚠️ Neúčtované hodiny za {monthLabelCs(invMonth)}</p>
+                    <p className="mt-0.5 mb-2 text-amber-800">Tyto hodiny zatím nejsou na žádné faktuře. Zkontroluj, že na nikoho nezapomínáš (třeba na nového klienta), než začneš rozesílat.</p>
+                    <ul className="space-y-1.5">
+                      {uncoveredSkipped.map((g) => (
+                        <li key={g.payer} className="rounded-lg bg-white/80 px-3 py-2">
+                          <span className="font-semibold text-red-700">{g.payer}</span>
+                          <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">vyřazeno – NEBUDE fakturováno</span>
+                          <div className="mt-0.5 text-gray-700">{g.lines.map((l) => l.what).join(" · ")} — <strong>{g.total.toLocaleString("cs-CZ")} Kč</strong></div>
+                        </li>
+                      ))}
+                      {showPending && uncoveredPending.map((g) => (
+                        <li key={g.payer} className="rounded-lg bg-white/80 px-3 py-2">
+                          <span className="font-semibold text-amber-900">{g.payer}</span>
+                          <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">ještě nevygenerováno</span>
+                          <div className="mt-0.5 text-gray-700">{g.lines.map((l) => l.what).join(" · ")} — <strong>{g.total.toLocaleString("cs-CZ")} Kč</strong></div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 <div className="mb-4 rounded-xl bg-brand-light/60 p-4 text-sm text-brand-dark">
                   <p className="font-semibold mb-1">Jak to funguje</p>
                   <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
