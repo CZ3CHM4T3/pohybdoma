@@ -1106,6 +1106,39 @@ export default function AdminPage() {
     setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: "sent", sent_at: sentAt } : i)));
     return true;
   }
+  // Zkušební e-mail sobě – ukázková faktura. NEgeneruje fakturu ani neposouvá číslování.
+  async function sendTestInvoiceEmail() {
+    if (invBusy) return;
+    setError(null); setInvBusy(true);
+    try {
+      const dd = new Date(); dd.setDate(dd.getDate() + (invCfg?.due_days ?? 7));
+      const demo = {
+        id: "demo", number: "UKÁZKA", token: "_ukazka", payer_name: "Ukázkový klient",
+        bill_name: "Ukázkový klient", address: "Ukázková 1, 252 09 Město", ico: null, dic: null,
+        email: BUSINESS.email, month: invMonth,
+        issued_on: new Date().toLocaleDateString("sv-SE"), due_on: dd.toLocaleDateString("sv-SE"),
+        amount: 11000, vs: "UKÁZKA",
+        intro: fillIntro(invCfg?.intro_note, invMonth, "fitness tréninky, přípravu tenistů a sportovní masáže"),
+        lines: [
+          { date: "", what: "Fitness trénink (Žaneta) — 4× á 900 Kč", amount: 3600 },
+          { date: "", what: "Fitness trénink (Jakub) — 4× á 900 Kč", amount: 3600 },
+          { date: "", what: "Příprava tenistů (Anička) — 8× á 200 Kč", amount: 1600 },
+          { date: "", what: "Kruhový trénink — 4× á 250 Kč", amount: 1000 },
+          { date: "", what: "Sportovní masáž — 2× á 600 Kč", amount: 1200 },
+        ],
+        status: "issued", sent_at: null, paid_at: null,
+      } as unknown as InvoiceRow;
+      const { error: mErr } = await supabase.rpc("admin_send_email", {
+        p_to: BUSINESS.email,
+        p_subject: `TEST (ukázka) — Mgr. Jan Schröffel — Faktura za ${monthLabelCs(invMonth)}`,
+        p_html: invoiceEmailHtml(demo),
+        p_attach_url: `https://pohybdoma.cz/api/faktura-pdf/_ukazka`,
+        p_attach_name: `faktura-ukazka.pdf`,
+      });
+      if (mErr) { setError("Zkušební e-mail selhal (spustil jsi invoice_pdf_attachment.sql a je nasazená nová verze?): " + mErr.message); }
+      else { setError(`✅ Zkušební e-mail odeslán na ${BUSINESS.email}. Mrkni do schránky (klidně i do spamu). Žádné číslo se nespotřebovalo.`); }
+    } finally { setInvBusy(false); }
+  }
   // Rozeslat všechny dosud neodeslané faktury za daný měsíc
   async function sendAllInvoices(month: string) {
     if (invBusy) return;
@@ -3836,6 +3869,15 @@ export default function AdminPage() {
                         className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40"
                       >
                         ✉ Rozeslat vše ({issuedWithMail.length})
+                      </button>
+                      <button
+                        type="button"
+                        disabled={invBusy}
+                        onClick={() => sendTestInvoiceEmail()}
+                        title={`Pošle ukázkový e-mail s PDF na ${BUSINESS.email}. Negeneruje fakturu ani neposouvá čísla.`}
+                        className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                      >
+                        🧪 Poslat zkušební e-mail sobě
                       </button>
                     </div>
 

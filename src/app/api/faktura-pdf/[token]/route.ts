@@ -42,10 +42,33 @@ const kc = (n: number) => `${Number(n || 0).toLocaleString("cs-CZ")} Kč`;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("get_invoice", { p_token: token });
-  const inv: Inv | undefined = Array.isArray(data) ? data[0] : undefined;
+  const isDemo = token === "_ukazka";
+  let inv: Inv | undefined;
+  if (isDemo) {
+    // Ukázka pro zkušební e-mail – nečte z DB, nespotřebuje žádné číslo faktury.
+    const today = new Date(); const due = new Date(today); due.setDate(due.getDate() + 7);
+    inv = {
+      number: 0, payer_name: "Ukázkový klient", bill_name: "Ukázkový klient",
+      address: "Ukázková 1, 252 09 Město", ico: null, dic: null, month: "2026-10",
+      issued_on: today.toISOString().slice(0, 10), due_on: due.toISOString().slice(0, 10),
+      amount: 11000, vs: "UKAZKA",
+      intro: "Toto je UKÁZKOVÁ faktura pro kontrolu vzhledu — není to skutečný doklad.",
+      lines: [
+        { date: "", what: "Fitness trénink (Žaneta) — 4× á 900 Kč", amount: 3600 },
+        { date: "", what: "Fitness trénink (Jakub) — 4× á 900 Kč", amount: 3600 },
+        { date: "", what: "Příprava tenistů (Anička) — 8× á 200 Kč", amount: 1600 },
+        { date: "", what: "Kruhový trénink — 4× á 250 Kč", amount: 1000 },
+        { date: "", what: "Sportovní masáž — 2× á 600 Kč", amount: 1200 },
+      ], status: "issued",
+    };
+  } else {
+    const supabase = await createClient();
+    const { data } = await supabase.rpc("get_invoice", { p_token: token });
+    inv = Array.isArray(data) ? data[0] : undefined;
+  }
   if (!inv) return new Response("Faktura nenalezena", { status: 404 });
+  const numLabel = isDemo ? "UKÁZKA" : String(inv.number);
+  const vsLabel = isDemo ? "—" : inv.vs;
 
   // QR platba (SPAYD) jako data URL
   const spayd = buildSpayd({ iban: BUSINESS.iban, amountKc: inv.amount, vs: inv.vs, number: inv.number });
@@ -111,7 +134,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
         body: [
           [{ text: "Účet", color: SLATE, fontSize: 10, border: [false, false, false, false] }, { text: BUSINESS.account, bold: true, color: INK, fontSize: 10, border: [false, false, false, false] }],
           [{ text: "IBAN", color: SLATE, fontSize: 10, border: [false, false, false, false] }, { text: BUSINESS.iban, color: "#334155", fontSize: 10, border: [false, false, false, false] }],
-          [{ text: "Var. symbol", color: SLATE, fontSize: 10, border: [false, false, false, false] }, { text: inv.vs, bold: true, color: INK, fontSize: 10, border: [false, false, false, false] }],
+          [{ text: "Var. symbol", color: SLATE, fontSize: 10, border: [false, false, false, false] }, { text: vsLabel, bold: true, color: INK, fontSize: 10, border: [false, false, false, false] }],
           [{ text: "Částka", color: SLATE, fontSize: 10, border: [false, false, false, false] }, { text: kc(inv.amount), bold: true, color: INK, fontSize: 10, border: [false, false, false, false] }],
         ],
       },
@@ -132,7 +155,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       // Nadpis
       {
         columns: [
-          { stack: [ { text: "FAKTURA", color: SLATE, fontSize: 11, bold: true, characterSpacing: 2 }, { text: `č. ${inv.number}`, color: DARK, fontSize: 24, bold: true, margin: [0, 2, 0, 0] } ] },
+          { stack: [ { text: "FAKTURA", color: SLATE, fontSize: 11, bold: true, characterSpacing: 2 }, { text: `č. ${numLabel}`, color: DARK, fontSize: 24, bold: true, margin: [0, 2, 0, 0] } ] },
           paid
             ? { text: "ZAPLACENO", color: "#047857", bold: true, fontSize: 12, alignment: "right", margin: [0, 8, 0, 0] }
             : { text: "", alignment: "right" },
@@ -148,7 +171,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
         margin: [0, 16, 0, 0] as [number, number, number, number],
         table: {
           widths: ["*", "*", "*", "*"],
-          body: [[ dateCell("Datum vystavení", inv.issued_on ? fmtCzDate(inv.issued_on) : "—"), dateCell("Splatnost", inv.due_on ? fmtCzDate(inv.due_on) : "—"), dateCell("Období", monthLabelCs(inv.month)), dateCell("Variabilní symbol", inv.vs) ]],
+          body: [[ dateCell("Datum vystavení", inv.issued_on ? fmtCzDate(inv.issued_on) : "—"), dateCell("Splatnost", inv.due_on ? fmtCzDate(inv.due_on) : "—"), dateCell("Období", monthLabelCs(inv.month)), dateCell("Variabilní symbol", vsLabel) ]],
         },
         layout: {
           fillColor: () => LIGHT,
@@ -220,7 +243,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="faktura-${inv.number}.pdf"`,
+      "Content-Disposition": `inline; filename="${isDemo ? "faktura-ukazka" : `faktura-${inv.number}`}.pdf"`,
       "Cache-Control": "no-store",
     },
   });
