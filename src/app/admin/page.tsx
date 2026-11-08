@@ -1032,53 +1032,56 @@ export default function AdminPage() {
     const link = `https://pohybdoma.cz/faktura/${inv.token}`;
     const amt = inv.amount.toLocaleString("cs-CZ");
     const intro = inv.intro || "Dobrý den, fakturuji Vám tyto lekce:";
+    const monthTitle = monthLabelCs(inv.month);
+    const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Helvetica,Arial,sans-serif";
     const itemRows = (inv.lines || []).map((l) =>
       `<tr>
-        <td style="padding:3px 10px 3px 0;color:#94a3b8;white-space:nowrap">${l.date ? fmtCzDate(l.date) : ""}</td>
-        <td style="padding:3px 10px 3px 0;color:#334155">${l.what}</td>
-        <td style="padding:3px 0;text-align:right;white-space:nowrap">${l.amount.toLocaleString("cs-CZ")} Kč</td>
+        <td style="padding:7px 10px 7px 0;color:#94a3b8;white-space:nowrap;font-size:13px;border-bottom:1px solid #eef2f7">${l.date ? fmtCzDate(l.date) : ""}</td>
+        <td style="padding:7px 10px 7px 0;color:#334155;font-size:14px;border-bottom:1px solid #eef2f7">${l.what}</td>
+        <td style="padding:7px 0;text-align:right;white-space:nowrap;color:#0f172a;font-size:14px;border-bottom:1px solid #eef2f7">${l.amount.toLocaleString("cs-CZ")} Kč</td>
       </tr>`).join("");
     return `
-<div style="background:#eef2f7;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
+<div style="background:#eef2f7;padding:24px 10px;font-family:${font}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;border-collapse:collapse">
-    <tr><td bgcolor="#062A6B" style="background:#062A6B;border-radius:14px 14px 0 0;padding:20px 28px;text-align:center">
-      <img src="https://pohybdoma.cz/LOGO.png" alt="POHYB DOMA" height="42" style="display:block;margin:0 auto;height:42px;width:auto">
+    <tr><td style="background:#062A6B;height:6px;line-height:6px;font-size:0;border-radius:16px 16px 0 0">&nbsp;</td></tr>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:28px 28px 20px;text-align:center;border-bottom:1px solid #eef2f7">
+      <img src="https://pohybdoma.cz/LOGO.png" alt="POHYB DOMA" width="200" style="display:block;margin:0 auto 14px;width:200px;max-width:72%;height:auto">
+      <div style="font-size:23px;font-weight:bold;color:#062A6B;letter-spacing:.3px">Mgr. Jan Schröffel</div>
+      <div style="font-size:13px;color:#64748b;margin-top:3px">lektor pohybu · pohybdoma.cz</div>
     </td></tr>
-    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:26px 28px 6px">
-      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;font-weight:bold">Faktura</div>
-      <div style="font-size:28px;font-weight:bold;color:#062A6B;line-height:1;margin:3px 0 16px">č. ${inv.number}</div>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:24px 28px 2px">
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;font-weight:bold">Faktura za ${monthTitle}</div>
+      <div style="font-size:26px;font-weight:bold;color:#062A6B;line-height:1;margin:4px 0 16px">č. ${inv.number}</div>
       <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.55">${intro}</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 2px">
         ${itemRows}
         <tr>
-          <td colspan="2" style="padding:12px 10px 0 0;text-align:right;font-weight:bold;color:#062A6B;font-size:15px">Celkem k úhradě</td>
-          <td style="padding:12px 0 0;text-align:right;font-weight:bold;color:#062A6B;font-size:19px;white-space:nowrap">${amt} Kč</td>
+          <td colspan="2" style="padding:13px 10px 0 0;text-align:right;font-weight:bold;color:#062A6B;font-size:15px">Celkem k úhradě</td>
+          <td style="padding:13px 0 0;text-align:right;font-weight:bold;color:#062A6B;font-size:20px;white-space:nowrap">${amt} Kč</td>
         </tr>
       </table>
     </td></tr>
-    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:10px 28px 6px">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:12px;border-collapse:separate">
-        <tr>
-          <td style="padding:16px 8px 16px 18px;vertical-align:top">
-            <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;font-weight:bold;margin-bottom:8px">Platební údaje</div>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px">
-              <tr><td style="padding:2px 12px 2px 0;color:#64748b">Účet</td><td style="font-weight:bold;color:#0f172a">${BUSINESS.account}</td></tr>
-              <tr><td style="padding:2px 12px 2px 0;color:#64748b">Var. symbol</td><td style="font-weight:bold;color:#0f172a">${inv.vs}</td></tr>
-              <tr><td style="padding:2px 12px 2px 0;color:#64748b">Částka</td><td style="font-weight:bold;color:#0f172a">${amt} Kč</td></tr>
-              <tr><td style="padding:2px 12px 2px 0;color:#64748b">Splatnost</td><td style="font-weight:bold;color:#0f172a">${fmtCzDate(inv.due_on)}</td></tr>
-            </table>
-          </td>
-          <td width="150" style="padding:14px 18px 14px 6px;text-align:center;vertical-align:top">
-            <img src="${qr}" alt="QR platba" width="128" height="128" style="border:1px solid #e2e8f0;border-radius:10px;background:#fff">
-            <div style="font-size:11px;color:#94a3b8;margin-top:5px">Naskenuj v bance</div>
-          </td>
-        </tr>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:12px 28px 6px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:14px;border-collapse:separate">
+        <tr><td style="padding:20px 18px 10px;text-align:center">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;font-weight:bold;margin-bottom:12px">Platební údaje</div>
+          <table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;font-size:14px;text-align:left">
+            <tr><td style="padding:3px 14px 3px 0;color:#64748b">Účet</td><td style="font-weight:bold;color:#0f172a">${BUSINESS.account}</td></tr>
+            <tr><td style="padding:3px 14px 3px 0;color:#64748b">Variabilní symbol</td><td style="font-weight:bold;color:#0f172a">${inv.vs}</td></tr>
+            <tr><td style="padding:3px 14px 3px 0;color:#64748b">Částka</td><td style="font-weight:bold;color:#0f172a">${amt} Kč</td></tr>
+            <tr><td style="padding:3px 14px 3px 0;color:#64748b">Splatnost</td><td style="font-weight:bold;color:#0f172a">${fmtCzDate(inv.due_on)}</td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:4px 18px 20px;text-align:center">
+          <img src="${qr}" alt="QR platba" width="150" height="150" style="display:block;margin:0 auto;width:150px;height:150px;border:1px solid #e2e8f0;border-radius:12px;background:#fff">
+          <div style="font-size:12px;color:#64748b;margin-top:8px">Naskenuj QR v bankovní aplikaci —<br>částka i variabilní symbol se vyplní samy.</div>
+        </td></tr>
       </table>
     </td></tr>
-    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:16px 28px 24px;text-align:center">
-      <a href="${link}" style="display:inline-block;background:#1976FF;color:#ffffff;text-decoration:none;padding:12px 26px;border-radius:9px;font-weight:bold;font-size:15px">Zobrazit fakturu online</a>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:18px 28px 26px;text-align:center">
+      <a href="${link}" style="display:inline-block;background:#1976FF;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:bold;font-size:15px">Zobrazit fakturu online</a>
     </td></tr>
-    <tr><td bgcolor="#f8fafc" style="background:#f8fafc;border-radius:0 0 14px 14px;padding:18px 28px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7">
+    <tr><td bgcolor="#f8fafc" style="background:#f8fafc;border-radius:0 0 16px 16px;padding:20px 28px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7">
       <span style="color:#062A6B;font-weight:bold;font-size:13px">Honza — POHYB DOMA</span><br>
       ${BUSINESS.name} · ${BUSINESS.address} · IČO ${BUSINESS.ico}<br>
       ${BUSINESS.vatNote} · <a href="https://pohybdoma.cz" style="color:#1976FF;text-decoration:none">pohybdoma.cz</a>
@@ -1090,7 +1093,7 @@ export default function AdminPage() {
   async function sendInvoice(inv: InvoiceRow): Promise<boolean> {
     if (!inv.email) { setError(`Faktura ${inv.number}: chybí e-mail plátce „${inv.payer_name}".`); return false; }
     const { error: mErr } = await supabase.rpc("admin_send_email", {
-      p_to: inv.email, p_subject: `Faktura ${inv.number} — POHYB DOMA`, p_html: invoiceEmailHtml(inv),
+      p_to: inv.email, p_subject: `Mgr. Jan Schröffel — Faktura za ${monthLabelCs(inv.month)} (č. ${inv.number})`, p_html: invoiceEmailHtml(inv),
     });
     if (mErr) { setError(`Odeslání faktury ${inv.number} selhalo: ` + mErr.message); return false; }
     const sentAt = new Date().toISOString();
