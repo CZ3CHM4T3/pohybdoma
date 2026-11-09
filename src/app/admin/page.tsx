@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList, Send, CheckCheck, MailWarning, Eye } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -186,6 +186,7 @@ type InvoiceRow = {
   intro: string | null;
   lines: { date: string; what: string; amount: number }[];
   status: string; sent_at: string | null; paid_at: string | null;
+  delivery_status?: string | null; delivered_at?: string | null; bounced_at?: string | null; opened_at?: string | null;
 };
 type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean; price_kc: number | null; bill_mode: string | null };
 // Barvy typů lekcí/bloků v rozvrhu (hex kvůli inline stylu na časové ose)
@@ -1098,6 +1099,7 @@ export default function AdminPage() {
       p_html: invoiceEmailHtml(inv),
       p_attach_url: `https://pohybdoma.cz/api/faktura-pdf/${inv.token}`,
       p_attach_name: `faktura-${inv.number}.pdf`,
+      p_tag_value: String(inv.number),
     });
     if (mErr) { setError(`Odeslání faktury ${inv.number} selhalo: ` + mErr.message); return false; }
     const sentAt = new Date().toISOString();
@@ -1107,6 +1109,29 @@ export default function AdminPage() {
     if (uErr) { setError(`Faktura ${inv.number} odeslána, ale nešlo označit jako odeslaná: ` + uErr.message); }
     setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: newStatus, sent_at: sentAt } : i)));
     return true;
+  }
+  // Ikonky stavu doručení faktury (napojeno na Resend webhooky).
+  function deliveryBadges(inv: InvoiceRow) {
+    if (!inv.sent_at && !inv.delivery_status && !inv.opened_at) return null;
+    return (
+      <span className="inline-flex flex-wrap items-center gap-2 text-xs">
+        {inv.sent_at && (
+          <span className="inline-flex items-center gap-1 text-gray-400" title={`Odesláno ${fmtCzDate(inv.sent_at.slice(0, 10))}`}><Send className="h-3.5 w-3.5" />odesláno</span>
+        )}
+        {inv.delivery_status === "delivered" && (
+          <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold" title={inv.delivered_at ? `Doručeno ${fmtCzDate(inv.delivered_at.slice(0, 10))}` : "Doručeno"}><CheckCheck className="h-3.5 w-3.5" />doručeno</span>
+        )}
+        {inv.delivery_status === "bounced" && (
+          <span className="inline-flex items-center gap-1 text-red-600 font-semibold" title="E-mail se odrazil – nedoručeno (zkontroluj adresu)"><MailWarning className="h-3.5 w-3.5" />odrazilo se</span>
+        )}
+        {inv.delivery_status === "complained" && (
+          <span className="inline-flex items-center gap-1 text-amber-600 font-semibold" title="Příjemce označil jako spam"><MailWarning className="h-3.5 w-3.5" />spam</span>
+        )}
+        {inv.opened_at && (
+          <span className="inline-flex items-center gap-1 text-blue-600 font-semibold" title={`Otevřeno ${fmtCzDate(inv.opened_at.slice(0, 10))}`}><Eye className="h-3.5 w-3.5" />otevřeno</span>
+        )}
+      </span>
+    );
   }
   // Poslat fakturu znovu – vezme AKTUÁLNÍ e-mail z karty plátce (kdybys ho opravil po vygenerování).
   async function resendInvoice(inv: InvoiceRow) {
@@ -3986,7 +4011,7 @@ export default function AdminPage() {
                                 ) : (
                                   <span className="font-semibold text-red-500">chybí e-mail</span>
                                 )}
-                                {inv.sent_at && <span className="text-xs text-gray-400">odesláno {fmtCzDate(inv.sent_at.slice(0, 10))}</span>}
+                                {deliveryBadges(inv)}
                                 <label className="inline-flex items-center gap-1.5 text-gray-600">
                                   <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                   zaplaceno
@@ -4021,7 +4046,7 @@ export default function AdminPage() {
                               ) : (
                                 <span className="font-semibold text-red-500">chybí e-mail</span>
                               )}
-                              {inv.sent_at && <span className="text-xs text-gray-400">odesláno {fmtCzDate(inv.sent_at.slice(0, 10))}</span>}
+                              {deliveryBadges(inv)}
                               <label className="inline-flex items-center gap-1.5 text-gray-600">
                                 <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                 zaplaceno
