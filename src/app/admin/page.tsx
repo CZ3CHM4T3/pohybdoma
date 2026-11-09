@@ -252,6 +252,9 @@ export default function AdminPage() {
   const [clientPrices, setClientPrices] = useState<ClientPrice[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceChange[]>([]);
   const [cenikSvc, setCenikSvc] = useState("fitness");
+  const [newSvcLabel, setNewSvcLabel] = useState("");
+  const [newSvcTerm, setNewSvcTerm] = useState("");
+  const [newSvcPrice, setNewSvcPrice] = useState("");
   const [pcDate, setPcDate] = useState("");
   const [pcPrice, setPcPrice] = useState("");
   const [cenikNewName, setCenikNewName] = useState("");
@@ -950,6 +953,26 @@ export default function AdminPage() {
     const { error } = await supabase.from("invoice_config").update({ intro_note: v }).eq("id", 1);
     if (error) { setError("Uložení úvodní věty selhalo (spustil jsi invoicing.sql?): " + error.message); return; }
     setInvCfg((c) => (c ? { ...c, intro_note: v } : c));
+  }
+  // Ceník: přidání nové služby / produktu (např. Workshop)
+  async function addService() {
+    setError(null);
+    const label = newSvcLabel.trim();
+    if (!label) { setError("Zadej název služby."); return; }
+    const base = (label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 28)) || "sluzba";
+    const existing = new Set(serviceCatalog.map((s) => s.key));
+    let key = base, n = 1;
+    while (existing.has(key)) key = `${base}_${n++}`;
+    const position = serviceCatalog.reduce((m, s) => Math.max(m, s.position), 0) + 1;
+    const row: ServiceCatalog = {
+      key, label, unit: "", intro_term: newSvcTerm.trim() || null,
+      price: newSvcPrice.trim() === "" ? 0 : Number(newSvcPrice),
+      bill_mode: "per_lesson", active: true, position,
+    };
+    const { error } = await supabase.from("service_catalog").insert(row);
+    if (error) { setError("Přidání služby selhalo (spustil jsi service_pricing.sql?): " + error.message); return; }
+    setServiceCatalog((list) => [...list, row]);
+    setNewSvcLabel(""); setNewSvcTerm(""); setNewSvcPrice("");
   }
   // Ceník: úprava služby (cena, název, jednotka, výraz do věty, účtování, aktivní)
   async function saveCatalogField(key: string, patch: Partial<Omit<ServiceCatalog, "key" | "position">>) {
@@ -3900,29 +3923,31 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                <div className="mb-4 rounded-xl bg-brand-light/60 p-4 text-sm text-brand-dark">
-                  <p className="font-semibold mb-1">Jak to funguje</p>
-                  <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
-                    <li>U každého plátce vyplň <strong>e-mail</strong> (a případně jméno/adresu/IČO/DIČ). Kdo tento měsíc nebyl, zaškrtni <strong>„nefakturovat"</strong> – vypadne z hromady.</li>
-                    <li>Rozklikni <strong>Náhled</strong> u každého a zkontroluj větu i částky.</li>
-                    <li><strong>Vygenerovat faktury</strong> – přidělí čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní. Nic se ještě neposílá.</li>
-                    <li>Projdi hotové faktury (odkaz Náhled ↗), pak <strong>Rozeslat vše</strong> – teprve teď jdou e-maily s QR.</li>
-                  </ol>
-                </div>
-
-                {/* Úvodní věta na faktuře */}
-                <div className="mb-4 rounded-xl border border-gray-100 p-4">
-                  <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Úvodní věta na faktuře</label>
-                  <textarea
-                    defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za {sluzby} poskytnuté v období {mesic}:"}
-                    onBlur={(e) => { const v = e.target.value; if (v.trim() !== (invCfg?.intro_note ?? "").trim()) saveIntroNote(v); }}
-                    rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Objeví se nad položkami. <code>{"{sluzby}"}</code> se nahradí výčtem služeb, které klient měl (např. „fitness tréninky a sportovní masáže"), <code>{"{mesic}"}</code> názvem měsíce. Pod větou se vypíšou služby s počtem a cenou a dole celkový součet.
-                  </p>
-                </div>
+                {/* Nápověda + úvodní věta – sbalené, ať neberou místo */}
+                <details className="mb-4 rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-2 text-sm">
+                  <summary className="cursor-pointer select-none font-semibold text-gray-500">ℹ️ Jak to funguje &amp; úvodní věta na faktuře</summary>
+                  <div className="mt-3 text-brand-dark">
+                    <p className="font-semibold mb-1">Jak to funguje</p>
+                    <ol className="list-decimal pl-5 space-y-0.5 text-gray-600">
+                      <li>U každého plátce vyplň <strong>e-mail</strong> (a případně jméno/adresu/IČO/DIČ). Kdo tento měsíc nebyl, zaškrtni <strong>„nefakturovat"</strong> – vypadne z hromady.</li>
+                      <li>Rozklikni <strong>Náhled</strong> u každého a zkontroluj větu i částky.</li>
+                      <li><strong>Vygenerovat faktury</strong> – přidělí čísla (další: <strong>{invCfg?.next_number ?? "?"}</strong>), splatnost {invCfg?.due_days ?? 7} dní. Nic se ještě neposílá.</li>
+                      <li>Projdi hotové faktury (odkaz Náhled ↗), pak <strong>Rozeslat vše</strong> – teprve teď jdou e-maily s QR.</li>
+                    </ol>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Úvodní věta na faktuře</label>
+                    <textarea
+                      defaultValue={invCfg?.intro_note ?? "Dobrý den, fakturuji Vám za {sluzby} poskytnuté v období {mesic}:"}
+                      onBlur={(e) => { const v = e.target.value; if (v.trim() !== (invCfg?.intro_note ?? "").trim()) saveIntroNote(v); }}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
+                    />
+                    <p className="mt-1 text-xs text-gray-400">
+                      Většinou ji měnit nemusíš — je pořád stejná. <code>{"{sluzby}"}</code> se samo nahradí výčtem služeb, které klient měl (podle ceníku), <code>{"{mesic}"}</code> názvem měsíce.
+                    </p>
+                  </div>
+                </details>
 
                 {groups.length === 0 && monthInvoices.length === 0 && fixedPayers.length === 0 ? (
                   <p className="text-sm text-gray-400">V tomto měsíci není co fakturovat.</p>
@@ -4132,6 +4157,22 @@ export default function AdminPage() {
                         </label>
                       </div>
                     ))}
+                  </div>
+                  {/* Přidat novou službu / produkt (např. workshop) */}
+                  <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl border border-dashed border-gray-300 p-3">
+                    <div className="min-w-[150px] flex-1">
+                      <label className="block text-[11px] text-gray-400 mb-0.5">Nová služba / produkt</label>
+                      <input value={newSvcLabel} onChange={(e) => setNewSvcLabel(e.target.value)} placeholder="např. Workshop" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                    </div>
+                    <div className="min-w-[140px] flex-1">
+                      <label className="block text-[11px] text-gray-400 mb-0.5">Výraz do věty</label>
+                      <input value={newSvcTerm} onChange={(e) => setNewSvcTerm(e.target.value)} placeholder="např. workshopy" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-[11px] text-gray-400 mb-0.5">Cena/lekci</label>
+                      <input type="number" value={newSvcPrice} onChange={(e) => setNewSvcPrice(e.target.value)} placeholder="Kč" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                    </div>
+                    <button type="button" disabled={!newSvcLabel.trim()} onClick={() => addService()} className="rounded-md bg-brand-dark px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">+ Přidat</button>
                   </div>
                 </div>
 
