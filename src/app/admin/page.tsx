@@ -3841,6 +3841,41 @@ export default function AdminPage() {
                   </div>,
                   document.body
                 )}
+                {/* PŘEHLED – vyfakturováno / zaplaceno / zbývá (živě podle „zaplaceno") */}
+                {monthInvoices.length > 0 && (() => {
+                  const invTotal = monthInvoices.reduce((s, i) => s + i.amount, 0);
+                  const paidList = monthInvoices.filter((i) => i.status === "paid");
+                  const invPaid = paidList.reduce((s, i) => s + i.amount, 0);
+                  const invRemaining = invTotal - invPaid;
+                  const pct = invTotal > 0 ? Math.round((invPaid / invTotal) * 100) : 0;
+                  const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
+                  return (
+                    <div className="mb-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Vyfakturováno</div>
+                          <div className="mt-1 text-lg font-bold text-brand-dark sm:text-xl">{czk(invTotal)}</div>
+                          <div className="text-[11px] text-gray-400">{monthInvoices.length}× faktura</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Zaplaceno</div>
+                          <div className="mt-1 text-lg font-bold text-emerald-600 sm:text-xl">{czk(invPaid)}</div>
+                          <div className="text-[11px] text-gray-400">{paidList.length}× zaplaceno</div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Zbývá</div>
+                          <div className="mt-1 text-lg font-bold text-amber-600 sm:text-xl">{czk(invRemaining)}</div>
+                          <div className="text-[11px] text-gray-400">{monthInvoices.length - paidList.length}× čeká</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="mt-1 text-center text-[11px] text-gray-400">{pct} % uhrazeno</div>
+                    </div>
+                  );
+                })()}
+
                 {/* POJISTKA – neúčtované hodiny za vybraný měsíc */}
                 {showUncovered && (
                   <div className="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-4 text-sm">
