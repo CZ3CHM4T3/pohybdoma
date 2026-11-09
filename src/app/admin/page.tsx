@@ -1101,10 +1101,25 @@ export default function AdminPage() {
     });
     if (mErr) { setError(`Odeslání faktury ${inv.number} selhalo: ` + mErr.message); return false; }
     const sentAt = new Date().toISOString();
-    const { error: uErr } = await supabase.from("invoices").update({ status: "sent", sent_at: sentAt }).eq("id", inv.id);
+    // Opětovné poslání nesmí shodit „zaplaceno" – paid necháme paid.
+    const newStatus = inv.status === "paid" ? "paid" : "sent";
+    const { error: uErr } = await supabase.from("invoices").update({ status: newStatus, sent_at: sentAt }).eq("id", inv.id);
     if (uErr) { setError(`Faktura ${inv.number} odeslána, ale nešlo označit jako odeslaná: ` + uErr.message); }
-    setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: "sent", sent_at: sentAt } : i)));
+    setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: newStatus, sent_at: sentAt } : i)));
     return true;
+  }
+  // Poslat fakturu znovu – vezme AKTUÁLNÍ e-mail z karty plátce (kdybys ho opravil po vygenerování).
+  async function resendInvoice(inv: InvoiceRow) {
+    const fresh = billProfiles.find((p) => p.name === inv.payer_name)?.email?.trim() || "";
+    let target = inv;
+    if (fresh && fresh !== inv.email) {
+      const { error } = await supabase.from("invoices").update({ email: fresh }).eq("id", inv.id);
+      if (!error) { target = { ...inv, email: fresh }; setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, email: fresh } : i))); }
+    }
+    if (!target.email) { setError(`Faktura #${inv.number}: chybí e-mail – doplň ho v kartě plátce a zkus znovu.`); return; }
+    if (!confirm(`Poslat fakturu #${inv.number} znovu na ${target.email}?`)) return;
+    const ok = await sendInvoice(target);
+    if (ok) setError(`✅ Faktura #${inv.number} znovu odeslána na ${target.email}.`);
   }
   // Zkušební e-mail sobě – ukázková faktura. NEgeneruje fakturu ani neposouvá číslování.
   async function sendTestInvoiceEmail() {
@@ -3962,9 +3977,16 @@ export default function AdminPage() {
                             {inv && (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                                 <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
-                                {inv.status === "issued" && inv.email && (
-                                  <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                                {inv.email ? (
+                                  inv.status === "issued" ? (
+                                    <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                                  ) : (
+                                    <button type="button" disabled={invBusy} onClick={() => resendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Poslat znovu</button>
+                                  )
+                                ) : (
+                                  <span className="font-semibold text-red-500">chybí e-mail</span>
                                 )}
+                                {inv.sent_at && <span className="text-xs text-gray-400">odesláno {fmtCzDate(inv.sent_at.slice(0, 10))}</span>}
                                 <label className="inline-flex items-center gap-1.5 text-gray-600">
                                   <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                   zaplaceno
@@ -3990,9 +4012,16 @@ export default function AdminPage() {
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                               <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
-                              {inv.status === "issued" && inv.email && (
-                                <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                              {inv.email ? (
+                                inv.status === "issued" ? (
+                                  <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                                ) : (
+                                  <button type="button" disabled={invBusy} onClick={() => resendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Poslat znovu</button>
+                                )
+                              ) : (
+                                <span className="font-semibold text-red-500">chybí e-mail</span>
                               )}
+                              {inv.sent_at && <span className="text-xs text-gray-400">odesláno {fmtCzDate(inv.sent_at.slice(0, 10))}</span>}
                               <label className="inline-flex items-center gap-1.5 text-gray-600">
                                 <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                 zaplaceno
