@@ -4261,10 +4261,12 @@ export default function AdminPage() {
                     const total = indLines.reduce((s, l) => s + l.amount, 0);
                     const count = indLines.length;
                     const avg = Math.round(total / count);
-                    // Top klienti podle tržby
+                    const dts = indLines.map((l) => l.date).filter(Boolean).sort();
+                    const periodFrom = dts[0]; const periodTo = dts[dts.length - 1];
+                    // Top plátci podle tržby – sdruženo do fakturačních rodin (resolveGroup)
                     const byClient = new Map<string, number>();
                     const cntClient = new Map<string, number>();
-                    for (const l of indLines) { byClient.set(l.client, (byClient.get(l.client) ?? 0) + l.amount); cntClient.set(l.client, (cntClient.get(l.client) ?? 0) + 1); }
+                    for (const l of indLines) { const who = resolveGroup(l.client); byClient.set(who, (byClient.get(who) ?? 0) + l.amount); cntClient.set(who, (cntClient.get(who) ?? 0) + 1); }
                     const topClients = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
                     const maxClient = Math.max(1, ...topClients.map(([, v]) => v));
                     const top3Share = Math.round(topClients.slice(0, 3).reduce((s, [, v]) => s + v, 0) / total * 100);
@@ -4286,7 +4288,7 @@ export default function AdminPage() {
                     const reliable = recClients.filter((n) => !cancelsByClient.get(n)).sort((a, b) => a.localeCompare(b, "cs"));
                     return (
                       <div className="space-y-6">
-                        <p className="text-xs text-gray-400">Z individuálních lekcí za dostupné období (cca posledních 12 měsíců). Čísla berou reálné ceny z fakturace.</p>
+                        <p className="text-xs text-gray-400">Za období <strong>{periodFrom ? fmtCzDate(periodFrom) : "—"} – {periodTo ? fmtCzDate(periodTo) : "—"}</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
                         {/* Souhrn */}
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           {[["Tržba celkem", czk(total)], ["Počet lekcí", `${count}×`], ["Průměr na lekci", czk(avg)], ["Top 3 klienti", `${top3Share} % tržby`]].map(([l, v]) => (
