@@ -4380,47 +4380,70 @@ export default function AdminPage() {
 
             {finView === "nedoplatky" && (() => {
               const todayKey = new Date().toLocaleDateString("sv-SE");
-              const overdue = invoices
-                .filter((i) => i.status !== "paid" && i.due_on && i.due_on < todayKey)
-                .sort((a, b) => a.due_on.localeCompare(b.due_on));
-              const owed = overdue.reduce((s, i) => s + i.amount, 0);
+              const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
+              const unpaid = invoices.filter((i) => i.status !== "paid").sort((a, b) => (a.due_on || "").localeCompare(b.due_on || ""));
+              const overdue = unpaid.filter((i) => i.due_on && i.due_on < todayKey);
+              const pending = unpaid.filter((i) => !(i.due_on && i.due_on < todayKey));
+              const sum = (arr: InvoiceRow[]) => arr.reduce((s, i) => s + i.amount, 0);
               const daysOver = (due: string) => Math.max(0, Math.floor((Date.now() - new Date(due + "T00:00:00").getTime()) / 86400000));
+              const daysTo = (due: string) => Math.max(0, Math.ceil((new Date(due + "T00:00:00").getTime() - Date.now()) / 86400000));
+              const card = (inv: InvoiceRow, over: boolean) => (
+                <div key={inv.id} className="rounded-xl border border-gray-100 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-brand-dark">{inv.payer_name}</span>
+                    {over ? (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">{inv.due_on ? daysOver(inv.due_on) : 0} dní po splatnosti</span>
+                    ) : (
+                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">{inv.due_on ? `splatnost za ${daysTo(inv.due_on)} dní` : "bez splatnosti"}</span>
+                    )}
+                    <span className="text-xs text-gray-400">#{inv.number} · <span className="capitalize">{monthLabelCs(inv.month)}</span>{inv.due_on ? ` · splatnost ${fmtCzDate(inv.due_on)}` : ""}</span>
+                    <span className="ml-auto font-semibold text-brand-dark">{czk(inv.amount)}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                    <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled ↗</a>
+                    {inv.email ? (
+                      <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40">⏳ Poslat upomínku</button>
+                    ) : (
+                      <span className="text-xs text-red-500">chybí e-mail</span>
+                    )}
+                    {deliveryBadges(inv)}
+                    <label className="ml-auto inline-flex items-center gap-1.5 text-gray-600">
+                      <input type="checkbox" checked={false} onChange={(e) => setInvoicePaid(inv, e.target.checked)} /> zaplaceno
+                    </label>
+                  </div>
+                </div>
+              );
               return (
                 <div>
-                  <p className="text-sm text-gray-500 mb-4">Faktury <strong>po splatnosti</strong>, které ještě nejsou zaplacené. Pošli upomínku, nebo dořeš osobně. Jakmile klikneš „zaplaceno", faktura odsud sama zmizí.</p>
-                  {overdue.length === 0 ? (
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">🎉 Žádné nedoplatky po splatnosti. Všechno zaplacené.</div>
+                  <p className="text-sm text-gray-500 mb-4">Všechny <strong>nezaplacené</strong> faktury. Nahoře vidíš, kolik ti celkem dluží a kolik z toho je už <strong>po splatnosti</strong>. Jakmile klikneš „zaplaceno", faktura odsud sama zmizí.</p>
+                  {unpaid.length === 0 ? (
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">🎉 Všechno zaplacené. Žádné nedoplatky.</div>
                   ) : (
                     <>
-                      <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Dluží se ti celkem</div>
-                        <div className="text-2xl font-bold text-amber-700">{owed.toLocaleString("cs-CZ")} Kč</div>
-                        <div className="text-xs text-amber-700/80">{overdue.length}× faktura po splatnosti</div>
+                      <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Nezaplaceno celkem</div>
+                          <div className="text-2xl font-bold text-amber-700">{czk(sum(unpaid))}</div>
+                          <div className="text-xs text-amber-700/80">{unpaid.length}× faktura</div>
+                        </div>
+                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Z toho po splatnosti</div>
+                          <div className="text-2xl font-bold text-red-700">{czk(sum(overdue))}</div>
+                          <div className="text-xs text-red-700/80">{overdue.length}× faktura</div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        {overdue.map((inv) => (
-                          <div key={inv.id} className="rounded-xl border border-gray-100 p-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold text-brand-dark">{inv.payer_name}</span>
-                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">{daysOver(inv.due_on)} dní po splatnosti</span>
-                              <span className="text-xs text-gray-400">#{inv.number} · <span className="capitalize">{monthLabelCs(inv.month)}</span> · splatnost {fmtCzDate(inv.due_on)}</span>
-                              <span className="ml-auto font-semibold text-brand-dark">{inv.amount.toLocaleString("cs-CZ")} Kč</span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled ↗</a>
-                              {inv.email ? (
-                                <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40">⏳ Poslat upomínku</button>
-                              ) : (
-                                <span className="text-xs text-red-500">chybí e-mail</span>
-                              )}
-                              {deliveryBadges(inv)}
-                              <label className="ml-auto inline-flex items-center gap-1.5 text-gray-600">
-                                <input type="checkbox" checked={false} onChange={(e) => setInvoicePaid(inv, e.target.checked)} /> zaplaceno
-                              </label>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {overdue.length > 0 && (
+                        <div className="mb-5">
+                          <h4 className="mb-2 text-sm font-semibold text-red-700">⏰ Po splatnosti</h4>
+                          <div className="space-y-2">{overdue.map((inv) => card(inv, true))}</div>
+                        </div>
+                      )}
+                      {pending.length > 0 && (
+                        <div>
+                          <h4 className="mb-2 text-sm font-semibold text-brand-dark">Čeká na úhradu</h4>
+                          <div className="space-y-2">{pending.map((inv) => card(inv, false))}</div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
