@@ -303,7 +303,8 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "nedoplatky" | "cenik" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
+  const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
@@ -3464,7 +3465,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Analýza"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -4170,6 +4171,149 @@ export default function AdminPage() {
             })()}
 
             {/* CENÍK – služby, ceny a individuální slevy */}
+            {finView === "analyza" && (() => {
+              const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
+              const WD = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
+              const wdIdx = [1, 2, 3, 4, 5, 6, 0]; // mapování Po..Ne na getDay()
+              const Bar = ({ val, max, color }: { val: number; max: number; color: string }) => (
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full" style={{ width: `${max > 0 ? Math.round((val / max) * 100) : 0}%`, background: color }} />
+                </div>
+              );
+              return (
+                <div>
+                  {/* Pod-záložky produktů */}
+                  <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
+                    {([["ind", "Individuály"], ["grp", "Skupinovky"]] as const).map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => setProdView(k)} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-white text-brand-dark shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                    ))}
+                  </div>
+
+                  {prodView === "grp" ? (
+                    <p className="text-sm text-gray-400">Analýzu skupinovek (kruháč, PPT) přidáme jako další krok — dej vědět, až budeš chtít. Zatím je hotová analýza Individuálů.</p>
+                  ) : (() => {
+                    const indLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0);
+                    if (indLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné individuální lekce k analýze.</p>;
+                    const total = indLines.reduce((s, l) => s + l.amount, 0);
+                    const count = indLines.length;
+                    const avg = Math.round(total / count);
+                    // Top klienti podle tržby
+                    const byClient = new Map<string, number>();
+                    const cntClient = new Map<string, number>();
+                    for (const l of indLines) { byClient.set(l.client, (byClient.get(l.client) ?? 0) + l.amount); cntClient.set(l.client, (cntClient.get(l.client) ?? 0) + 1); }
+                    const topClients = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
+                    const maxClient = Math.max(1, ...topClients.map(([, v]) => v));
+                    const top3Share = Math.round(topClients.slice(0, 3).reduce((s, [, v]) => s + v, 0) / total * 100);
+                    // Dny v týdnu
+                    const byWd = Array(7).fill(0) as number[];
+                    for (const l of indLines) byWd[new Date(l.date + "T00:00:00").getDay()] += l.amount;
+                    const maxWd = Math.max(1, ...byWd);
+                    // Měsíce (posledních 12)
+                    const byMonth = new Map<string, number>();
+                    for (const l of indLines) byMonth.set(l.date.slice(0, 7), (byMonth.get(l.date.slice(0, 7)) ?? 0) + l.amount);
+                    const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+                    const maxMonth = Math.max(1, ...months.map(([, v]) => v));
+                    // Zrušené hodiny (recCancels → klient přes recurring)
+                    const recById = new Map(recurring.map((r) => [r.id, (r.client_name ?? "?") as string]));
+                    const cancelsByClient = new Map<string, number>();
+                    for (const c of recCancels) { const n = recById.get(c.recurring_id); if (n) cancelsByClient.set(n, (cancelsByClient.get(n) ?? 0) + 1); }
+                    const topCancels = [...cancelsByClient.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+                    const recClients = [...new Set(recurring.map((r) => r.client_name).filter((n): n is string => !!n && n.trim().length > 0))];
+                    const reliable = recClients.filter((n) => !cancelsByClient.get(n)).sort((a, b) => a.localeCompare(b, "cs"));
+                    return (
+                      <div className="space-y-6">
+                        <p className="text-xs text-gray-400">Z individuálních lekcí za dostupné období (cca posledních 12 měsíců). Čísla berou reálné ceny z fakturace.</p>
+                        {/* Souhrn */}
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          {[["Tržba celkem", czk(total)], ["Počet lekcí", `${count}×`], ["Průměr na lekci", czk(avg)], ["Top 3 klienti", `${top3Share} % tržby`]].map(([l, v]) => (
+                            <div key={l} className="rounded-xl border border-gray-100 p-3 text-center">
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{l}</div>
+                              <div className="mt-1 text-lg font-bold text-brand-dark">{v}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {top3Share >= 50 && <p className="-mt-2 text-xs text-amber-600">⚠️ Víc než polovinu tržby dělají 3 klienti — kdyby někdo odešel, citelně to zabolí. Vyplatí se získávat nové.</p>}
+
+                        {/* Top klienti */}
+                        <div>
+                          <h4 className="mb-2 text-sm font-semibold text-brand-dark">Kdo ti vydělá nejvíc</h4>
+                          <div className="space-y-1.5">
+                            {topClients.slice(0, 10).map(([name, val]) => (
+                              <div key={name} className="flex items-center gap-3 text-sm">
+                                <span className="w-32 shrink-0 truncate">{name}</span>
+                                <div className="flex-1"><Bar val={val} max={maxClient} color="#1976FF" /></div>
+                                <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
+                                <span className="w-16 shrink-0 text-right text-xs text-gray-400">{cntClient.get(name)}× · {Math.round(val / total * 100)} %</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Den v týdnu + měsíce */}
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <div>
+                            <h4 className="mb-2 text-sm font-semibold text-brand-dark">Který den vyděláváš nejvíc</h4>
+                            <div className="space-y-1.5">
+                              {wdIdx.map((d, i) => (
+                                <div key={d} className="flex items-center gap-3 text-sm">
+                                  <span className="w-8 shrink-0 text-gray-500">{WD[i]}</span>
+                                  <div className="flex-1"><Bar val={byWd[d]} max={maxWd} color="#14b8a6" /></div>
+                                  <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(byWd[d])}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="mb-2 text-sm font-semibold text-brand-dark">Tržba po měsících</h4>
+                            <div className="space-y-1.5">
+                              {months.map(([mk, val]) => (
+                                <div key={mk} className="flex items-center gap-3 text-sm">
+                                  <span className="w-20 shrink-0 text-gray-500 capitalize">{monthLabelCs(mk)}</span>
+                                  <div className="flex-1"><Bar val={val} max={maxMonth} color="#8b5cf6" /></div>
+                                  <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Zrušené hodiny */}
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <div>
+                            <h4 className="mb-2 text-sm font-semibold text-brand-dark">Kdo ti nejvíc ruší hodiny</h4>
+                            {topCancels.length === 0 ? (
+                              <p className="text-sm text-gray-400">Zatím žádné zrušené termíny v datech.</p>
+                            ) : (
+                              <div className="space-y-1">
+                                {topCancels.slice(0, 10).map(([name, v]) => (
+                                  <div key={name} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                                    <span className="truncate">{name}</span>
+                                    <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">{v}× zrušeno</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="mb-2 text-sm font-semibold text-brand-dark">Spolehliví (neruší)</h4>
+                            {reliable.length === 0 ? (
+                              <p className="text-sm text-gray-400">—</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {reliable.map((name) => (
+                                  <span key={name} className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{name}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
+
             {finView === "nedoplatky" && (() => {
               const todayKey = new Date().toLocaleDateString("sv-SE");
               const overdue = invoices
