@@ -303,7 +303,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "cenik" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "nedoplatky" | "cenik" | "archiv">("individualy");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
@@ -3464,7 +3464,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -4170,6 +4170,55 @@ export default function AdminPage() {
             })()}
 
             {/* CENÍK – služby, ceny a individuální slevy */}
+            {finView === "nedoplatky" && (() => {
+              const todayKey = new Date().toLocaleDateString("sv-SE");
+              const overdue = invoices
+                .filter((i) => i.status !== "paid" && i.due_on && i.due_on < todayKey)
+                .sort((a, b) => a.due_on.localeCompare(b.due_on));
+              const owed = overdue.reduce((s, i) => s + i.amount, 0);
+              const daysOver = (due: string) => Math.max(0, Math.floor((Date.now() - new Date(due + "T00:00:00").getTime()) / 86400000));
+              return (
+                <div>
+                  <p className="text-sm text-gray-500 mb-4">Faktury <strong>po splatnosti</strong>, které ještě nejsou zaplacené. Pošli upomínku, nebo dořeš osobně. Jakmile klikneš „zaplaceno", faktura odsud sama zmizí.</p>
+                  {overdue.length === 0 ? (
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">🎉 Žádné nedoplatky po splatnosti. Všechno zaplacené.</div>
+                  ) : (
+                    <>
+                      <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Dluží se ti celkem</div>
+                        <div className="text-2xl font-bold text-amber-700">{owed.toLocaleString("cs-CZ")} Kč</div>
+                        <div className="text-xs text-amber-700/80">{overdue.length}× faktura po splatnosti</div>
+                      </div>
+                      <div className="space-y-2">
+                        {overdue.map((inv) => (
+                          <div key={inv.id} className="rounded-xl border border-gray-100 p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold text-brand-dark">{inv.payer_name}</span>
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">{daysOver(inv.due_on)} dní po splatnosti</span>
+                              <span className="text-xs text-gray-400">#{inv.number} · <span className="capitalize">{monthLabelCs(inv.month)}</span> · splatnost {fmtCzDate(inv.due_on)}</span>
+                              <span className="ml-auto font-semibold text-brand-dark">{inv.amount.toLocaleString("cs-CZ")} Kč</span>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled ↗</a>
+                              {inv.email ? (
+                                <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40">⏳ Poslat upomínku</button>
+                              ) : (
+                                <span className="text-xs text-red-500">chybí e-mail</span>
+                              )}
+                              {deliveryBadges(inv)}
+                              <label className="ml-auto inline-flex items-center gap-1.5 text-gray-600">
+                                <input type="checkbox" checked={false} onChange={(e) => setInvoicePaid(inv, e.target.checked)} /> zaplaceno
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             {finView === "cenik" && (() => {
               const svcOverrideNames = Array.from(new Set([
                 ...lessonLines.filter((l) => l.svc === cenikSvc).map((l) => l.client),
