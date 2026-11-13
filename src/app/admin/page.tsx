@@ -1050,13 +1050,21 @@ export default function AdminPage() {
     if (error) { setError("Smazání faktury selhalo: " + error.message); return; }
     setInvoices((prev) => prev.filter((i) => i.id !== id));
   }
-  function invoiceEmailHtml(inv: InvoiceRow): string {
+  function invoiceEmailHtml(inv: InvoiceRow, kind: "invoice" | "reminder" = "invoice"): string {
     const spayd = buildSpayd({ iban: BUSINESS.iban, amountKc: inv.amount, vs: inv.vs, number: inv.number });
     const qr = qrUrl(spayd);
     const link = `https://pohybdoma.cz/faktura/${inv.token}`;
     const amt = inv.amount.toLocaleString("cs-CZ");
     const intro = inv.intro || "Dobrý den, fakturuji Vám tyto lekce:";
     const monthTitle = monthLabelCs(inv.month);
+    const isReminder = kind === "reminder";
+    const headLabel = isReminder ? "Připomenutí platby" : `Faktura za ${monthTitle}`;
+    const introText = isReminder
+      ? `Dobrý den, posílám přátelské připomenutí k faktuře č. ${inv.number} za ${monthTitle}, kterou jsem zatím neobdržel uhrazenou. Pokud jste platbu už odeslal(a), považujte prosím tento e-mail za bezpředmětný — a děkuji.`
+      : intro;
+    const reminderBanner = isReminder
+      ? `<div style="margin:0 0 14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;padding:10px 14px;font-size:13px;font-weight:bold">⏳ Tato faktura zatím nebyla uhrazena. Prosím o doplacení — děkuji.</div>`
+      : "";
     const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Helvetica,Arial,sans-serif";
     const itemRows = (inv.lines || []).map((l) =>
       `<tr>
@@ -1074,9 +1082,10 @@ export default function AdminPage() {
       <div style="font-size:13px;color:#64748b;margin-top:3px">lektor pohybu · pohybdoma.cz</div>
     </td></tr>
     <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:24px 28px 2px">
-      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;font-weight:bold">Faktura za ${monthTitle}</div>
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;font-weight:bold">${headLabel}</div>
       <div style="font-size:26px;font-weight:bold;color:#062A6B;line-height:1;margin:4px 0 16px">č. ${inv.number}</div>
-      <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.55">${intro}</p>
+      ${reminderBanner}
+      <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.55">${introText}</p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 2px">
         ${itemRows}
         <tr>
@@ -1168,6 +1177,21 @@ export default function AdminPage() {
     if (!confirm(`Poslat fakturu #${inv.number} znovu na ${target.email}?`)) return;
     const ok = await sendInvoice(target);
     if (ok) setError(`✅ Faktura #${inv.number} znovu odeslána na ${target.email}.`);
+  }
+  // Poslat upomínku – jen u nezaplacené odeslané faktury. Stejný design, jemné připomenutí. Nemění stav.
+  async function sendReminder(inv: InvoiceRow) {
+    if (!inv.email) { setError(`Faktura #${inv.number}: chybí e-mail.`); return; }
+    if (!confirm(`Poslat upomínku k faktuře #${inv.number} na ${inv.email}?`)) return;
+    const { error: mErr } = await supabase.rpc("admin_send_email", {
+      p_to: inv.email,
+      p_subject: `Připomenutí platby — Faktura č. ${inv.number} (${monthLabelCs(inv.month)})`,
+      p_html: invoiceEmailHtml(inv, "reminder"),
+      p_attach_url: `https://pohybdoma.cz/api/faktura-pdf/${inv.token}`,
+      p_attach_name: `faktura-${inv.number}.pdf`,
+      p_tag_value: String(inv.number),
+    });
+    if (mErr) { setError(`Odeslání upomínky k #${inv.number} selhalo: ` + mErr.message); return; }
+    setError(`✅ Upomínka k faktuře #${inv.number} odeslána na ${inv.email}.`);
   }
   // Zkušební e-mail sobě – ukázková faktura. NEgeneruje fakturu ani neposouvá číslování.
   async function sendTestInvoiceEmail() {
@@ -4072,6 +4096,9 @@ export default function AdminPage() {
                                   <span className="font-semibold text-red-500">chybí e-mail</span>
                                 )}
                                 {deliveryBadges(inv)}
+                                {inv.status === "sent" && inv.email && (
+                                  <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40" title="Jemné připomenutí platby na e-mail klienta">⏳ Poslat upomínku</button>
+                                )}
                                 <label className="inline-flex items-center gap-1.5 text-gray-600">
                                   <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                   zaplaceno
@@ -4107,6 +4134,9 @@ export default function AdminPage() {
                                 <span className="font-semibold text-red-500">chybí e-mail</span>
                               )}
                               {deliveryBadges(inv)}
+                              {inv.status === "sent" && inv.email && (
+                                <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40" title="Jemné připomenutí platby na e-mail klienta">⏳ Poslat upomínku</button>
+                              )}
                               <label className="inline-flex items-center gap-1.5 text-gray-600">
                                 <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                 zaplaceno
