@@ -4189,9 +4189,73 @@ export default function AdminPage() {
                     ))}
                   </div>
 
-                  {prodView === "grp" ? (
-                    <p className="text-sm text-gray-400">Analýzu skupinovek (kruháč, PPT) přidáme jako další krok — dej vědět, až budeš chtít. Zatím je hotová analýza Individuálů.</p>
-                  ) : (() => {
+                  {prodView === "grp" ? (() => {
+                    const grpLines = lessonLines.filter((l) => l.kind === "blok" && l.amount > 0);
+                    if (grpLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné skupinové lekce k analýze. Kruháč, PPT nebo workshopy se tu objeví, jakmile proběhnou a budou mít docházku.</p>;
+                    const byProduct = new Map<string, typeof grpLines>();
+                    for (const l of grpLines) { const k = l.svcLabel || "Skupinové"; if (!byProduct.has(k)) byProduct.set(k, []); byProduct.get(k)!.push(l); }
+                    const products = [...byProduct.entries()].map(([label, lines]) => ({ label, lines, total: lines.reduce((s, x) => s + x.amount, 0) })).sort((a, b) => b.total - a.total);
+                    const grandTotal = Math.max(1, products.reduce((s, p) => s + p.total, 0));
+                    return (
+                      <div className="space-y-6">
+                        <p className="text-xs text-gray-400">Skupinové produkty (kruháč, PPT, workshopy) — tržba a účast za dostupné období.</p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          {products.map((p) => (
+                            <div key={p.label} className="rounded-xl border border-gray-100 p-3 text-center">
+                              <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-400">{p.label}</div>
+                              <div className="mt-1 text-lg font-bold text-brand-dark">{czk(p.total)}</div>
+                              <div className="text-[11px] text-gray-400">{Math.round(p.total / grandTotal * 100)} % skupinovek</div>
+                            </div>
+                          ))}
+                        </div>
+                        {products.map((p) => {
+                          const byClient = new Map<string, number>();
+                          for (const l of p.lines) byClient.set(l.client, (byClient.get(l.client) ?? 0) + l.amount);
+                          const top = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
+                          const maxC = Math.max(1, ...top.map(([, v]) => v));
+                          const uniq = byClient.size;
+                          const byMonth = new Map<string, number>();
+                          for (const l of p.lines) byMonth.set(l.date.slice(0, 7), (byMonth.get(l.date.slice(0, 7)) ?? 0) + l.amount);
+                          const months = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+                          const maxM = Math.max(1, ...months.map(([, v]) => v));
+                          return (
+                            <div key={p.label} className="rounded-xl border border-gray-100 p-4">
+                              <div className="mb-3 flex flex-wrap items-center gap-3">
+                                <h4 className="text-sm font-semibold text-brand-dark">{p.label}</h4>
+                                <span className="text-xs text-gray-400">{czk(p.total)} · {p.lines.length}× účast · {uniq} lidí · ⌀ {czk(Math.round(p.total / Math.max(1, uniq)))}/osoba</span>
+                              </div>
+                              <div className="grid gap-6 md:grid-cols-2">
+                                <div>
+                                  <div className="mb-1 text-xs font-semibold text-gray-400">Top účastníci</div>
+                                  <div className="space-y-1.5">
+                                    {top.slice(0, 6).map(([name, val]) => (
+                                      <div key={name} className="flex items-center gap-3 text-sm">
+                                        <span className="w-28 shrink-0 truncate">{name}</span>
+                                        <div className="flex-1"><Bar val={val} max={maxC} color="#6d28d9" /></div>
+                                        <span className="w-20 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="mb-1 text-xs font-semibold text-gray-400">Tržba po měsících</div>
+                                  <div className="space-y-1.5">
+                                    {months.map(([mk, val]) => (
+                                      <div key={mk} className="flex items-center gap-3 text-sm">
+                                        <span className="w-20 shrink-0 capitalize text-gray-500">{monthLabelCs(mk)}</span>
+                                        <div className="flex-1"><Bar val={val} max={maxM} color="#8b5cf6" /></div>
+                                        <span className="w-20 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })() : (() => {
                     const indLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0);
                     if (indLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné individuální lekce k analýze.</p>;
                     const total = indLines.reduce((s, l) => s + l.amount, 0);
