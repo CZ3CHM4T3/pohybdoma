@@ -305,6 +305,7 @@ export default function AdminPage() {
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
+  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
@@ -4180,18 +4181,33 @@ export default function AdminPage() {
                   <div className="h-full rounded-full" style={{ width: `${max > 0 ? Math.round((val / max) * 100) : 0}%`, background: color }} />
                 </div>
               );
+              const nowP = new Date();
+              const inPeriod = (dateStr: string) => {
+                if (!dateStr) return false;
+                if (analPeriod === "all") return true;
+                if (analPeriod === "year") return dateStr.slice(0, 4) === String(nowP.getFullYear());
+                const cut = new Date(nowP); cut.setMonth(cut.getMonth() - (analPeriod === "12m" ? 12 : 3));
+                return dateStr >= cut.toLocaleDateString("sv-SE");
+              };
               return (
                 <div>
                   {/* Pod-záložky produktů */}
-                  <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-1">
+                  <div className="mb-3 inline-flex rounded-lg bg-gray-100 p-1">
                     {([["ind", "Individuály"], ["grp", "Skupinovky"]] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => setProdView(k)} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-white text-brand-dark shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
+                  {/* Přepínač období */}
+                  <div className="mb-5 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-xs text-gray-400">Období:</span>
+                    {([["3m", "3 měsíce"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                    ))}
+                  </div>
 
                   {prodView === "grp" ? (() => {
-                    const grpLines = lessonLines.filter((l) => l.kind === "blok" && l.amount > 0);
-                    if (grpLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné skupinové lekce k analýze. Kruháč, PPT nebo workshopy se tu objeví, jakmile proběhnou a budou mít docházku.</p>;
+                    const grpLines = lessonLines.filter((l) => l.kind === "blok" && l.amount > 0 && inPeriod(l.date));
+                    if (grpLines.length === 0) return <p className="text-sm text-gray-400">Za zvolené období nejsou žádné skupinové lekce. Zkus delší období, nebo se tu kruháč/PPT/workshopy objeví, jakmile proběhnou a budou mít docházku.</p>;
                     const byProduct = new Map<string, typeof grpLines>();
                     for (const l of grpLines) { const k = l.svcLabel || "Skupinové"; if (!byProduct.has(k)) byProduct.set(k, []); byProduct.get(k)!.push(l); }
                     const products = [...byProduct.entries()].map(([label, lines]) => ({ label, lines, total: lines.reduce((s, x) => s + x.amount, 0) })).sort((a, b) => b.total - a.total);
@@ -4210,7 +4226,7 @@ export default function AdminPage() {
                         </div>
                         {products.map((p) => {
                           const byClient = new Map<string, number>();
-                          for (const l of p.lines) byClient.set(l.client, (byClient.get(l.client) ?? 0) + l.amount);
+                          for (const l of p.lines) { const who = resolveGroup(l.client); byClient.set(who, (byClient.get(who) ?? 0) + l.amount); }
                           const top = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
                           const maxC = Math.max(1, ...top.map(([, v]) => v));
                           const uniq = byClient.size;
@@ -4222,11 +4238,11 @@ export default function AdminPage() {
                             <div key={p.label} className="rounded-xl border border-gray-100 p-4">
                               <div className="mb-3 flex flex-wrap items-center gap-3">
                                 <h4 className="text-sm font-semibold text-brand-dark">{p.label}</h4>
-                                <span className="text-xs text-gray-400">{czk(p.total)} · {p.lines.length}× účast · {uniq} lidí · ⌀ {czk(Math.round(p.total / Math.max(1, uniq)))}/osoba</span>
+                                <span className="text-xs text-gray-400">{czk(p.total)} · {p.lines.length}× účast · {uniq} plátců · ⌀ {czk(Math.round(p.total / Math.max(1, uniq)))}/plátce</span>
                               </div>
                               <div className="grid gap-6 md:grid-cols-2">
                                 <div>
-                                  <div className="mb-1 text-xs font-semibold text-gray-400">Top účastníci</div>
+                                  <div className="mb-1 text-xs font-semibold text-gray-400">Top plátci (rodiny)</div>
                                   <div className="space-y-1.5">
                                     {top.slice(0, 6).map(([name, val]) => (
                                       <div key={name} className="flex items-center gap-3 text-sm">
@@ -4256,7 +4272,7 @@ export default function AdminPage() {
                       </div>
                     );
                   })() : (() => {
-                    const indLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0);
+                    const indLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0 && inPeriod(l.date));
                     if (indLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné individuální lekce k analýze.</p>;
                     const total = indLines.reduce((s, l) => s + l.amount, 0);
                     const count = indLines.length;
