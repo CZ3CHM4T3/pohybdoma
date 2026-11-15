@@ -303,7 +303,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "skupinovky" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -3334,6 +3334,58 @@ export default function AdminPage() {
             byClient.get(key)!.push(ln);
           }
           const invGroups = [...byClient.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+          // Rozdělení pro záložky: Individuály = ne-skupinové (+ extra), Skupinovky = skupinové (blok).
+          const indGroups = invGroups.map(([c, lines]) => [c, lines.filter((l) => l.kind !== "blok")] as [string, Line[]]).filter(([, lines]) => lines.length > 0);
+          const grpGroups = invGroups.map(([c, lines]) => [c, lines.filter((l) => l.kind === "blok")] as [string, Line[]]).filter(([, lines]) => lines.length > 0);
+          // Sdílené vykreslení seznamu klientů s řádky (pro Individuály i Skupinovky).
+          const renderBillingGroups = (groupsArr: [string, Line[]][], emptyMsg: string) =>
+            groupsArr.length === 0 ? (
+              <p className="text-sm text-gray-400 mb-6">{emptyMsg}</p>
+            ) : (
+              <div className="space-y-4 mb-6">
+                {groupsArr.map(([client, lines], ci) => {
+                  const sub = lines.reduce((s, x) => s + x.amount, 0);
+                  const subPaid = lines.filter((l) => paidRefs.has(l.ref)).reduce((s, x) => s + x.amount, 0);
+                  const allPaid = sub > 0 && subPaid >= sub;
+                  return (
+                    <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2">
+                        <span className="font-semibold text-brand-dark">{client}</span>
+                        <div className="flex items-center gap-3">
+                          {allPaid ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">ZAPLACENO</span>
+                          ) : subPaid > 0 ? (
+                            <span className="text-[11px] text-gray-400">zapl. {subPaid.toLocaleString("cs-CZ")} / {sub.toLocaleString("cs-CZ")}</span>
+                          ) : null}
+                          <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
+                          <button type="button" onClick={() => openInvoice(client, lines.map((l) => ({ date: l.date, what: l.client !== client ? `${l.what} (${l.client})` : l.what, amount: l.amount })), ci + 1)} className="inline-flex items-center gap-1 rounded-md bg-brand-dark px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90">
+                            <Receipt className="h-3.5 w-3.5" /> Fakturu
+                          </button>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {lines.map((ln, i) => {
+                          const isPaid = paidRefs.has(ln.ref);
+                          return (
+                          <div key={i} onClick={() => togglePaid(ln.ref, !isPaid)} title="Klikni = zaplaceno / nezaplaceno" className={`flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 ${isPaid ? "opacity-60" : ""}`}>
+                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isPaid ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300"}`}>{isPaid ? "✓" : ""}</span>
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : ln.kind === "blok" ? "bg-orange-500" : ln.kind === "extra" ? "bg-cyan-500" : "bg-brand-blue"}`} title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : ln.kind === "blok" ? "skupinová lekce" : ln.kind === "extra" ? "mimořádná položka" : "rezervace z webu"} />
+                            <span className="capitalize text-gray-600 w-40 shrink-0">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
+                            <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
+                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}{ln.client !== client ? <span className="font-semibold text-brand-dark"> · {ln.client}</span> : ""}{ln.kind === "extra" ? " · extra" : ""}</span>
+                            <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
+                            {ln.kind === "extra" && (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); delExtra(ln.ref.replace(/^extra:/, "")); }} title="Smazat položku" className="shrink-0 text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                            )}
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
           // Agregace položek faktury po službách a OSOBÁCH: „služba (Anička) — Nx á cena".
           //  U rodin se u položky ukáže, čí lekce to je (osoba ≠ plátce).
@@ -3480,7 +3532,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Analýza"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Analýza"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3491,7 +3543,7 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
-              {(finView === "mesic" || finView === "individualy") && (
+              {(finView === "mesic" || finView === "individualy" || finView === "skupinovky") && (
                 <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">
                   🖨 Vytisknout měsíc
                 </button>
@@ -3587,61 +3639,8 @@ export default function AdminPage() {
 
             {/* INDIVIDUÁLY – vyúčtování lekcí po klientech */}
             {finView === "individualy" && (<>
-            <h3 className="text-sm font-semibold text-brand-dark mb-2">Lekce – komu naúčtovat</h3>
-            {invGroups.length === 0 ? (
-              <p className="text-sm text-gray-400 mb-6">V tomto měsíci nejsou žádné lekce.</p>
-            ) : (
-              <div className="space-y-4 mb-6">
-                {invGroups.map(([client, lines], ci) => {
-                  const sub = lines.reduce((s, x) => s + x.amount, 0);
-                  const subPaid = lines.filter((l) => paidRefs.has(l.ref)).reduce((s, x) => s + x.amount, 0);
-                  const allPaid = sub > 0 && subPaid >= sub;
-                  return (
-                    <div key={client} className="rounded-xl border border-gray-100 overflow-hidden">
-                      <div className="flex items-center justify-between gap-2 bg-gray-50 px-4 py-2">
-                        <span className="font-semibold text-brand-dark">{client}</span>
-                        <div className="flex items-center gap-3">
-                          {allPaid ? (
-                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">ZAPLACENO</span>
-                          ) : subPaid > 0 ? (
-                            <span className="text-[11px] text-gray-400">zapl. {subPaid.toLocaleString("cs-CZ")} / {sub.toLocaleString("cs-CZ")}</span>
-                          ) : null}
-                          <span className="text-sm font-bold text-green-700">{sub.toLocaleString("cs-CZ")} Kč</span>
-                          <button
-                            type="button"
-                            onClick={() => openInvoice(client, lines.map((l) => ({ date: l.date, what: l.client !== client ? `${l.what} (${l.client})` : l.what, amount: l.amount })), ci + 1)}
-                            className="inline-flex items-center gap-1 rounded-md bg-brand-dark px-2.5 py-1 text-xs font-semibold text-white hover:opacity-90"
-                          >
-                            <Receipt className="h-3.5 w-3.5" /> Fakturu
-                          </button>
-                        </div>
-                      </div>
-                      <div className="divide-y divide-gray-50">
-                        {lines.map((ln, i) => {
-                          const isPaid = paidRefs.has(ln.ref);
-                          return (
-                          <div key={i} onClick={() => togglePaid(ln.ref, !isPaid)} title="Klikni = zaplaceno / nezaplaceno" className={`flex cursor-pointer items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 ${isPaid ? "opacity-60" : ""}`}>
-                            <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isPaid ? "border-emerald-500 bg-emerald-500 text-white" : "border-gray-300"}`}>{isPaid ? "✓" : ""}</span>
-                            <span
-                              className={`h-2 w-2 shrink-0 rounded-full ${ln.kind === "staly" ? "bg-teal-500" : ln.kind === "lekce" ? "bg-violet-500" : ln.kind === "blok" ? "bg-orange-500" : ln.kind === "extra" ? "bg-cyan-500" : "bg-brand-blue"}`}
-                              title={ln.kind === "staly" ? "stálý klient" : ln.kind === "lekce" ? "jednorázová lekce" : ln.kind === "blok" ? "skupinová lekce" : ln.kind === "extra" ? "mimořádná položka" : "rezervace z webu"}
-                            />
-                            <span className="capitalize text-gray-600 w-40 shrink-0">{ln.kind === "extra" ? "—" : fmtDateCs(ln.date)}</span>
-                            <span className="text-gray-400 w-12 shrink-0">{ln.time}</span>
-                            <span className={`truncate flex-1 ${isPaid ? "text-gray-400 line-through" : "text-gray-600"}`}>{ln.what}{ln.client !== client ? <span className="font-semibold text-brand-dark"> · {ln.client}</span> : ""}{ln.kind === "extra" ? " · extra" : ""}</span>
-                            <span className="font-semibold text-brand-dark shrink-0">{ln.amount.toLocaleString("cs-CZ")} Kč</span>
-                            {ln.kind === "extra" && (
-                              <button type="button" onClick={(e) => { e.stopPropagation(); delExtra(ln.ref.replace(/^extra:/, "")); }} title="Smazat položku" className="shrink-0 text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                            )}
-                          </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <h3 className="text-sm font-semibold text-brand-dark mb-2">Individuální lekce – komu naúčtovat</h3>
+            {renderBillingGroups(indGroups, "V tomto měsíci nejsou žádné individuální lekce.")}
 
             {/* Přidat mimořádnou položku k člověku (i novému) */}
             <div className="mb-6 rounded-xl border border-gray-100 p-4">
@@ -3730,6 +3729,13 @@ export default function AdminPage() {
               </details>
               );
             })()}
+            </>)}
+
+            {/* SKUPINOVKY – vyúčtování skupinových lekcí po klientech */}
+            {finView === "skupinovky" && (<>
+            <h3 className="text-sm font-semibold text-brand-dark mb-2">Skupinové lekce – komu naúčtovat</h3>
+            <p className="text-xs text-gray-500 mb-3">Kruháč, PPT a workshopy – stejně jako Individuály, jen skupinovky. V Rozeslat se obojí sečte na jednu fakturu.</p>
+            {renderBillingGroups(grpGroups, "V tomto měsíci nejsou žádné skupinové lekce.")}
             </>)}
 
             {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
