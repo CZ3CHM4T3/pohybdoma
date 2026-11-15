@@ -4066,7 +4066,7 @@ export default function AdminPage() {
                                   <span className="text-xs text-gray-400">Kč</span>
                                 </span>
                               ) : (
-                                <span className="ml-auto font-semibold text-brand-dark">{g.total.toLocaleString("cs-CZ")} Kč</span>
+                                <span className="ml-auto font-semibold text-brand-dark" title={inv ? "Částka z vystavené faktury (zamrzlá)" : "Živý součet z kalendáře (faktura ještě není)"}>{(inv ? inv.amount : g.total).toLocaleString("cs-CZ")} Kč</span>
                               )}
                               {inv && st && (
                                 <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" title="Zobrazit skutečně odeslanou fakturu (uložený stav)" className={`rounded-full px-2 py-0.5 text-xs font-semibold hover:opacity-80 ${st.cls}`}>#{inv.number} · {st.label} ↗</a>
