@@ -307,6 +307,7 @@ export default function AdminPage() {
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
+  const [dochKind, setDochKind] = useState<"ind" | "grp">("ind");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
   const [dochMonth, setDochMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [archClient, setArchClient] = useState("");
@@ -3041,6 +3042,16 @@ export default function AdminPage() {
           const byDay = new Map<string, Att[]>();
           for (const it of monthItems) { if (!byDay.has(it.date)) byDay.set(it.date, []); byDay.get(it.date)!.push(it); }
           const daysSorted = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+          // SKUPINOVKY – docházka za vybraný měsíc (jen čtení, zrcadlo kalendáře)
+          const blockLabel = (bid: string) => blocks.find((x) => x.id === bid)?.label || "Skupina";
+          const blockTime = (bid: string) => blocks.find((x) => x.id === bid)?.start_time || "";
+          const grpAtt = blockAttendance.filter((a) => a.date >= monthStart && a.date <= monthEnd);
+          const grpByMember = new Map<string, { date: string; block: string }[]>();
+          for (const a of grpAtt) { if (!grpByMember.has(a.name)) grpByMember.set(a.name, []); grpByMember.get(a.name)!.push({ date: a.date, block: blockLabel(a.block_id) }); }
+          const grpMembersSorted = [...grpByMember.entries()].sort((a, b) => a[0].localeCompare(b[0], "cs"));
+          const grpByDay = new Map<string, { name: string; block: string; time: string }[]>();
+          for (const a of grpAtt) { if (!grpByDay.has(a.date)) grpByDay.set(a.date, []); grpByDay.get(a.date)!.push({ name: a.name, block: blockLabel(a.block_id), time: blockTime(a.block_id) }); }
+          const grpDaysSorted = [...grpByDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
           // Popisek měsíce + posun
           const MON_CS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
           const dochMonthLabel = `${MON_CS[dmM - 1]} ${dmY}`;
@@ -3052,9 +3063,19 @@ export default function AdminPage() {
             <section className="card p-6 mb-8">
               <h2 className="text-lg font-semibold text-brand-dark mb-1">Docházka</h2>
               <p className="text-sm text-gray-500 mb-4">Souhrn vybraného měsíce – přesně podle kalendáře (proběhlé i naplánované lekce, omluvy). Peníze počítají Faktury.</p>
+              {/* Velké záložky: Individuály / Skupinovky */}
+              <div className="mb-3 inline-flex rounded-lg bg-gray-100 p-1 text-sm">
+                {([["ind", "🧍 Individuály"], ["grp", "👥 Skupinovky"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => { setDochKind(k); if (k === "ind" && dochView === "lekce") setDochView("klienti"); }} className={`rounded-md px-3 py-1.5 font-semibold transition-colors ${dochKind === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                ))}
+              </div>
+              {/* Podzáložky */}
               <div className="mb-5 inline-flex rounded-lg bg-gray-100 p-0.5 text-sm">
-                {([["klienti", "Po klientech"], ["dny", "Den po dni"], ["lekce", "Po lekcích (skupiny)"]] as const).map(([k, l]) => (
-                  <button key={k} type="button" onClick={() => setDochView(k)} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
+                {(dochKind === "grp"
+                  ? [["klienti", "Po klientech"], ["dny", "Den po dni"], ["lekce", "Po lekcích"]]
+                  : [["klienti", "Po klientech"], ["dny", "Den po dni"]]
+                ).map(([k, l]) => (
+                  <button key={k} type="button" onClick={() => setDochView(k as "klienti" | "dny" | "lekce")} className={`rounded-md px-3 py-1.5 font-semibold ${dochView === k ? "bg-white text-brand-dark shadow-sm" : "text-gray-500"}`}>{l}</button>
                 ))}
               </div>
 
@@ -3066,7 +3087,53 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {dochView === "lekce" ? (
+              {dochKind === "grp" && dochView === "klienti" ? (
+                grpMembersSorted.length === 0 ? (
+                  <p className="text-sm text-gray-400">V {dochMonthLabel} zatím žádná skupinová docházka.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {grpMembersSorted.map(([name, list]) => (
+                      <details key={name} className="rounded-xl border border-gray-100">
+                        <summary className="flex flex-wrap items-center gap-2 cursor-pointer px-4 py-2.5">
+                          <span className="font-semibold text-brand-dark">{name}</span>
+                          <span className="text-xs font-semibold text-emerald-600">{list.length}× byl</span>
+                          <span className="ml-auto text-[11px] text-gray-400">{[...new Set(list.map((x) => x.block))].join(", ")}</span>
+                        </summary>
+                        <div className="divide-y divide-gray-50 border-t border-gray-100">
+                          {[...list].sort((a, b) => b.date.localeCompare(a.date)).map((x, i) => (
+                            <div key={i} className="flex items-center gap-2 px-4 py-2 text-sm">
+                              <span className="w-40 shrink-0 capitalize text-gray-600">{fmtDateCs(x.date)}</span>
+                              <span className="text-gray-500">{x.block}</span>
+                              <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">přišel</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                )
+              ) : dochKind === "grp" && dochView === "dny" ? (
+                grpDaysSorted.length === 0 ? (
+                  <p className="text-sm text-gray-400">V {dochMonthLabel} zatím žádná skupinová docházka.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {grpDaysSorted.map(([date, list]) => (
+                      <div key={date}>
+                        <p className="mb-1.5 text-xs font-semibold uppercase capitalize tracking-wide text-gray-400">{fmtDateCs(date)}</p>
+                        <div className="space-y-1.5">
+                          {Object.entries(list.reduce((m, x) => { (m[x.block] ||= []).push(x.name); return m; }, {} as Record<string, string[]>)).map(([block, names]) => (
+                            <div key={block} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
+                              <span className="font-semibold text-brand-dark">{block}</span>
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{names.length}×</span>
+                              <span className="text-gray-600">{[...names].sort((a, b) => a.localeCompare(b, "cs")).join(", ")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : dochView === "lekce" ? (
                 (() => {
                   const MON = ["led", "úno", "bře", "dub", "kvě", "čvn", "čvc", "srp", "zář", "říj", "lis", "pro"];
                   if (blocks.length === 0) return <p className="text-sm text-gray-400">Nemáš žádné skupinové lekce. Založ je ve Stálí klienti → Skupinové lekce.</p>;
