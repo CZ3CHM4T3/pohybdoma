@@ -3887,10 +3887,16 @@ export default function AdminPage() {
               };
               // Náhled SKUTEČNÉ (už vygenerované) faktury – reálné datum, číslo i QR (ne dnešní dopočet).
               const openInvoicePreview = (iv: InvoiceRow) => {
+                // Příjemce ukážeme z AKTUÁLNÍ karty plátce (co reálně odejde při „Poslat znovu"),
+                //  aby šlo zkontrolovat opravené jméno/adresu ještě před odesláním.
+                //  Číslo, VS, částka, položky a datum zůstávají z vygenerované faktury.
+                const prof = billProfiles.find((p) => p.name === iv.payer_name);
                 setPreviewDoc({
                   number: iv.number,
-                  billTo: iv.bill_name || iv.payer_name,
-                  address: iv.address, ico: iv.ico, dic: iv.dic,
+                  billTo: (prof?.bill_name?.trim()) || iv.bill_name || iv.payer_name,
+                  address: prof ? (prof.address?.trim() || null) : iv.address,
+                  ico: prof ? (prof.ico?.trim() || null) : iv.ico,
+                  dic: prof ? (prof.dic?.trim() || null) : iv.dic,
                   month: iv.month,
                   issuedOn: iv.issued_on, dueOn: iv.due_on,
                   amount: iv.amount, vs: iv.vs,
