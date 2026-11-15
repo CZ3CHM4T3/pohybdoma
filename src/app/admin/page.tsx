@@ -304,7 +304,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("prehled");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -3687,7 +3687,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["prehled", "Přehled"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3698,7 +3698,7 @@ export default function AdminPage() {
                   </button>
                 ))}
               </div>
-              {(finView === "mesic" || finView === "individualy" || finView === "skupinovky") && (
+              {(finView === "prehled" || finView === "individualy" || finView === "skupinovky") && (
                 <button type="button" onClick={() => { if (typeof window !== "undefined") window.print(); }} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light">
                   🖨 Vytisknout měsíc
                 </button>
@@ -3786,7 +3786,7 @@ export default function AdminPage() {
                 <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Příjem celkem · <span className="capitalize">{monthLabel}</span></p>
                 <p className="text-xl font-bold text-green-800">{monthGrand.toLocaleString("cs-CZ")} Kč</p>
                 {manualTotal > 0 && lessonsTotal > 0 && (
-                  <p className="text-[11px] text-green-600">lekce {lessonsTotal.toLocaleString("cs-CZ")} + jinde {manualTotal.toLocaleString("cs-CZ")}</p>
+                  <p className="text-[11px] text-green-600">lekce {lessonsTotal.toLocaleString("cs-CZ")} + MS GEM {manualTotal.toLocaleString("cs-CZ")}</p>
                 )}
               </div>
             </div>
@@ -3894,32 +3894,7 @@ export default function AdminPage() {
             </>)}
 
             {/* MĚSÍC – příjmy odjinud + celkem + grafy */}
-            {finView === "mesic" && (<>
-            {/* Příjmy odjinud (ruční – MS GEM apod.) */}
-            <h3 className="text-sm font-semibold text-brand-dark mb-1 mt-6">Příjmy odjinud (ruční)</h3>
-            <p className="text-xs text-gray-500 mb-2">Sem zapisuješ jen příjmy, co appka nepočítá sama – hlavně <strong>kurzy</strong> a jiné. <span className="text-gray-400">MS GEM (vč. školky) se teď bere automaticky z měsíční <strong>faktury Jirkovi</strong> (záložka Rozeslat) – sem ho už nepiš, ať se nepočítá dvakrát. Fitness individuály, Kruhový trénink a PPT se počítají automaticky z rozvrhu.</span></p>
-            <div className="flex flex-wrap items-end gap-2 mb-8 rounded-lg bg-gray-50 p-3">
-              <div>
-                <label className="block text-[11px] text-gray-400 mb-0.5">Odkud</label>
-                <select value={extCat} onChange={(e) => setExtCat(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
-                  {["Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className="w-28">
-                <label className="block text-[11px] text-gray-400 mb-0.5">Částka Kč</label>
-                <input value={extAmount} onChange={(e) => setExtAmount(e.target.value)} inputMode="decimal" placeholder="např. 12000" className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-xs" />
-              </div>
-              <button type="button" onClick={addExternalIncome} disabled={!extAmount.trim()} className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-800 disabled:opacity-40">
-                Přidat za <span className="capitalize">{monthLabel}</span>
-              </button>
-            </div>
-
-            {/* Celkem za měsíc */}
-            <div className="flex items-center justify-between rounded-xl bg-brand-dark px-4 py-3 text-white mb-8">
-              <span className="font-semibold">Celkem za <span className="capitalize">{monthLabel}</span></span>
-              <span className="text-lg font-bold">{monthGrand.toLocaleString("cs-CZ")} Kč</span>
-            </div>
-
+            {finView === "prehled" && (<>
             {/* Roční přehled – grafy */}
             <h3 className="text-sm font-semibold text-brand-dark mb-1">Přehled roku {year} <span className="text-gray-400 font-normal">· celkem {yearTotal.toLocaleString("cs-CZ")} Kč</span></h3>
             <p className="text-xs text-gray-400 mb-3">Příjem po měsících, barevně podle zdroje. Klikni na měsíc pro detail nahoře.</p>
@@ -3957,27 +3932,6 @@ export default function AdminPage() {
                   );
                 })}
               </div>
-            </div>
-
-            {/* Ruční položky vybraného měsíce – ke smazání */}
-            <div className="rounded-xl border border-gray-100 p-4 mb-5">
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-400">Ruční položky za <span className="capitalize">{monthLabel}</span> (příjmy odjinud) — klikni v grafu na měsíc</p>
-              {monthFin.length === 0 ? (
-                <p className="text-xs text-gray-400">Za tento měsíc nemáš žádnou ruční položku. Lekce (Web/pravidelné) se počítají automaticky – ty se mažou u konkrétní lekce nebo rezervace, ne tady.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {monthFin.map((e) => (
-                    <div key={e.id} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-brand-dark">
-                        <span className="h-2 w-2 rounded-full" style={{ background: catColor(e.category) }} />{e.category}
-                      </span>
-                      {e.note && <span className="text-gray-400 truncate">· {e.note}</span>}
-                      <span className="ml-auto font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
-                      <button type="button" onClick={() => delFinance(e.id)} title="Smazat položku" className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Koláč podle zdroje + legenda */}
@@ -4383,7 +4337,7 @@ export default function AdminPage() {
             })()}
 
             {/* CENÍK – služby, ceny a individuální slevy */}
-            {finView === "analyza" && (() => {
+            {finView === "prehled" && (() => {
               const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
               const WD = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
               const wdIdx = [1, 2, 3, 4, 5, 6, 0]; // mapování Po..Ne na getDay()
@@ -4401,7 +4355,8 @@ export default function AdminPage() {
                 return dateStr >= cut.toLocaleDateString("sv-SE");
               };
               return (
-                <div>
+                <div className="mt-8 border-t border-gray-100 pt-6">
+                  <h3 className="mb-3 text-sm font-semibold text-brand-dark">Rozbor — kdo, kdy a kolik</h3>
                   {/* Pod-záložky produktů */}
                   <div className="mb-3 inline-flex rounded-lg bg-gray-100 p-1">
                     {([["ind", "Individuály"], ["grp", "Skupinovky"]] as const).map(([k, l]) => (
