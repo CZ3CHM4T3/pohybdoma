@@ -3607,10 +3607,23 @@ export default function AdminPage() {
             const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
             const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
             const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
-            const monthExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
-            const yearExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year).reduce((s, e) => s + Number(e.amount_kc), 0);
+            const monthExpItems = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).sort((a, b) => Number(b.amount_kc) - Number(a.amount_kc));
+            const monthExp = monthExpItems.reduce((s, e) => s + Number(e.amount_kc), 0);
+            const yearExpItems = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year);
+            const yearExp = yearExpItems.reduce((s, e) => s + Number(e.amount_kc), 0);
+            const yearExpByCat = Array.from(yearExpItems.reduce((m, e) => m.set(e.category, (m.get(e.category) ?? 0) + Number(e.amount_kc)), new Map<string, number>()).entries()).sort((a, b) => b[1] - a[1]);
             const monthProfit = monthGrand - monthExp;
             const yearProfit = yearTotal - yearExp;
+            const expList = (items: { label: string; amount: number; key: string }[]) => (
+              <div className="bg-gray-50 px-3 py-1.5 space-y-0.5">
+                {items.map((e) => (
+                  <div key={e.key} className="flex items-baseline justify-between gap-3 text-xs text-gray-500">
+                    <span className="truncate">{e.label}</span>
+                    <span className="shrink-0 font-medium">−{e.amount.toLocaleString("cs-CZ")} Kč</span>
+                  </div>
+                ))}
+              </div>
+            );
             const row = (label: string, val: number, strong?: boolean) => (
               <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
                 <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>{label}</span>
@@ -3643,6 +3656,7 @@ export default function AdminPage() {
                       {otherFin > 0 && row("Členství, kurzy, jiné (ručně)", otherFin)}
                       {row("Příjem celkem", monthGrand, true)}
                       {row("− Výdaje", monthExp)}
+                      {monthExpItems.length > 0 && expList(monthExpItems.map((e) => ({ key: String(e.id), label: `${e.category}${e.note ? ` · ${e.note}` : ""}`, amount: Number(e.amount_kc) })))}
                       {profitRow("= Zisk za měsíc", monthProfit)}
                     </div>
                   </div>
@@ -3651,10 +3665,11 @@ export default function AdminPage() {
                     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                       {row("Příjem celkem (lekce + MS GEM + ostatní)", yearTotal, true)}
                       {row("− Výdaje", yearExp)}
+                      {yearExpByCat.length > 0 && expList(yearExpByCat.map(([cat, sum]) => ({ key: cat, label: cat, amount: sum })))}
                       {profitRow("= Zisk za rok", yearProfit)}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-400">Výdaje se berou z <strong>Web → Ruční deník</strong>. Zatím máš výdaje 0, takže zisk = příjem; jakmile tam nějaký výdaj zapíšeš, automaticky se tady odečte.</p>
+                  <p className="text-xs text-gray-400">Výdaje se berou z <strong>Web → Ruční deník</strong>. Jakmile tam nějaký výdaj zapíšeš, odečte se zde a <strong>rozepíše pod řádkem „− Výdaje"</strong> (za měsíc po položkách, za rok po kategoriích). Teď máš výdaje 0.</p>
                 </div>
               </section>
             );
