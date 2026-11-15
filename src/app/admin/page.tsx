@@ -40,7 +40,7 @@ const ADMIN_TABS = [
   { k: "pruvodce", label: "Průvodce", Icon: Compass, active: "bg-fuchsia-600 text-white", icon: "text-fuchsia-500" },
   { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
   { k: "produkty", label: "Produkty", Icon: Package, active: "bg-slate-700 text-white", icon: "text-slate-500" },
-  { k: "analytika", label: "Analytika", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
+  { k: "analytika", label: "Web & finance", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
 ];
 // Hlavní skupiny (2. úroveň = podzáložky). Denní provoz první.
 const ADMIN_GROUPS = [
@@ -3604,14 +3604,14 @@ export default function AdminPage() {
           <section className="card p-6">
             <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
             <p className="text-sm text-gray-500 mb-5">
-              Kolik komu naúčtovat za lekce + příjmy odjinud (MS GEM, fitness lekce). Čísla faktur přibydou,
-              až poběží Stripe – zatím je to podklad pro fakturaci a celkový přehled příjmů.
+              Kolik komu naúčtovat za lekce + příjmy odjinud (MS GEM, fitness lekce). Faktury se generují,
+              číslují a rozesílají v záložce <strong>Rozeslat</strong>; tady vidíš podklad a celkový přehled příjmů.
             </p>
 
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Analýza"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3822,25 +3822,11 @@ export default function AdminPage() {
             {/* Příjmy odjinud (ruční – MS GEM apod.) */}
             <h3 className="text-sm font-semibold text-brand-dark mb-1 mt-6">Příjmy odjinud (ruční)</h3>
             <p className="text-xs text-gray-500 mb-2">Sem zapisuješ jen příjmy, co appka nepočítá sama – hlavně <strong>kurzy</strong> a jiné. <span className="text-gray-400">MS GEM (vč. školky) se teď bere automaticky z měsíční <strong>faktury Jirkovi</strong> (záložka Rozeslat) – sem ho už nepiš, ať se nepočítá dvakrát. Fitness individuály, Kruhový trénink a PPT se počítají automaticky z rozvrhu.</span></p>
-            {monthFin.length > 0 && (
-              <div className="space-y-1.5 mb-3">
-                {monthFin.map((e) => (
-                  <div key={e.id} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-1.5 text-sm">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-brand-dark">
-                      <span className="h-2 w-2 rounded-full" style={{ background: catColor(e.category) }} />{e.category}
-                    </span>
-                    {e.note && <span className="text-gray-400 truncate">· {e.note}</span>}
-                    <span className="ml-auto font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
-                    <button type="button" onClick={() => delFinance(e.id)} className="text-gray-300 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
             <div className="flex flex-wrap items-end gap-2 mb-8 rounded-lg bg-gray-50 p-3">
               <div>
                 <label className="block text-[11px] text-gray-400 mb-0.5">Odkud</label>
                 <select value={extCat} onChange={(e) => setExtCat(e.target.value)} className="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs">
-                  {["MS GEM", "Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  {["Kurz", "Jiné"].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="w-28">
@@ -5094,9 +5080,9 @@ export default function AdminPage() {
         {tab === "analytika" && (
         <section className="card p-6 mt-8">
           <h2 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">
-            <BarChart3 className="h-5 w-5 text-indigo-500" /> Analytika
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Web & finance
           </h2>
-          <p className="mb-5 text-sm text-gray-500">Přehled dění na webu (převážně za posledních 30 dní).</p>
+          <p className="mb-5 text-sm text-gray-500">Návštěvnost a dění na webu (převážně za posledních 30 dní) + finanční deník. Rozbor příjmů z lekcí najdeš ve <strong>Faktury → Rozbor</strong>.</p>
 
           {!analytics ? (
             <p className="text-sm text-gray-400">Načítám… Pokud se nic neobjeví, spusť v Supabase <strong>analytics.sql</strong>.</p>
