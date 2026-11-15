@@ -3872,7 +3872,9 @@ export default function AdminPage() {
               const showPending = monthInvoices.length > 0;
               const showUncovered = uncoveredSkipped.length > 0 || (showPending && uncoveredPending.length > 0);
               // POJISTKA 2: vystavená faktura NESEDÍ s kalendářem (zapomenutá/přidaná hodina → ztráta/přeplatek).
-              const mismatches = groups
+              //  Minulé (uzavřené) měsíce už nehlídáme – řeší se jen aktuální a budoucí.
+              const monthClosed = invMonth < new Date().toLocaleDateString("sv-SE").slice(0, 7);
+              const mismatches = monthClosed ? [] : groups
                 .filter((g) => { const iv = invByPayer.get(g.payer); return !!iv && !fixedNames.has(g.payer) && Math.round(iv.amount) !== Math.round(g.total); })
                 .map((g) => { const iv = invByPayer.get(g.payer)!; return { payer: g.payer, iv, g, diff: g.total - iv.amount }; });
               // Náhled dokumentu faktury (ještě nevygenerované) z dat skupiny
@@ -4090,8 +4092,8 @@ export default function AdminPage() {
                               <span className="font-semibold text-brand-dark">{g.payer}</span>
                               {!isFixed && (
                                 inv ? (
-                                  Math.round(inv.amount) === Math.round(g.total)
-                                    ? <span title="Částka na faktuře sedí s kalendářem" className="text-base leading-none text-emerald-600">✓</span>
+                                  (monthClosed || Math.round(inv.amount) === Math.round(g.total))
+                                    ? <span title={monthClosed ? "Uzavřený měsíc" : "Částka na faktuře sedí s kalendářem"} className="text-base leading-none text-emerald-600">✓</span>
                                     : <span title={`Nesedí: faktura ${inv.amount.toLocaleString("cs-CZ")} Kč vs. kalendář ${g.total.toLocaleString("cs-CZ")} Kč`} className="text-base leading-none font-bold text-red-600">⚠</span>
                                 ) : (
                                   <span title="Odpovídá kalendáři (faktura se teprve vystaví)" className="text-base leading-none text-emerald-600">✓</span>
