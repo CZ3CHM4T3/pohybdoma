@@ -303,7 +303,7 @@ export default function AdminPage() {
   // Podzáložka ve Stálých klientech
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
-  const [finView, setFinView] = useState<"mesic" | "individualy" | "skupinovky" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
+  const [finView, setFinView] = useState<"mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("individualy");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
@@ -3611,7 +3611,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["celkem", "Celkem"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3910,6 +3910,41 @@ export default function AdminPage() {
               <Pie slices={pieSlices} />
             </div>
             </>)}
+
+            {/* CELKEM – zatím jen přehled dnešních čísel na jednom místě (nic nepřepočítává) */}
+            {finView === "celkem" && (() => {
+              const webRez = monthLines.filter((l) => l.kind === "web").reduce((s, x) => s + x.amount, 0);
+              const lekceKal = lessonsTotal - webRez; // kalendář (individuály, skupinovky, MS GEM, extra) bez web rezervací
+              const row = (label: string, val: number, warn?: string, strong?: boolean) => (
+                <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
+                  <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>
+                    {label}
+                    {warn && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">⚠ {warn}</span>}
+                  </span>
+                  <span className={strong ? "text-lg font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
+                </div>
+              );
+              return (
+                <div className="max-w-xl">
+                  <h3 className="text-sm font-semibold text-brand-dark mb-1">Celkem · <span className="capitalize">{monthLabel}</span></h3>
+                  <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <strong>Zatím jen přehled.</strong> V dalších krocích vyčistíme <strong>překryvy</strong> (web rezervace, členství) a přidáme výdaje, aby to byl jeden pravdivý zisk. Teď se ještě žádné číslo nepřepočítává.
+                  </p>
+                  <div className="rounded-xl border border-gray-200 bg-white">
+                    <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Lekce (tvoje práce)</div>
+                    {row("Z kalendáře (individuály, skupinovky, MS GEM)", lekceKal)}
+                    {row("Webové rezervace", webRez, "dnes i ve Web & finance")}
+                    {row("Lekce celkem", lessonsTotal, undefined, true)}
+                    <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Příjmy odjinud</div>
+                    {row("Členství, kurzy, jiné (ruční)", manualTotal, "členství/kurzy patří do webu")}
+                    {row("Dnešní „Celkem za měsíc\"", monthGrand, undefined, true)}
+                  </div>
+                  <p className="mt-3 text-xs text-gray-400">
+                    Pozn.: webové rezervace jsou dnes započítané i ve Web &amp; finance a členství/kurzy patří do webu – proto se tyhle částky zatím nesmí naivně sčítat s Web &amp; finance. Vyřešíme v Kroku 2 a 3.
+                  </p>
+                </div>
+              );
+            })()}
 
             {/* ROZESLAT – vygenerování a odeslání faktur za měsíc */}
             {finView === "fakturace" && (() => {
