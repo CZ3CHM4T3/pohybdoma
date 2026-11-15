@@ -1169,16 +1169,30 @@ export default function AdminPage() {
   }
   // Poslat fakturu znovu – vezme AKTUÁLNÍ e-mail z karty plátce (kdybys ho opravil po vygenerování).
   async function resendInvoice(inv: InvoiceRow) {
-    const fresh = billProfiles.find((p) => p.name === inv.payer_name)?.email?.trim() || "";
+    // Vezme AKTUÁLNÍ údaje příjemce z karty plátce (e-mail, jméno, adresa, IČO, DIČ),
+    // kdybys je po vygenerování opravil. Číslo, VS, částka, položky a datum zůstávají.
+    const prof = billProfiles.find((p) => p.name === inv.payer_name);
+    const patch: Partial<InvoiceRow> = {};
+    const freshEmail = prof?.email?.trim() || "";
+    if (freshEmail && freshEmail !== inv.email) patch.email = freshEmail;
+    const freshName = prof?.bill_name?.trim() || null;
+    if ((freshName ?? "") !== (inv.bill_name ?? "")) patch.bill_name = freshName;
+    const freshAddr = prof?.address?.trim() || null;
+    if ((freshAddr ?? "") !== (inv.address ?? "")) patch.address = freshAddr;
+    const freshIco = prof?.ico?.trim() || null;
+    if ((freshIco ?? "") !== (inv.ico ?? "")) patch.ico = freshIco;
+    const freshDic = prof?.dic?.trim() || null;
+    if ((freshDic ?? "") !== (inv.dic ?? "")) patch.dic = freshDic;
     let target = inv;
-    if (fresh && fresh !== inv.email) {
-      const { error } = await supabase.from("invoices").update({ email: fresh }).eq("id", inv.id);
-      if (!error) { target = { ...inv, email: fresh }; setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, email: fresh } : i))); }
+    if (Object.keys(patch).length) {
+      const { error } = await supabase.from("invoices").update(patch).eq("id", inv.id);
+      if (!error) { target = { ...inv, ...patch }; setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, ...patch } : i))); }
     }
     if (!target.email) { setError(`Faktura #${inv.number}: chybí e-mail – doplň ho v kartě plátce a zkus znovu.`); return; }
-    if (!confirm(`Poslat fakturu #${inv.number} znovu na ${target.email}?`)) return;
+    const who = target.bill_name || target.payer_name;
+    if (!confirm(`Poslat fakturu #${inv.number} znovu na ${who} (${target.email})?`)) return;
     const ok = await sendInvoice(target);
-    if (ok) setError(`✅ Faktura #${inv.number} znovu odeslána na ${target.email}.`);
+    if (ok) setError(`✅ Faktura #${inv.number} znovu odeslána na ${who} (${target.email}).`);
   }
   // Poslat upomínku – jen u nezaplacené odeslané faktury. Stejný design, jemné připomenutí. Nemění stav.
   async function sendReminder(inv: InvoiceRow) {
