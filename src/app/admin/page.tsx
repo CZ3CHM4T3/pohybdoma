@@ -5198,35 +5198,10 @@ export default function AdminPage() {
 
           {/* ── Finance ── */}
           <div className="mt-8 border-t border-gray-100 pt-6">
-            <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">💰 Ruční deník</h3>
-            <p className="mb-4 text-sm text-gray-500">Zápisník ručních příjmů (MS GEM, historie, členství, kurzy) a výdajů. <strong>Tvůj skutečný zisk</strong> (všechno jednou − výdaje) najdeš ve <strong>Faktury → Celkem</strong> – tahle čísla jsou jen zápisník, ne celkový zisk.</p>
+            <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">✏️ Ruční zadávání</h3>
+            <p className="mb-4 text-sm text-gray-500">Místo pro ruční zápis toho, co se nepočítá z kalendáře — <strong>MS GEM</strong>, členství, produkty a <strong>výdaje</strong>. Přehledy a skutečný zisk najdeš v <strong>Lekce → Přehled</strong> a <strong>Celkem</strong>. <span className="text-gray-400">(Toto zadávání časem přesunu k Lekcím a Celkem; zatím zůstává tady.)</span></p>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Metric label="Ručně zapsané příjmy (Kč)" value={Math.round(totalEarned)} />
-              <Metric label="Výdaje v deníku (Kč)" value={Math.round(totalSpent)} />
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className={`text-2xl font-bold ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{Math.round(profit).toLocaleString("cs-CZ")}</p>
-                <p className="text-[11px] text-gray-500">Deník: příjmy − výdaje</p>
-              </div>
-              <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-base font-bold text-brand-dark">{topMembership}</p>
-                <p className="text-[11px] text-gray-500">Nejvýdělečnější členství</p>
-                {topMembershipVal > 0 && <p className="text-[11px] text-gray-400">{Math.round(topMembershipVal).toLocaleString("cs-CZ")} Kč</p>}
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Příjmy podle služby</p>
-                <Pie slices={incomeSlices} />
-              </div>
-              <div className="rounded-xl border border-gray-100 p-4">
-                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Výdaje podle kategorie</p>
-                <Pie slices={expenseSlices} />
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-xl border border-gray-100 p-4">
+            <div className="rounded-xl border border-gray-100 p-4">
               <p className="mb-3 text-sm font-semibold text-brand-dark">Přidat záznam</p>
               <div className="flex flex-wrap items-end gap-2">
                 <select value={finKind} onChange={(e) => { const k = e.target.value as "income" | "expense"; setFinKind(k); setFinCat(k === "income" ? "MEMBER" : "Cloudflare"); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
