@@ -4121,7 +4121,7 @@ export default function AdminPage() {
                             )}
                             {inv && (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                                <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
+                                <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
                                 {inv.email ? (
                                   inv.status === "issued" ? (
                                     <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
@@ -4159,7 +4159,7 @@ export default function AdminPage() {
                               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
+                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
                               {inv.email ? (
                                 inv.status === "issued" ? (
                                   <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
@@ -4438,7 +4438,7 @@ export default function AdminPage() {
                     <span className="ml-auto font-semibold text-brand-dark">{czk(inv.amount)}</span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-                    <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled ↗</a>
+                    <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
                     {inv.email ? (
                       <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40">⏳ Poslat upomínku</button>
                     ) : (
