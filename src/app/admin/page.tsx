@@ -3917,35 +3917,49 @@ export default function AdminPage() {
               const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
               const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
               const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
-              const lekceTotal = lessonsTotal + msgemFin; // práce vč. MS GEM a web rezervací
-              const row = (label: string, val: number, warn?: string, strong?: boolean) => (
+              const monthExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
+              const yearExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year).reduce((s, e) => s + Number(e.amount_kc), 0);
+              const monthProfit = monthGrand - monthExp;
+              const yearProfit = yearTotal - yearExp;
+              const row = (label: string, val: number, strong?: boolean) => (
                 <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
-                  <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>
-                    {label}
-                    {warn && <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">⚠ {warn}</span>}
-                  </span>
-                  <span className={strong ? "text-lg font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
+                  <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>{label}</span>
+                  <span className={strong ? "text-base font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
+                </div>
+              );
+              const profitRow = (label: string, val: number) => (
+                <div className="flex items-baseline justify-between gap-3 border-t-2 border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                  <span className="font-semibold text-emerald-800">{label}</span>
+                  <span className="text-lg font-bold text-emerald-700">{val.toLocaleString("cs-CZ")} Kč</span>
                 </div>
               );
               return (
-                <div className="max-w-xl">
-                  <h3 className="text-sm font-semibold text-brand-dark mb-1">Celkem · <span className="capitalize">{monthLabel}</span></h3>
-                  <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    <strong>Zatím jen přehled.</strong> V dalších krocích vyčistíme <strong>překryv</strong> (hlavně MS GEM, který se dnes počítá i ve Web &amp; finance) a přidáme výdaje, aby to byl jeden pravdivý zisk. Teď se ještě žádné číslo nepřepočítává.
+                <div className="max-w-xl space-y-5">
+                  <p className="rounded-lg bg-brand-light px-3 py-2 text-xs text-gray-600">
+                    Jeden pravdivý přehled: <strong>veškerý příjem − výdaje = zisk</strong>. Příjem se bere z Faktur (počítá všechno jednou – lekce z kalendáře i ruční MS GEM/historii). „Ruční deník" ve Web &amp; finance je jen zápisník, ne zisk.
                   </p>
-                  <div className="rounded-xl border border-gray-200 bg-white">
-                    <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Lekce (tvoje práce)</div>
-                    {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
-                    {webRez > 0 && row("Webové rezervace", webRez, "dnes i ve Web & finance")}
-                    {row("MS GEM (ručně)", msgemFin, "dnes i ve Web & finance")}
-                    {row("Lekce celkem", lekceTotal, undefined, true)}
-                    <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Web &amp; členství</div>
-                    {row("Členství, kurzy, jiné (ruční)", otherFin)}
-                    {row("Dnešní „Celkem za měsíc\" (Faktury)", monthGrand, undefined, true)}
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za <span className="capitalize">{monthLabel}</span></h3>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
+                      {webRez > 0 && row("Webové rezervace", webRez)}
+                      {msgemFin > 0 && row("MS GEM (ručně)", msgemFin)}
+                      {otherFin > 0 && row("Členství, kurzy, jiné (ručně)", otherFin)}
+                      {row("Příjem celkem", monthGrand, true)}
+                      {row("− Výdaje", monthExp)}
+                      {profitRow("= Zisk za měsíc", monthProfit)}
+                    </div>
                   </div>
-                  <p className="mt-3 text-xs text-gray-400">
-                    Pozn.: MS GEM (a případné web rezervace) jsou dnes započítané i ve Web &amp; finance → proto se zatím nesmí naivně sčítat obě záložky. Vyřešíme v Kroku 2 (MS GEM jen v lekcích) a Kroku 3 (web rezervace jen v lekcích).
-                  </p>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za rok {year}</h3>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      {row("Příjem celkem (lekce + MS GEM + ostatní)", yearTotal, true)}
+                      {row("− Výdaje", yearExp)}
+                      {profitRow("= Zisk za rok", yearProfit)}
+                    </div>
+                  </div>
                 </div>
               );
             })()}
@@ -5162,15 +5176,15 @@ export default function AdminPage() {
 
           {/* ── Finance ── */}
           <div className="mt-8 border-t border-gray-100 pt-6">
-            <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">💰 Finance</h3>
-            <p className="mb-4 text-sm text-gray-500">Tržby z rezervací se počítají automaticky; členství, kurzy a výdaje na provoz si zapisuješ níže.</p>
+            <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">💰 Ruční deník</h3>
+            <p className="mb-4 text-sm text-gray-500">Zápisník ručních příjmů (MS GEM, historie, členství, kurzy) a výdajů. <strong>Tvůj skutečný zisk</strong> (všechno jednou − výdaje) najdeš ve <strong>Faktury → Celkem</strong> – tahle čísla jsou jen zápisník, ne celkový zisk.</p>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Metric label="Vydělal jsem (Kč)" value={Math.round(totalEarned)} />
-              <Metric label="Utratil jsem (Kč)" value={Math.round(totalSpent)} />
+              <Metric label="Ručně zapsané příjmy (Kč)" value={Math.round(totalEarned)} />
+              <Metric label="Výdaje v deníku (Kč)" value={Math.round(totalSpent)} />
               <div className="rounded-xl bg-gray-50 p-3">
                 <p className={`text-2xl font-bold ${profit >= 0 ? "text-emerald-600" : "text-red-500"}`}>{Math.round(profit).toLocaleString("cs-CZ")}</p>
-                <p className="text-[11px] text-gray-500">Zisk (Kč)</p>
+                <p className="text-[11px] text-gray-500">Deník: příjmy − výdaje</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
                 <p className="text-base font-bold text-brand-dark">{topMembership}</p>
