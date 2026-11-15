@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList, Send, CheckCheck, MailWarning, Eye } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList, Send, CheckCheck, MailWarning, Eye, Sigma } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -33,20 +33,21 @@ const ADMIN_TABS = [
   { k: "rozvrh", label: "Rozvrh", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500" },
   { k: "rezervace", label: "Rezervace", Icon: CalendarCheck, active: "bg-emerald-600 text-white", icon: "text-emerald-500" },
   { k: "dochazka", label: "Docházka", Icon: ClipboardList, active: "bg-cyan-600 text-white", icon: "text-cyan-500" },
-  { k: "faktury", label: "Faktury", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600" },
+  { k: "faktury", label: "Lekce", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600" },
   { k: "clenove", label: "Členové", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500" },
   { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
   { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
   { k: "pruvodce", label: "Průvodce", Icon: Compass, active: "bg-fuchsia-600 text-white", icon: "text-fuchsia-500" },
   { k: "blog", label: "Blog", Icon: FileText, active: "bg-rose-600 text-white", icon: "text-rose-500" },
   { k: "produkty", label: "Produkty", Icon: Package, active: "bg-slate-700 text-white", icon: "text-slate-500" },
-  { k: "analytika", label: "Web & finance", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
+  { k: "analytika", label: "Web", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
+  { k: "celkem", label: "Celkem", Icon: Sigma, active: "bg-green-700 text-white", icon: "text-green-600" },
 ];
 // Hlavní skupiny (2. úroveň = podzáložky). Denní provoz první.
 const ADMIN_GROUPS = [
   { k: "dnes", label: "Dnešek", Icon: LayoutDashboard, active: "bg-brand-dark text-white", icon: "text-gray-500", tabs: ["dnes"] },
   { k: "provoz", label: "Provoz", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500", tabs: ["rozvrh", "rezervace", "dochazka"] },
-  { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika"] },
+  { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika", "celkem"] },
   { k: "obsah", label: "Obsah", Icon: Film, active: "bg-violet-600 text-white", icon: "text-violet-500", tabs: ["videa", "live", "vyzva", "blog", "produkty"] },
   { k: "lide", label: "Lidé", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500", tabs: ["clenove", "recenze", "newsletter", "pruvodce"] },
 ];
@@ -3262,7 +3263,7 @@ export default function AdminPage() {
           );
         })()}
 
-        {tab === "faktury" && (() => {
+        {(tab === "faktury" || tab === "celkem") && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
           type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" | "extra"; ref: string; svc: string; svcLabel: string; unit: string };
           // Ceník + individuální ceny: cena = sleva klienta → ceník → (fallback) cena u lekce/bloku.
@@ -3600,9 +3601,68 @@ export default function AdminPage() {
           }
           const archTotal = archLines.reduce((s, x) => s + x.amount, 0);
 
+          // ── CELKEM: samostatná záložka – skutečný zisk (příjem − výdaje), stejný výpočet jako Faktury ──
+          if (tab === "celkem") {
+            const webRez = monthLines.filter((l) => l.kind === "web").reduce((s, x) => s + x.amount, 0);
+            const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
+            const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
+            const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
+            const monthExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
+            const yearExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year).reduce((s, e) => s + Number(e.amount_kc), 0);
+            const monthProfit = monthGrand - monthExp;
+            const yearProfit = yearTotal - yearExp;
+            const row = (label: string, val: number, strong?: boolean) => (
+              <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
+                <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>{label}</span>
+                <span className={strong ? "text-base font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
+              </div>
+            );
+            const profitRow = (label: string, val: number) => (
+              <div className="flex items-baseline justify-between gap-3 border-t-2 border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <span className="font-semibold text-emerald-800">{label}</span>
+                <span className={`text-lg font-bold ${val >= 0 ? "text-emerald-700" : "text-red-500"}`}>{val.toLocaleString("cs-CZ")} Kč</span>
+              </div>
+            );
+            return (
+              <section className="card p-6">
+                <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-brand-dark mb-1"><Sigma className="h-5 w-5 text-green-600" /> Celkem — tvůj skutečný zisk</h2>
+                <p className="text-sm text-gray-500 mb-5">Veškerý příjem (lekce z kalendáře + ruční MS GEM/historie + ostatní) <strong>minus výdaje</strong>. Počítá všechno jednou. „Web" je zvlášť pro členství a provoz webu; „Lekce" je podklad k fakturaci.</p>
+                <div className="mb-6 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-brand-dark">Měsíc</label>
+                  <input type="month" value={invMonth} onChange={(e) => setInvMonth(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
+                  <button type="button" onClick={() => { const n = new Date(); setInvMonth(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Tento</button>
+                  <button type="button" onClick={() => { const n = new Date(); const p = new Date(n.getFullYear(), n.getMonth() - 1, 1); setInvMonth(`${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Minulý</button>
+                </div>
+                <div className="max-w-xl space-y-5">
+                  <div>
+                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za <span className="capitalize">{monthLabel}</span></h3>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
+                      {webRez > 0 && row("Webové rezervace", webRez)}
+                      {msgemFin > 0 && row("MS GEM (ručně)", msgemFin)}
+                      {otherFin > 0 && row("Členství, kurzy, jiné (ručně)", otherFin)}
+                      {row("Příjem celkem", monthGrand, true)}
+                      {row("− Výdaje", monthExp)}
+                      {profitRow("= Zisk za měsíc", monthProfit)}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za rok {year}</h3>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      {row("Příjem celkem (lekce + MS GEM + ostatní)", yearTotal, true)}
+                      {row("− Výdaje", yearExp)}
+                      {profitRow("= Zisk za rok", yearProfit)}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">Výdaje se berou z <strong>Web → Ruční deník</strong>. Zatím máš výdaje 0, takže zisk = příjem; jakmile tam nějaký výdaj zapíšeš, automaticky se tady odečte.</p>
+                </div>
+              </section>
+            );
+          }
+
           return (
           <section className="card p-6">
-            <h2 className="text-lg font-semibold text-brand-dark mb-1">Faktury / měsíční vyúčtování</h2>
+            <h2 className="text-lg font-semibold text-brand-dark mb-1">Lekce / měsíční vyúčtování</h2>
             <p className="text-sm text-gray-500 mb-5">
               Kolik komu naúčtovat za lekce + příjmy odjinud (MS GEM, fitness lekce). Faktury se generují,
               číslují a rozesílají v záložce <strong>Rozeslat</strong>; tady vidíš podklad a celkový přehled příjmů.
@@ -3611,7 +3671,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["celkem", "Celkem"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["mesic", "Měsíc"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["analyza", "Rozbor"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -3910,59 +3970,6 @@ export default function AdminPage() {
               <Pie slices={pieSlices} />
             </div>
             </>)}
-
-            {/* CELKEM – zatím jen přehled dnešních čísel na jednom místě (nic nepřepočítává) */}
-            {finView === "celkem" && (() => {
-              const webRez = monthLines.filter((l) => l.kind === "web").reduce((s, x) => s + x.amount, 0);
-              const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
-              const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
-              const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
-              const monthExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
-              const yearExp = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year).reduce((s, e) => s + Number(e.amount_kc), 0);
-              const monthProfit = monthGrand - monthExp;
-              const yearProfit = yearTotal - yearExp;
-              const row = (label: string, val: number, strong?: boolean) => (
-                <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
-                  <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>{label}</span>
-                  <span className={strong ? "text-base font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
-                </div>
-              );
-              const profitRow = (label: string, val: number) => (
-                <div className="flex items-baseline justify-between gap-3 border-t-2 border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                  <span className="font-semibold text-emerald-800">{label}</span>
-                  <span className="text-lg font-bold text-emerald-700">{val.toLocaleString("cs-CZ")} Kč</span>
-                </div>
-              );
-              return (
-                <div className="max-w-xl space-y-5">
-                  <p className="rounded-lg bg-brand-light px-3 py-2 text-xs text-gray-600">
-                    Jeden pravdivý přehled: <strong>veškerý příjem − výdaje = zisk</strong>. Příjem se bere z Faktur (počítá všechno jednou – lekce z kalendáře i ruční MS GEM/historii). „Ruční deník" ve Web &amp; finance je jen zápisník, ne zisk.
-                  </p>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za <span className="capitalize">{monthLabel}</span></h3>
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
-                      {webRez > 0 && row("Webové rezervace", webRez)}
-                      {msgemFin > 0 && row("MS GEM (ručně)", msgemFin)}
-                      {otherFin > 0 && row("Členství, kurzy, jiné (ručně)", otherFin)}
-                      {row("Příjem celkem", monthGrand, true)}
-                      {row("− Výdaje", monthExp)}
-                      {profitRow("= Zisk za měsíc", monthProfit)}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za rok {year}</h3>
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      {row("Příjem celkem (lekce + MS GEM + ostatní)", yearTotal, true)}
-                      {row("− Výdaje", yearExp)}
-                      {profitRow("= Zisk za rok", yearProfit)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
 
             {/* ROZESLAT – vygenerování a odeslání faktur za měsíc */}
             {finView === "fakturace" && (() => {
@@ -5133,9 +5140,9 @@ export default function AdminPage() {
         {tab === "analytika" && (
         <section className="card p-6 mt-8">
           <h2 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">
-            <BarChart3 className="h-5 w-5 text-indigo-500" /> Web & finance
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Web
           </h2>
-          <p className="mb-5 text-sm text-gray-500">Návštěvnost a dění na webu (převážně za posledních 30 dní) + finanční deník. Rozbor příjmů z lekcí najdeš ve <strong>Faktury → Rozbor</strong>.</p>
+          <p className="mb-5 text-sm text-gray-500">Návštěvnost a dění na webu (převážně za posledních 30 dní) + ruční deník (členství, výdaje). Skutečný zisk najdeš v záložce <strong>Celkem</strong>, rozbor příjmů z lekcí v <strong>Lekce → Rozbor</strong>.</p>
 
           {!analytics ? (
             <p className="text-sm text-gray-400">Načítám… Pokud se nic neobjeví, spusť v Supabase <strong>analytics.sql</strong>.</p>
