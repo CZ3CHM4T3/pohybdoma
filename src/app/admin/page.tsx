@@ -4088,6 +4088,15 @@ export default function AdminPage() {
                           <div key={g.payer} className={`rounded-xl border p-4 ${isFixed ? "border-blue-200 bg-blue-50/40" : skipped ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-100"}`}>
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="font-semibold text-brand-dark">{g.payer}</span>
+                              {!isFixed && (
+                                inv ? (
+                                  Math.round(inv.amount) === Math.round(g.total)
+                                    ? <span title="Částka na faktuře sedí s kalendářem" className="text-base leading-none text-emerald-600">✓</span>
+                                    : <span title={`Nesedí: faktura ${inv.amount.toLocaleString("cs-CZ")} Kč vs. kalendář ${g.total.toLocaleString("cs-CZ")} Kč`} className="text-base leading-none font-bold text-red-600">⚠</span>
+                                ) : (
+                                  <span title="Odpovídá kalendáři (faktura se teprve vystaví)" className="text-base leading-none text-emerald-600">✓</span>
+                                )
+                              )}
                               {isFixed && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">pevná faktura</span>}
                               {skipped && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-500">tento měsíc nefakturováno</span>}
                               {isFixed && !inv ? (
