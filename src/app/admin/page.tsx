@@ -1400,6 +1400,17 @@ export default function AdminPage() {
     const { data } = await supabase.from("block_members").select("id, block_id, name").order("name");
     if (data) setBlockMembers(data as { id: string; block_id: string; name: string }[]);
   }
+  // Přidat člověka do soupisky skupiny přímo z kalendáře (jménem). Nepřidává duplicity.
+  async function addBlockMemberNamed(blockId: string, name: string) {
+    const nm = name.trim();
+    if (!nm) return;
+    setError(null);
+    if (blockMembers.some((m) => m.block_id === blockId && m.name.trim().toLowerCase() === nm.toLowerCase())) return;
+    const { error } = await supabase.from("block_members").insert({ block_id: blockId, name: nm });
+    if (error) { setError("Přidání do skupiny selhalo: " + error.message); return; }
+    const { data } = await supabase.from("block_members").select("id, block_id, name").order("name");
+    if (data) setBlockMembers(data as { id: string; block_id: string; name: string }[]);
+  }
   async function deleteBlockMember(id: string) {
     setError(null);
     const { error } = await supabase.from("block_members").delete().eq("id", id);
@@ -2312,6 +2323,7 @@ export default function AdminPage() {
             services={serviceCatalog.filter((s) => s.active).map((s) => ({ key: s.key, label: s.label }))}
             onSaveNote={saveLessonNote}
             onToggleAttendance={toggleAttendance}
+            onAddMember={addBlockMemberNamed}
             paidRefs={paidRefs}
             onTogglePaid={togglePaid}
             onAddEvent={addEventFromCalendar}

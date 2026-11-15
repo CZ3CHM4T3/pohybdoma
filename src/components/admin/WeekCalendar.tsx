@@ -62,6 +62,7 @@ export function WeekCalendar({
   onCloseOpen,
   onSaveNote,
   onToggleAttendance,
+  onAddMember,
   onAddEvent,
   onDeleteEvent,
   onRestoreOccurrence,
@@ -93,6 +94,7 @@ export function WeekCalendar({
   onCloseOpen?: (date: string, time: string) => Promise<void>;
   onSaveNote?: (date: string, time: string, note: string) => Promise<void>;
   onToggleAttendance?: (blockId: string, date: string, name: string, present: boolean) => Promise<void>;
+  onAddMember?: (blockId: string, name: string) => Promise<void>;
   onAddEvent?: (date: string, time: string, endTime: string, title: string, kind: string, color: string, location: string, priceKc: number | null) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
   onRestoreOccurrence?: (recId: string, date: string) => Promise<void>;
@@ -135,6 +137,7 @@ export function WeekCalendar({
   const [popStyle, setPopStyle] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
   // Připomínka k lekci
   const [noteDraft, setNoteDraft] = useState("");
+  const [newMem, setNewMem] = useState(""); // přidat člověka do skupinové lekce z kalendáře
   const [noteSaving, setNoteSaving] = useState(false);
   // Vytvoření akce v kalendáři
   const [evMode, setEvMode] = useState(false);
@@ -562,6 +565,13 @@ export function WeekCalendar({
                           })}
                         </div>
                       )}
+                      <div className="mt-2 flex items-center gap-1.5 border-t border-gray-100 pt-2">
+                        <input value={newMem} onChange={(e) => setNewMem(e.target.value)} placeholder="Přidat člověka…" className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1 text-[11px]" />
+                        <button type="button" disabled={!newMem.trim()} onClick={async () => { const n = newMem.trim(); if (!n) return; await onToggleAttendance(blockId, bdate, n, true); setNewMem(""); }} className="shrink-0 rounded bg-teal-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-teal-700 disabled:opacity-40" title="Přidat jen na tento den">jednorázově</button>
+                        {onAddMember && (
+                          <button type="button" disabled={!newMem.trim()} onClick={async () => { const n = newMem.trim(); if (!n) return; await onAddMember(blockId, n); await onToggleAttendance(blockId, bdate, n, true); setNewMem(""); }} className="shrink-0 rounded bg-brand-dark px-2 py-1 text-[10px] font-semibold text-white hover:opacity-90 disabled:opacity-40" title="Přidat do soupisky (opakuje se dál)">jako stálého</button>
+                        )}
+                      </div>
                     </div>
                   )}
                   {onCancelBlock && (
