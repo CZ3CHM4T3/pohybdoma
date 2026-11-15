@@ -3871,6 +3871,10 @@ export default function AdminPage() {
               const uncoveredPending = uncovered.filter((g) => !skipSet.has(g.payer));
               const showPending = monthInvoices.length > 0;
               const showUncovered = uncoveredSkipped.length > 0 || (showPending && uncoveredPending.length > 0);
+              // POJISTKA 2: vystavená faktura NESEDÍ s kalendářem (zapomenutá/přidaná hodina → ztráta/přeplatek).
+              const mismatches = groups
+                .filter((g) => { const iv = invByPayer.get(g.payer); return !!iv && !fixedNames.has(g.payer) && Math.round(iv.amount) !== Math.round(g.total); })
+                .map((g) => { const iv = invByPayer.get(g.payer)!; return { payer: g.payer, iv, g, diff: g.total - iv.amount }; });
               // Náhled dokumentu faktury (ještě nevygenerované) z dat skupiny
               const openGroupPreview = (payer: string, total: number, lines: { date: string; what: string; amount: number }[], intro: string) => {
                 const prof = billProfiles.find((p) => p.name === payer);
@@ -3902,6 +3906,15 @@ export default function AdminPage() {
                   paid: iv.status === "paid",
                   qr: qrUrl(buildSpayd({ iban: BUSINESS.iban, amountKc: iv.amount, vs: iv.vs, number: iv.number })),
                 });
+              };
+              // Přepočítat vystavenou fakturu podle aktuálního kalendáře (zachová číslo, VS, datum). Pak poslat znovu.
+              const reSnapshotInvoice = async (iv: InvoiceRow, g: { total: number; lines: { date: string; what: string; amount: number }[]; intro: string }) => {
+                if (iv.status === "paid") { setError(`Faktura #${iv.number} je zaplacená — tu už nepřepočítávej, řeš opravným dokladem.`); return; }
+                if (!confirm(`Přepočítat fakturu #${iv.number} podle kalendáře?\nNová částka: ${g.total.toLocaleString("cs-CZ")} Kč (teď ${iv.amount.toLocaleString("cs-CZ")} Kč).\nČíslo zůstává. Potom ji pošli znovu.`)) return;
+                const { error } = await supabase.from("invoices").update({ amount: g.total, lines: g.lines, intro: g.intro }).eq("id", iv.id);
+                if (error) { setError("Přepočet selhal: " + error.message); return; }
+                setInvoices((prev) => prev.map((i) => (i.id === iv.id ? { ...i, amount: g.total, lines: g.lines, intro: g.intro } : i)));
+                setError(`✅ Faktura #${iv.number} přepočítána na ${g.total.toLocaleString("cs-CZ")} Kč. Teď ji pošli znovu („Poslat znovu").`);
               };
               // Náhled SKUTEČNÉ (už vygenerované) faktury – reálné datum, číslo i QR (ne dnešní dopočet).
               const STAT: Record<string, { label: string; cls: string }> = {
@@ -3976,6 +3989,28 @@ export default function AdminPage() {
                           <span className="font-semibold text-amber-900">{g.payer}</span>
                           <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">ještě nevygenerováno</span>
                           <div className="mt-0.5 text-gray-700">{g.lines.map((l) => l.what).join(" · ")} — <strong>{g.total.toLocaleString("cs-CZ")} Kč</strong></div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* POJISTKA 2 – vystavené faktury nesedí s kalendářem */}
+                {mismatches.length > 0 && (
+                  <div className="mb-4 rounded-xl border-2 border-red-300 bg-red-50 p-4 text-sm">
+                    <p className="font-bold text-red-800">⚠️ Faktury nesedí s kalendářem</p>
+                    <p className="mt-0.5 mb-2 text-red-700">Vystavená faktura má jinou částku, než kolik vychází z kalendáře teď — mohl jsi zapomenout (nebo přidat) hodinu. Zkontroluj a případně přepočítej, ať nepřicházíš o peníze. Po přepočtu fakturu <strong>pošli znovu</strong>.</p>
+                    <ul className="space-y-1.5">
+                      {mismatches.map(({ payer, iv, g, diff }) => (
+                        <li key={iv.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-white/80 px-3 py-2">
+                          <span className="font-semibold text-red-800">{payer}</span>
+                          <span className="text-gray-600">faktura #{iv.number}: <strong>{iv.amount.toLocaleString("cs-CZ")} Kč</strong> · kalendář teď: <strong>{g.total.toLocaleString("cs-CZ")} Kč</strong></span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${diff > 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>{diff > 0 ? `chybí ${diff.toLocaleString("cs-CZ")} Kč` : `přeplatek ${Math.abs(diff).toLocaleString("cs-CZ")} Kč`}</span>
+                          {iv.status !== "paid" ? (
+                            <button type="button" onClick={() => reSnapshotInvoice(iv, g)} className="ml-auto rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:opacity-90">Přepočítat na {g.total.toLocaleString("cs-CZ")} Kč</button>
+                          ) : (
+                            <span className="ml-auto text-xs text-gray-500">zaplaceno — řeš opravným dokladem</span>
+                          )}
                         </li>
                       ))}
                     </ul>
