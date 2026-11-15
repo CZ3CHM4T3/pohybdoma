@@ -3886,25 +3886,6 @@ export default function AdminPage() {
                 });
               };
               // Náhled SKUTEČNÉ (už vygenerované) faktury – reálné datum, číslo i QR (ne dnešní dopočet).
-              const openInvoicePreview = (iv: InvoiceRow) => {
-                // Příjemce ukážeme z AKTUÁLNÍ karty plátce (co reálně odejde při „Poslat znovu"),
-                //  aby šlo zkontrolovat opravené jméno/adresu ještě před odesláním.
-                //  Číslo, VS, částka, položky a datum zůstávají z vygenerované faktury.
-                const prof = billProfiles.find((p) => p.name === iv.payer_name);
-                setPreviewDoc({
-                  number: iv.number,
-                  billTo: (prof?.bill_name?.trim()) || iv.bill_name || iv.payer_name,
-                  address: prof ? (prof.address?.trim() || null) : iv.address,
-                  ico: prof ? (prof.ico?.trim() || null) : iv.ico,
-                  dic: prof ? (prof.dic?.trim() || null) : iv.dic,
-                  month: iv.month,
-                  issuedOn: iv.issued_on, dueOn: iv.due_on,
-                  amount: iv.amount, vs: iv.vs,
-                  intro: iv.intro, lines: iv.lines,
-                  paid: iv.status === "paid",
-                  qr: qrUrl(buildSpayd({ iban: BUSINESS.iban, amountKc: iv.amount, vs: iv.vs, number: iv.number })),
-                });
-              };
               const STAT: Record<string, { label: string; cls: string }> = {
                 issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
                 sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
@@ -4076,8 +4057,8 @@ export default function AdminPage() {
                             {isFixed && <p className="mt-1 text-xs text-gray-400">{fixedLbl} — napiš částku za <span className="capitalize">{monthLabel}</span> (kolik ti Jiří pošle). Prázdné = tento měsíc nefakturovat.</p>}
 
                             {/* Náhled celého dokumentu faktury */}
-                            {(inv || g.total > 0) && (
-                              <button type="button" onClick={() => (inv ? openInvoicePreview(inv) : openGroupPreview(g.payer, g.total, g.lines, g.intro))} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">👁 Náhled faktury (dokument)</button>
+                            {!inv && g.total > 0 && (
+                              <button type="button" onClick={() => openGroupPreview(g.payer, g.total, g.lines, g.intro)} className="mt-2 text-xs font-semibold text-blue-600 hover:underline">👁 Náhled faktury</button>
                             )}
 
                             <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -4121,7 +4102,7 @@ export default function AdminPage() {
                             )}
                             {inv && (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                                <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
+                                <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
                                 {inv.email ? (
                                   inv.status === "issued" ? (
                                     <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
@@ -4159,7 +4140,7 @@ export default function AdminPage() {
                               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${st.cls}`}>#{inv.number} · {st.label}</span>
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
+                              <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
                               {inv.email ? (
                                 inv.status === "issued" ? (
                                   <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
@@ -4438,7 +4419,7 @@ export default function AdminPage() {
                     <span className="ml-auto font-semibold text-brand-dark">{czk(inv.amount)}</span>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-                    <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Odkaz pro klienta ↗</a>
+                    <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
                     {inv.email ? (
                       <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40">⏳ Poslat upomínku</button>
                     ) : (
