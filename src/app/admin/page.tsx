@@ -3914,7 +3914,10 @@ export default function AdminPage() {
             {/* CELKEM – zatím jen přehled dnešních čísel na jednom místě (nic nepřepočítává) */}
             {finView === "celkem" && (() => {
               const webRez = monthLines.filter((l) => l.kind === "web").reduce((s, x) => s + x.amount, 0);
-              const lekceKal = lessonsTotal - webRez; // kalendář (individuály, skupinovky, MS GEM, extra) bez web rezervací
+              const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
+              const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
+              const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
+              const lekceTotal = lessonsTotal + msgemFin; // práce vč. MS GEM a web rezervací
               const row = (label: string, val: number, warn?: string, strong?: boolean) => (
                 <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
                   <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>
@@ -3928,19 +3931,20 @@ export default function AdminPage() {
                 <div className="max-w-xl">
                   <h3 className="text-sm font-semibold text-brand-dark mb-1">Celkem · <span className="capitalize">{monthLabel}</span></h3>
                   <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                    <strong>Zatím jen přehled.</strong> V dalších krocích vyčistíme <strong>překryvy</strong> (web rezervace, členství) a přidáme výdaje, aby to byl jeden pravdivý zisk. Teď se ještě žádné číslo nepřepočítává.
+                    <strong>Zatím jen přehled.</strong> V dalších krocích vyčistíme <strong>překryv</strong> (hlavně MS GEM, který se dnes počítá i ve Web &amp; finance) a přidáme výdaje, aby to byl jeden pravdivý zisk. Teď se ještě žádné číslo nepřepočítává.
                   </p>
                   <div className="rounded-xl border border-gray-200 bg-white">
                     <div className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Lekce (tvoje práce)</div>
-                    {row("Z kalendáře (individuály, skupinovky, MS GEM)", lekceKal)}
-                    {row("Webové rezervace", webRez, "dnes i ve Web & finance")}
-                    {row("Lekce celkem", lessonsTotal, undefined, true)}
-                    <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Příjmy odjinud</div>
-                    {row("Členství, kurzy, jiné (ruční)", manualTotal, "členství/kurzy patří do webu")}
-                    {row("Dnešní „Celkem za měsíc\"", monthGrand, undefined, true)}
+                    {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
+                    {webRez > 0 && row("Webové rezervace", webRez, "dnes i ve Web & finance")}
+                    {row("MS GEM (ručně)", msgemFin, "dnes i ve Web & finance")}
+                    {row("Lekce celkem", lekceTotal, undefined, true)}
+                    <div className="px-3 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Web &amp; členství</div>
+                    {row("Členství, kurzy, jiné (ruční)", otherFin)}
+                    {row("Dnešní „Celkem za měsíc\" (Faktury)", monthGrand, undefined, true)}
                   </div>
                   <p className="mt-3 text-xs text-gray-400">
-                    Pozn.: webové rezervace jsou dnes započítané i ve Web &amp; finance a členství/kurzy patří do webu – proto se tyhle částky zatím nesmí naivně sčítat s Web &amp; finance. Vyřešíme v Kroku 2 a 3.
+                    Pozn.: MS GEM (a případné web rezervace) jsou dnes započítané i ve Web &amp; finance → proto se zatím nesmí naivně sčítat obě záložky. Vyřešíme v Kroku 2 (MS GEM jen v lekcích) a Kroku 3 (web rezervace jen v lekcích).
                   </p>
                 </div>
               );
