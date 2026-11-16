@@ -306,7 +306,7 @@ export default function AdminPage() {
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("prehled");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
-  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
+  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m">("12m");
   const [celkemPeriod, setCelkemPeriod] = useState<"mesic" | "3m" | "6m" | "12m" | "rok" | "vse">("rok");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochKind, setDochKind] = useState<"ind" | "grp">("ind");
@@ -4399,7 +4399,7 @@ export default function AdminPage() {
                 if (!dateStr) return false;
                 if (analPeriod === "all") return true;
                 if (analPeriod === "year") return dateStr.slice(0, 4) === String(nowP.getFullYear());
-                const cut = new Date(nowP); cut.setMonth(cut.getMonth() - (analPeriod === "12m" ? 12 : 3));
+                const cut = new Date(nowP); cut.setMonth(cut.getMonth() - (analPeriod === "12m" ? 12 : analPeriod === "6m" ? 6 : analPeriod === "1m" ? 1 : 3));
                 return dateStr >= cut.toLocaleDateString("sv-SE");
               };
               return (
@@ -4414,7 +4414,7 @@ export default function AdminPage() {
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     <span className="mr-1 text-xs text-gray-400">Období:</span>
-                    {([["3m", "3 měsíce"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
+                    {([["1m", "1 měsíc"], ["3m", "3 měsíce"], ["6m", "6 měsíců"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
@@ -4461,7 +4461,7 @@ export default function AdminPage() {
                                     {top.slice(0, 6).map(([name, val]) => (
                                       <div key={name} className="flex items-center gap-3 text-sm">
                                         <span className="w-28 shrink-0 truncate">{name}</span>
-                                        <div className="flex-1"><Bar val={val} max={maxC} color="#6d28d9" /></div>
+                                        <div className="flex-1"><Bar val={val} max={maxC} color={catColor(p.label)} /></div>
                                         <span className="w-20 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
                                       </div>
                                     ))}
@@ -4473,7 +4473,7 @@ export default function AdminPage() {
                                     {months.map(([mk, val]) => (
                                       <div key={mk} className="flex items-center gap-3 text-sm">
                                         <span className="w-20 shrink-0 capitalize text-gray-500">{monthLabelCs(mk)}</span>
-                                        <div className="flex-1"><Bar val={val} max={maxM} color="#8b5cf6" /></div>
+                                        <div className="flex-1"><Bar val={val} max={maxM} color={catColor(p.label)} /></div>
                                         <span className="w-20 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
                                       </div>
                                     ))}
