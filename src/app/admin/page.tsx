@@ -5200,6 +5200,59 @@ export default function AdminPage() {
             </div>
           )}
 
+          {/* ── Finance z webu – roční přehled (členství + produkty) ── */}
+          {(() => {
+            const yr = String(new Date().getFullYear());
+            const LESSON_CATS = new Set(["MS GEM", "Fitness lekce", "Fitness individuály"]);
+            const webInc = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === yr && !LESSON_CATS.has(e.category));
+            const webColor = (c: string) => c.includes("VIP+") || c === "VIP+" ? "#d97706" : c === "VIP" ? "#7c3aed" : c === "MEMBER" ? "#2563eb" : c === "Kurz" ? "#0d9488" : "#64748b";
+            const byCat = new Map<string, number>();
+            for (const e of webInc) byCat.set(e.category, (byCat.get(e.category) ?? 0) + Number(e.amount_kc));
+            const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1]);
+            const total = cats.reduce((s, [, v]) => s + v, 0);
+            const MSHORT = ["Led", "Úno", "Bře", "Dub", "Kvě", "Čvn", "Čvc", "Srp", "Zář", "Říj", "Lis", "Pro"];
+            const months = Array.from({ length: 12 }, (_, i) => webInc.filter((e) => Number(String(e.at).slice(5, 7)) === i + 1).reduce((s, e) => s + Number(e.amount_kc), 0));
+            const maxM = Math.max(1, ...months);
+            const maxCat = Math.max(1, ...cats.map(([, v]) => v));
+            return (
+              <div className="mt-8 border-t border-gray-100 pt-6">
+                <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">💳 Finance z webu · {yr} <span className="text-sm font-normal text-gray-400">· celkem {total.toLocaleString("cs-CZ")} Kč</span></h3>
+                <p className="mb-4 text-sm text-gray-500">Příjmy z <strong>členství a online produktů</strong> (lekce jsou zvlášť v Lekce → Přehled a v Celkem).</p>
+                {total === 0 ? (
+                  <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-400">Zatím žádné příjmy z webu. Jakmile začneš prodávat členství nebo produkty (zapisuješ níže v „Ruční zadávání", nebo přijdou ze Stripe), uvidíš tady rozpad po zdrojích a měsících — stejně jako u Lekcí.</p>
+                ) : (
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-xl border border-gray-100 p-4">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Odkud máš nejvíc (členství / produkty)</p>
+                      <div className="space-y-1.5">
+                        {cats.map(([c, v]) => (
+                          <div key={c} className="flex items-center gap-2.5 text-sm">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: webColor(c) }} />
+                            <span className="w-24 shrink-0 truncate text-gray-600">{c}</span>
+                            <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.round(v / maxCat * 100)}%`, background: webColor(c) }} /></div>
+                            <span className="w-20 shrink-0 text-right font-semibold text-brand-dark">{v.toLocaleString("cs-CZ")} Kč</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-gray-100 p-4">
+                      <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Po měsících</p>
+                      <div className="flex h-40 items-end gap-1.5">
+                        {months.map((m, i) => (
+                          <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
+                            <span className="text-[9px] font-semibold text-gray-400">{m > 0 ? `${Math.round(m / 1000)}k` : ""}</span>
+                            <div className="w-full rounded-sm bg-emerald-500" style={{ height: `${(m / maxM) * 100}%`, minHeight: m > 0 ? "4px" : "0" }} />
+                            <span className="text-[10px] text-gray-500">{MSHORT[i]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Finance ── */}
           <div className="mt-8 border-t border-gray-100 pt-6">
             <h3 className="mb-1 inline-flex items-center gap-2 text-lg font-semibold text-brand-dark">✏️ Ruční zadávání</h3>
