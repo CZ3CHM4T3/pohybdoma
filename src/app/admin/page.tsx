@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList, Send, CheckCheck, MailWarning, Eye, Sigma } from "lucide-react";
+import { GripVertical, Radio, UserX, Film, Flame, CalendarDays, CalendarCheck, Users, Star, Mail, Compass, BarChart3, Gift, FileText, Receipt, Trash2, Package, LayoutDashboard, ClipboardList, Send, CheckCheck, MailWarning, Eye, Sigma, Dumbbell } from "lucide-react";
 import { BlogAdmin } from "@/components/admin/BlogAdmin";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -33,7 +33,7 @@ const ADMIN_TABS = [
   { k: "rozvrh", label: "Rozvrh", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500" },
   { k: "rezervace", label: "Rezervace", Icon: CalendarCheck, active: "bg-emerald-600 text-white", icon: "text-emerald-500" },
   { k: "dochazka", label: "Docházka", Icon: ClipboardList, active: "bg-cyan-600 text-white", icon: "text-cyan-500" },
-  { k: "faktury", label: "Lekce", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600" },
+  { k: "faktury", label: "Lekce", Icon: Dumbbell, active: "bg-green-700 text-white", icon: "text-green-600" },
   { k: "clenove", label: "Členové", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500" },
   { k: "recenze", label: "Recenze", Icon: Star, active: "bg-orange-500 text-white", icon: "text-orange-500" },
   { k: "newsletter", label: "Newsletter", Icon: Mail, active: "bg-teal-600 text-white", icon: "text-teal-500" },
@@ -306,7 +306,9 @@ export default function AdminPage() {
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("prehled");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
-  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m">("12m");
+  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m" | "custom">("12m");
+  const [analFrom, setAnalFrom] = useState("");
+  const [analTo, setAnalTo] = useState("");
   const [celkemPeriod, setCelkemPeriod] = useState<"mesic" | "3m" | "6m" | "12m" | "rok" | "vse">("rok");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochKind, setDochKind] = useState<"ind" | "grp">("ind");
@@ -3611,7 +3613,8 @@ export default function AdminPage() {
               if (celkemPeriod === "mesic") return d.slice(0, 7) === invMonth;
               if (celkemPeriod === "rok") return d.slice(0, 4) === year;
               const months = celkemPeriod === "3m" ? 3 : celkemPeriod === "6m" ? 6 : 12;
-              const cut = new Date(); cut.setMonth(cut.getMonth() - months);
+              const n = new Date();
+              const cut = new Date(n.getFullYear(), n.getMonth() - (months - 1), 1); // od 1. dne měsíce
               return d >= cut.toLocaleDateString("sv-SE");
             };
             const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
@@ -4395,13 +4398,14 @@ export default function AdminPage() {
                 </div>
               );
               const nowP = new Date();
-              const inPeriod = (dateStr: string) => {
-                if (!dateStr) return false;
-                if (analPeriod === "all") return true;
-                if (analPeriod === "year") return dateStr.slice(0, 4) === String(nowP.getFullYear());
-                const cut = new Date(nowP); cut.setMonth(cut.getMonth() - (analPeriod === "12m" ? 12 : analPeriod === "6m" ? 6 : analPeriod === "1m" ? 1 : 3));
-                return dateStr >= cut.toLocaleDateString("sv-SE");
-              };
+              const todayKeyP = nowP.toLocaleDateString("sv-SE");
+              // Období ohraničené KALENDÁŘNĚ (od 1. dne měsíce), nebo vlastní rozsah od–do.
+              let pFrom = ""; let pTo = todayKeyP;
+              if (analPeriod === "all") { pFrom = ""; pTo = "9999-12-31"; }
+              else if (analPeriod === "custom") { pFrom = analFrom; pTo = analTo || todayKeyP; }
+              else if (analPeriod === "year") { pFrom = `${nowP.getFullYear()}-01-01`; pTo = `${nowP.getFullYear()}-12-31`; }
+              else { const M = analPeriod === "12m" ? 12 : analPeriod === "6m" ? 6 : analPeriod === "1m" ? 1 : 3; pFrom = new Date(nowP.getFullYear(), nowP.getMonth() - (M - 1), 1).toLocaleDateString("sv-SE"); }
+              const inPeriod = (dateStr: string) => !!dateStr && (!pFrom || dateStr >= pFrom) && dateStr <= pTo;
               return (
                 <div className="mt-8 border-t border-gray-100 pt-6">
                   <h3 className="mb-3 text-sm font-semibold text-brand-dark">Rozbor — kdo, kdy a kolik</h3>
@@ -4414,6 +4418,11 @@ export default function AdminPage() {
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     <span className="mr-1 text-xs text-gray-400">Období:</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
+                      <input type="date" value={analFrom} onChange={(e) => { setAnalFrom(e.target.value); setAnalPeriod("custom"); }} className="rounded-md border border-gray-200 px-1.5 py-1 text-xs" />
+                      <span className="text-xs text-gray-400">–</span>
+                      <input type="date" value={analTo} onChange={(e) => { setAnalTo(e.target.value); setAnalPeriod("custom"); }} className="rounded-md border border-gray-200 px-1.5 py-1 text-xs" />
+                    </span>
                     {([["1m", "1 měsíc"], ["3m", "3 měsíce"], ["6m", "6 měsíců"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
@@ -4518,7 +4527,7 @@ export default function AdminPage() {
                     const reliable = recClients.filter((n) => !cancelsByClient.get(n)).sort((a, b) => a.localeCompare(b, "cs"));
                     return (
                       <div className="space-y-6">
-                        <p className="text-xs text-gray-400">Za období <strong>{periodFrom ? fmtCzDate(periodFrom) : "—"} – {periodTo ? fmtCzDate(periodTo) : "—"}</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
+                        <p className="text-xs text-gray-400">Za období <strong>{analPeriod === "all" ? "celá doba" : `${pFrom ? fmtCzDate(pFrom) : "—"} – ${fmtCzDate(pTo === "9999-12-31" ? todayKeyP : pTo)}`}</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
                         {/* Souhrn */}
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           {[["Tržba celkem", czk(total)], ["Počet lekcí", `${count}×`], ["Průměr na lekci", czk(avg)], ["Top 3 klienti", `${top3Share} % tržby`]].map(([l, v]) => (
