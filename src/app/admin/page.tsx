@@ -307,6 +307,7 @@ export default function AdminPage() {
   const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv">("prehled");
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "3m">("12m");
+  const [celkemPeriod, setCelkemPeriod] = useState<"mesic" | "3m" | "6m" | "12m" | "rok" | "vse">("rok");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochKind, setDochKind] = useState<"ind" | "grp">("ind");
   const [dochView, setDochView] = useState<"klienti" | "dny" | "lekce">("klienti");
@@ -3604,74 +3605,121 @@ export default function AdminPage() {
 
           // ── CELKEM: samostatná záložka – skutečný zisk (příjem − výdaje), stejný výpočet jako Faktury ──
           if (tab === "celkem") {
-            const webRez = monthLines.filter((l) => l.kind === "web").reduce((s, x) => s + x.amount, 0);
-            const lekceKal = lessonsTotal - webRez; // individuály + skupinovky (+extra), bez web rezervací
-            const msgemFin = monthFin.filter((e) => e.category === "MS GEM").reduce((s, e) => s + Number(e.amount_kc), 0);
-            const otherFin = manualTotal - msgemFin; // kurzy / členství / jiné (ruční)
-            const monthExpItems = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === invMonth).sort((a, b) => Number(b.amount_kc) - Number(a.amount_kc));
-            const monthExp = monthExpItems.reduce((s, e) => s + Number(e.amount_kc), 0);
-            const yearExpItems = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 4) === year);
-            const yearExp = yearExpItems.reduce((s, e) => s + Number(e.amount_kc), 0);
-            const yearExpByCat = Array.from(yearExpItems.reduce((m, e) => m.set(e.category, (m.get(e.category) ?? 0) + Number(e.amount_kc)), new Map<string, number>()).entries()).sort((a, b) => b[1] - a[1]);
-            const monthProfit = monthGrand - monthExp;
-            const yearProfit = yearTotal - yearExp;
-            const expList = (items: { label: string; amount: number; key: string }[]) => (
-              <div className="bg-gray-50 px-3 py-1.5 space-y-0.5">
-                {items.map((e) => (
-                  <div key={e.key} className="flex items-baseline justify-between gap-3 text-xs text-gray-500">
-                    <span className="truncate">{e.label}</span>
-                    <span className="shrink-0 font-medium">−{e.amount.toLocaleString("cs-CZ")} Kč</span>
-                  </div>
-                ))}
-              </div>
-            );
-            const row = (label: string, val: number, strong?: boolean) => (
-              <div className={`flex items-baseline justify-between gap-3 px-3 py-2 ${strong ? "border-t border-gray-200" : ""}`}>
-                <span className={strong ? "font-semibold text-brand-dark" : "text-sm text-gray-600"}>{label}</span>
-                <span className={strong ? "text-base font-bold text-brand-dark" : "text-sm font-semibold text-brand-dark"}>{val.toLocaleString("cs-CZ")} Kč</span>
-              </div>
-            );
-            const profitRow = (label: string, val: number) => (
-              <div className="flex items-baseline justify-between gap-3 border-t-2 border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                <span className="font-semibold text-emerald-800">{label}</span>
-                <span className={`text-lg font-bold ${val >= 0 ? "text-emerald-700" : "text-red-500"}`}>{val.toLocaleString("cs-CZ")} Kč</span>
+            const inCP = (d: string) => {
+              if (!d) return false;
+              if (celkemPeriod === "vse") return true;
+              if (celkemPeriod === "mesic") return d.slice(0, 7) === invMonth;
+              if (celkemPeriod === "rok") return d.slice(0, 4) === year;
+              const months = celkemPeriod === "3m" ? 3 : celkemPeriod === "6m" ? 6 : 12;
+              const cut = new Date(); cut.setMonth(cut.getMonth() - months);
+              return d >= cut.toLocaleDateString("sv-SE");
+            };
+            const add = (m: Map<string, number>, k: string, v: number) => m.set(k, (m.get(k) ?? 0) + v);
+            const lekceCats = new Map<string, number>();
+            const webCats = new Map<string, number>();
+            const expCats = new Map<string, number>();
+            for (const l of lessonLines) {
+              if (l.amount <= 0 || !inCP(l.date)) continue;
+              if (l.kind === "blok") add(lekceCats, l.svcLabel || "Skupinovky", l.amount);
+              else if (l.kind === "extra") add(lekceCats, fixedPayerNames.has(l.client) ? "MS GEM" : "Ostatní lekce", l.amount);
+              else add(lekceCats, "Individuály", l.amount);
+            }
+            for (const e of finEntries) {
+              const d = String(e.at).slice(0, 10);
+              if (!inCP(d)) continue;
+              const amt = Number(e.amount_kc);
+              if (e.kind === "expense") { add(expCats, e.category || "Výdaj", amt); continue; }
+              const c = e.category;
+              if (c === "MS GEM") add(lekceCats, "MS GEM", amt);
+              else if (c === "Fitness lekce" || c === "Fitness individuály") add(lekceCats, "Individuály", amt);
+              else if (c === "MEMBER" || c === "VIP" || c === "VIP+") add(webCats, `Členství ${c}`, amt);
+              else if (c === "Kurz") add(webCats, "Kurzy", amt);
+              else add(webCats, c || "Ostatní", amt);
+            }
+            const sumMap = (m: Map<string, number>) => [...m.values()].reduce((s, v) => s + v, 0);
+            const lekceTotal = sumMap(lekceCats);
+            const webTotal = sumMap(webCats);
+            const income = lekceTotal + webTotal;
+            const expTotal = sumMap(expCats);
+            const profit = income - expTotal;
+            const sortedCats = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+            const colorFor = (label: string): string => {
+              if (label === "Individuály") return "#1976ff";
+              if (label === "MS GEM") return "#c2410c";
+              if (label.includes("MEMBER")) return "#2563eb";
+              if (label.includes("VIP+")) return "#d97706";
+              if (label.includes("VIP")) return "#7c3aed";
+              return catColor(label);
+            };
+            const periodLabel = celkemPeriod === "mesic" ? monthLabel : celkemPeriod === "rok" ? `rok ${year}` : celkemPeriod === "vse" ? "celou dobu" : celkemPeriod === "3m" ? "poslední 3 měsíce" : celkemPeriod === "6m" ? "posledních 6 měsíců" : "posledních 12 měsíců";
+            const maxCat = Math.max(1, ...lekceCats.values(), ...webCats.values());
+            const catRow = ([label, val]: [string, number]) => (
+              <div key={label} className="flex items-center gap-2.5 px-3 py-1.5 text-sm">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorFor(label) }} />
+                <span className="w-28 shrink-0 truncate text-gray-600">{label}</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full" style={{ width: `${Math.round(val / maxCat * 100)}%`, background: colorFor(label) }} /></div>
+                <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{val.toLocaleString("cs-CZ")} Kč</span>
               </div>
             );
             return (
               <section className="card p-6">
                 <h2 className="inline-flex items-center gap-2 text-lg font-semibold text-brand-dark mb-1"><Sigma className="h-5 w-5 text-green-600" /> Celkem — tvůj skutečný zisk</h2>
-                <p className="text-sm text-gray-500 mb-5">Veškerý příjem (lekce z kalendáře + ruční MS GEM/historie + ostatní) <strong>minus výdaje</strong>. Počítá všechno jednou. „Web" je zvlášť pro členství a provoz webu; „Lekce" je podklad k fakturaci.</p>
-                <div className="mb-6 flex items-center gap-1.5">
-                  <label className="text-xs font-semibold text-brand-dark">Měsíc</label>
-                  <input type="month" value={invMonth} onChange={(e) => setInvMonth(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
-                  <button type="button" onClick={() => { const n = new Date(); setInvMonth(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Tento</button>
-                  <button type="button" onClick={() => { const n = new Date(); const p = new Date(n.getFullYear(), n.getMonth() - 1, 1); setInvMonth(`${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Minulý</button>
+                <p className="text-sm text-gray-500 mb-4">Všechny příjmy tvého projektu rozdělené na <span className="font-semibold text-brand-blue">Lekce</span> a <span className="font-semibold text-emerald-600">Web</span>, minus výdaje. Vyber si období.</p>
+
+                <div className="mb-4 flex flex-wrap items-center gap-1.5">
+                  {([["mesic", "Měsíc"], ["3m", "3 měsíce"], ["6m", "6 měsíců"], ["12m", "12 měsíců"], ["rok", `Rok ${year}`], ["vse", "Vše"]] as const).map(([k, l]) => (
+                    <button key={k} type="button" onClick={() => setCelkemPeriod(k)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${celkemPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                  ))}
                 </div>
-                <div className="max-w-xl space-y-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za <span className="capitalize">{monthLabel}</span></h3>
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      {row("Individuály + skupinovky (z kalendáře)", lekceKal)}
-                      {webRez > 0 && row("Webové rezervace", webRez)}
-                      {msgemFin > 0 && row("MS GEM (ručně)", msgemFin)}
-                      {otherFin > 0 && row("Členství, kurzy, jiné (ručně)", otherFin)}
-                      {row("Příjem celkem", monthGrand, true)}
-                      {row("− Výdaje", monthExp)}
-                      {monthExpItems.length > 0 && expList(monthExpItems.map((e) => ({ key: String(e.id), label: `${e.category}${e.note ? ` · ${e.note}` : ""}`, amount: Number(e.amount_kc) })))}
-                      {profitRow("= Zisk za měsíc", monthProfit)}
-                    </div>
+                {(celkemPeriod === "mesic" || celkemPeriod === "rok") && (
+                  <div className="mb-5 flex items-center gap-1.5">
+                    <input type="month" value={invMonth} onChange={(e) => setInvMonth(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                    <button type="button" onClick={() => { const n = new Date(); setInvMonth(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Tento</button>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-brand-dark mb-1.5">Za rok {year}</h3>
-                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                      {row("Příjem celkem (lekce + MS GEM + ostatní)", yearTotal, true)}
-                      {row("− Výdaje", yearExp)}
-                      {yearExpByCat.length > 0 && expList(yearExpByCat.map(([cat, sum]) => ({ key: cat, label: cat, amount: sum })))}
-                      {profitRow("= Zisk za rok", yearProfit)}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">Výdaje se berou z <strong>Web → Ruční deník</strong>. Jakmile tam nějaký výdaj zapíšeš, odečte se zde a <strong>rozepíše pod řádkem „− Výdaje"</strong> (za měsíc po položkách, za rok po kategoriích). Teď máš výdaje 0.</p>
+                )}
+
+                <div className="mb-5 rounded-xl bg-brand-dark px-4 py-3 text-white">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Příjem celkem · {periodLabel}</p>
+                  <p className="text-2xl font-bold">{income.toLocaleString("cs-CZ")} Kč</p>
                 </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="rounded-xl border-2 border-blue-100 overflow-hidden">
+                    <div className="flex items-center justify-between bg-blue-50 px-3 py-2">
+                      <span className="text-sm font-bold text-brand-blue">🟦 Lekce</span>
+                      <span className="text-sm font-bold text-brand-dark">{lekceTotal.toLocaleString("cs-CZ")} Kč</span>
+                    </div>
+                    {lekceCats.size === 0 ? <p className="px-3 py-3 text-xs text-gray-400">Za toto období žádné lekce.</p> : sortedCats(lekceCats).map(catRow)}
+                  </div>
+                  <div className="rounded-xl border-2 border-emerald-100 overflow-hidden">
+                    <div className="flex items-center justify-between bg-emerald-50 px-3 py-2">
+                      <span className="text-sm font-bold text-emerald-600">🟩 Web</span>
+                      <span className="text-sm font-bold text-brand-dark">{webTotal.toLocaleString("cs-CZ")} Kč</span>
+                    </div>
+                    {webCats.size === 0 ? <p className="px-3 py-3 text-xs text-gray-400">Za toto období žádné příjmy z webu (členství, produkty).</p> : sortedCats(webCats).map(catRow)}
+                  </div>
+                </div>
+
+                <div className="mt-5 max-w-md rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="flex items-center justify-between bg-gray-50 px-3 py-2">
+                    <span className="text-sm font-semibold text-brand-dark">Příjem celkem</span>
+                    <span className="text-sm font-bold text-brand-dark">{income.toLocaleString("cs-CZ")} Kč</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <span className="text-sm font-semibold text-red-600">− Výdaje</span>
+                    <span className="text-sm font-bold text-red-600">{expTotal.toLocaleString("cs-CZ")} Kč</span>
+                  </div>
+                  {sortedCats(expCats).map(([l, v]) => (
+                    <div key={l} className="flex items-center justify-between px-3 py-1 text-xs text-red-500">
+                      <span className="truncate">{l}</span><span>−{v.toLocaleString("cs-CZ")} Kč</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between border-t-2 border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                    <span className="font-semibold text-emerald-800">= Zisk</span>
+                    <span className={`text-lg font-bold ${profit >= 0 ? "text-emerald-700" : "text-red-500"}`}>{profit.toLocaleString("cs-CZ")} Kč</span>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs text-gray-400">Výdaje zapisuješ ve <strong>Web → Ruční zadávání</strong>. Zisk = příjem − výdaje za zvolené období.</p>
               </section>
             );
           }
