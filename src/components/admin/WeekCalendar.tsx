@@ -529,7 +529,11 @@ export function WeekCalendar({
             {pop.item && pop.item.kind === "block" && !addMode && (() => {
               const p = pop.item.id.split(":");
               const blockId = p[1], bdate = p[2];
-              const roster = blockMembers.filter((m) => m.block_id === blockId).map((m) => m.name).sort((a, b) => a.localeCompare(b, "cs"));
+              // Soupiska + „osiřelé" docházky: kdo má pro tento den záznam, ale už není na soupisce
+              // (jinak by jeho docházku nešlo odškrtnout a dál by se fakturovala).
+              const rosterNames = blockMembers.filter((m) => m.block_id === blockId).map((m) => m.name);
+              const attendedToday = blockAttendance.filter((a) => a.block_id === blockId && a.date === bdate).map((a) => a.name);
+              const roster = [...new Set([...rosterNames, ...attendedToday])].sort((a, b) => a.localeCompare(b, "cs"));
               const addReplacementBtn = (
                 <button type="button" onClick={() => { setLTime(pop.item!.time); setLName(""); setLNote("náhrada"); setLRepeat(false); setAddMode(true); }} className="w-full rounded-md bg-teal-600 px-2.5 py-1.5 text-left font-semibold text-white hover:bg-teal-700">+ Přidat náhradu sem (vybrat klienta)</button>
               );
