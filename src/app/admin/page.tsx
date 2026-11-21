@@ -3752,6 +3752,7 @@ export default function AdminPage() {
           // Barvy zdrojů příjmů – každá kategorie jinou barvou
           const CAT_COLOR: Record<string, string> = {
             "Fitness lekce": "#1976ff",        // fitness individuály + fitness lekce = jedno, modrá
+            "Sportovní masáž": "#e11d48",      // růžovo-červená
             "Kruhový trénink": "#6d28d9",      // fialová
             "Příprava tenistů": "#0d9488",     // teal – odlišné od MS GEM
             "Tenis s EMESKOU (MŠ)": "#be185d", // růžová
@@ -3765,14 +3766,19 @@ export default function AdminPage() {
             "Jiné": "#64748b",
           };
           // Fitness individuály i ruční „Fitness lekce" se vykazují jako JEDNO
-          const normCat = (c: string) => (c === "Fitness individuály" || c === "Fitness lekce") ? "Fitness lekce" : c;
+          const normCat = (c: string) => {
+            if (c === "Fitness individuály" || c === "Fitness lekce" || c === "Fitness trénink") return "Fitness lekce";
+            if (c === "Pohybová příprava tenistů" || c === "Příprava tenistů") return "Příprava tenistů";
+            return c;
+          };
           const FALLBACK_COLORS = ["#0ea5e9", "#14b8a6", "#f43f5e", "#8b5cf6", "#22c55e", "#eab308", "#f97316", "#06b6d4", "#db2777"];
           let fbIdx = 0;
           const catColorCache: Record<string, string> = {};
           const catColor = (c: string) => {
-            if (CAT_COLOR[c]) return CAT_COLOR[c];
-            if (!catColorCache[c]) catColorCache[c] = FALLBACK_COLORS[(fbIdx++) % FALLBACK_COLORS.length];
-            return catColorCache[c];
+            const k = normCat(c);
+            if (CAT_COLOR[k]) return CAT_COLOR[k];
+            if (!catColorCache[k]) catColorCache[k] = FALLBACK_COLORS[(fbIdx++) % FALLBACK_COLORS.length];
+            return catColorCache[k];
           };
 
           // Rozpad příjmů po měsících a kategoriích (vybraný rok)
