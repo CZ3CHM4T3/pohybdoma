@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s | POHYB DOMA",
   },
   description:
-    "Osobní lektor pohybu. Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
+    "Osobní lektor pohybu v Dobřichovicích a online. Cvič doma a buduj pohyblivost, sílu a jistotu v pohybu s minimem vybavení.",
   metadataBase: new URL("https://pohybdoma.cz"),
   openGraph: {
     siteName: "POHYB DOMA",
@@ -58,16 +58,16 @@ export const viewport: Viewport = {
 // Strukturovaná data pro Google (bohatší výsledky). Aktivní hlavně po spuštění naveřejno.
 const JSON_LD = {
   "@context": "https://schema.org",
-  "@type": "HealthAndBeautyBusiness",
+  "@type": "SportsActivityLocation",
   name: "POHYB DOMA",
-  description: "Osobní lektor pohybu. Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
+  description: "Osobní lektor pohybu v Dobřichovicích a online. Cvič doma a buduj pohyblivost, sílu a jistotu v pohybu s minimem vybavení.",
   url: "https://pohybdoma.cz",
   logo: "https://pohybdoma.cz/LOGO.png",
   image: "https://pohybdoma.cz/og.png",
   email: "pohybdoma@seznam.cz",
   telephone: "+420721327545",
   priceRange: "199–1500 Kč",
-  areaServed: "Dobřichovice a okolí (a online po celé ČR)",
+  areaServed: ["Dobřichovice", "Řevnice", "Černošice", "Všenory", "Lety", "Karlík", "Praha-západ", "online po celé ČR"],
   address: {
     "@type": "PostalAddress",
     addressLocality: "Dobřichovice",
@@ -79,7 +79,7 @@ const JSON_LD = {
     latitude: 49.9265,
     longitude: 14.271,
   },
-  knowsAbout: ["pohybová náprava", "cvičení doma", "bolesti zad", "osobní trénink", "sportovní masáž"],
+  knowsAbout: ["cvičení doma", "pohybová edukace", "funkční trénink", "mobilita a pohyblivost", "silový trénink", "pohybová prevence při sedavém způsobu života", "sportovní masáž"],
   sameAs: ["https://www.instagram.com/pohybdoma/"],
   founder: {
     "@type": "Person",

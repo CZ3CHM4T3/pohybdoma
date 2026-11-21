@@ -45,7 +45,7 @@ export default function MixerPage() {
       if (!user) { setPhase("anon"); return; }
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", user.id).maybeSingle();
       const tier = normalizeTier(p?.tier as string | undefined);
-      const ok = tier === "VIP_PLUS" || isAdminEmail(user.email);
+      const ok = tier === "VIP" || tier === "VIP_PLUS" || isAdminEmail(user.email);
       if (!ok) { setPhase("locked"); return; }
       const { data } = await supabase
         .from("videos")
@@ -148,8 +148,8 @@ export default function MixerPage() {
     return (
       <Centered>
         <Lock className="mx-auto mb-3 h-10 w-10 text-amber-500" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">Mixér je pro VIP+</h1>
-        <p className="text-sm text-gray-500 mb-5">Sestav si vlastní lekci na míru – součást VIP+.</p>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">Mixér je pro VIP</h1>
+        <p className="text-sm text-gray-500 mb-5">Sestav si vlastní lekci na míru – součást VIP.</p>
         <Link href="/clenstvi" className="btn-primary">Zobrazit členství</Link>
       </Centered>
     );

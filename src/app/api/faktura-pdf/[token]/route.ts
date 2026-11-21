@@ -8,19 +8,21 @@ import { buildSpayd, fmtCzDate, monthLabelCs, type InvoiceLine } from "@/lib/inv
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// pdfmake je CommonJS – načteme ho přes createRequire (a je v serverExternalPackages).
+// pdfmake – používáme BROWSER build (createPdf), který fonty čte z paměti (vfs),
+// nikoli z disku. Díky tomu to běží i tam, kde není filesystem (Cloudflare Workers),
+// a stejně tak na Node/Vercelu.
 const require = createRequire(import.meta.url);
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const PdfPrinter = require("pdfmake");
-const vfsMod = require("pdfmake/build/vfs_fonts");
-const vfs = (vfsMod.pdfMake && vfsMod.pdfMake.vfs) || vfsMod.vfs || vfsMod.default || vfsMod;
-
-const FONTS = {
+const pdfMake: any = require("pdfmake/build/pdfmake");
+const vfsMod: any = require("pdfmake/build/vfs_fonts");
+pdfMake.vfs =
+  vfsMod?.pdfMake?.vfs || vfsMod?.vfs || vfsMod?.default?.pdfMake?.vfs || vfsMod?.default?.vfs || vfsMod;
+pdfMake.fonts = {
   Roboto: {
-    normal: Buffer.from(vfs["Roboto-Regular.ttf"], "base64"),
-    bold: Buffer.from(vfs["Roboto-Medium.ttf"], "base64"),
-    italics: Buffer.from(vfs["Roboto-Italic.ttf"], "base64"),
-    bolditalics: Buffer.from(vfs["Roboto-MediumItalic.ttf"], "base64"),
+    normal: "Roboto-Regular.ttf",
+    bold: "Roboto-Medium.ttf",
+    italics: "Roboto-Italic.ttf",
+    bolditalics: "Roboto-MediumItalic.ttf",
   },
 };
 
@@ -229,14 +231,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     }),
   };
 
-  const printer = new PdfPrinter(FONTS);
-  const pdfDoc = printer.createPdfKitDocument(docDefinition);
-  const chunks: Buffer[] = [];
   const pdfBuffer: Buffer = await new Promise((resolve, reject) => {
-    pdfDoc.on("data", (c: Buffer) => chunks.push(c));
-    pdfDoc.on("end", () => resolve(Buffer.concat(chunks)));
-    pdfDoc.on("error", reject);
-    pdfDoc.end();
+    try {
+      pdfMake.createPdf(docDefinition).getBuffer((buf: Uint8Array) => {
+        resolve(Buffer.from(buf));
+      });
+    } catch (e) {
+      reject(e);
+    }
   });
 
   return new Response(new Uint8Array(pdfBuffer), {

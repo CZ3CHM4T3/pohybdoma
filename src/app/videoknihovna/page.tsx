@@ -23,7 +23,7 @@ const GROUPS: Group[] = [
     key: "access",
     title: "Přístup",
     access: true,
-    options: (["FREE", "MEMBER", "VIP", "VIP_PLUS"] as AccessLevel[]).map((v) => ({ value: v, label: TIER_STYLES[v].label })),
+    options: (["FREE", "MEMBER", "VIP"] as AccessLevel[]).map((v) => ({ value: v, label: TIER_STYLES[v].label })),
   },
   { key: "difficulty", title: "Obtížnost", options: opt(FILTER_DIFFICULTIES) },
   { key: "duration", title: "Délka", options: opt(["do 10 min", "10–20 min", "20+ min"]) },

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Zdravotní a bezpečnostní upozornění",
   description: "Charakter služby POHYB DOMA, hranice kompetence a kdy se obrátit na lékaře či fyzioterapeuta.",
+  alternates: { canonical: "/zdravotni-upozorneni" },
 };
 
 export default function ZdravotniUpozorneniPage() {
@@ -10,7 +11,7 @@ export default function ZdravotniUpozorneniPage() {
     <div className="min-h-screen bg-white py-12 lg:py-16">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-semibold text-brand-dark mb-2">Zdravotní a bezpečnostní upozornění</h1>
-        <p className="text-sm text-gray-400 mb-8">Platné pro rok 2026</p>
+        <p className="text-sm text-gray-400 mb-8">Naposledy aktualizováno: listopad 2026</p>
 
         <div className="space-y-6 text-sm text-gray-700 leading-relaxed [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-brand-dark [&_h2]:mt-8 [&_h2]:mb-2 [&_strong]:text-brand-dark [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1">
 
@@ -22,7 +23,7 @@ export default function ZdravotniUpozorneniPage() {
             fyzioterapeutickou péči a nelze je za ně zaměňovat.
           </p>
           <p>
-            Provozovatel je <strong>vystudovaný pedagog a licencovaný trenér</strong> (nikoliv lékař ani
+            Provozovatel je <strong>kvalifikovaný trenér a lektor pohybu</strong> (nikoliv lékař ani
             fyzioterapeut). Veškerá doporučení mají charakter pohybového tréninku a edukace.
           </p>
 
@@ -41,6 +42,7 @@ export default function ZdravotniUpozorneniPage() {
             <li>cítíš <strong>vystřelující bolest, mravenčení, necitlivost nebo slabost</strong> končetiny,</li>
             <li>jsi <strong>těhotná nebo krátce po porodu</strong> (zvlášť u cvičení pánevního dna a břicha),</li>
             <li>máš <strong>chronické či závažné onemocnění</strong> (srdce, krevní tlak, neurologické potíže, závratě),</li>
+            <li>máš <strong>osteoporózu</strong>, jsi senior/ka, hůř udržuješ rovnováhu nebo užíváš léky ovlivňující tlak či rovnováhu,</li>
             <li>si <strong>nejsi jistý/á</strong>, zda je daný pohyb pro tebe vhodný.</li>
           </ul>
 

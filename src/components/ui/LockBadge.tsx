@@ -4,7 +4,7 @@ import type { AccessLevel } from "@/types";
 
 /**
  * Malý lákavý zámeček s úrovní, kterou je potřeba odemknout.
- * Plná barva dané úrovně (FREE šedá / MEMBER modrá / VIP fialová / VIP+ zlatá).
+ * Plná barva dané úrovně (FREE šedá / MEMBER modrá / VIP zlatá).
  */
 export function LockBadge({
   level,

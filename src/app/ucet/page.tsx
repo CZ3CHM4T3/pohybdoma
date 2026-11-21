@@ -8,6 +8,7 @@ import {
   BookOpen, GraduationCap, CalendarDays,
   KeyRound, LogOut, Settings, Camera, Save, Users, LineChart, ShieldCheck,
   Lock, LockOpen, X, Check, PartyPopper, UserPlus, Award, Trash2, AlertTriangle,
+  Eye, EyeOff,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
@@ -17,6 +18,7 @@ import { BadgePins } from "@/components/BadgePins";
 import { TINT } from "@/lib/feature-tints";
 import { frameClass, FRAMES, unlockedFrames, type FrameKey } from "@/lib/avatar-frames";
 import { isAdminEmail } from "@/lib/admin";
+import { isNavReady } from "@/lib/launch";
 import { FILTER_SYSTEMS } from "@/lib/filters";
 import { EMAIL_PREFS, prefEnabled } from "@/lib/email-prefs";
 import { MyBookingsCalendar, type MyBooking } from "@/components/MyBookingsCalendar";
@@ -159,7 +161,8 @@ export default function UcetPage() {
     const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
     if (upErr) {
       setUploadingAvatar(false);
-      setAccMsg("Nahrání fotky selhalo (" + upErr.message + "). Spustil jsi account.sql?");
+      console.error("profile photo upload failed:", upErr.message);
+      setAccMsg("Nahrání fotky se nepodařilo. Zkus to prosím znovu.");
       return;
     }
     const url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
@@ -269,12 +272,16 @@ export default function UcetPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
+      const m = error.message;
+      console.error("login failed:", m);
       setError(
-        error.message.includes("Invalid login")
+        m.includes("Invalid login")
           ? "Nesprávný e-mail nebo heslo."
-          : error.message.includes("Email not confirmed")
-            ? "E-mail ještě není potvrzený. Zkontroluj schránku."
-            : "Přihlášení se nezdařilo: " + error.message
+          : m.includes("Email not confirmed")
+            ? "E-mail ještě není potvrzený. Zkontroluj schránku (i spam)."
+            : /rate limit|For security|Too many/i.test(m)
+              ? "Příliš mnoho pokusů. Zkus to prosím za chvíli."
+              : "Přihlášení se nezdařilo. Zkus to prosím znovu."
       );
       return;
     }
@@ -323,16 +330,22 @@ export default function UcetPage() {
     });
     setLoading(false);
     if (error) {
+      const m = error.message;
+      console.error("register failed:", m);
       setError(
-        error.message.includes("already registered")
+        m.includes("already registered")
           ? "Tento e-mail už je zaregistrovaný. Přihlas se."
-          : "Registrace se nezdařila: " + error.message
+          : /at least 6|Password should/i.test(m)
+            ? "Heslo musí mít alespoň 6 znaků."
+            : /rate limit|For security|Too many/i.test(m)
+              ? "Příliš mnoho pokusů. Zkus to prosím za chvíli."
+              : "Registrace se nezdařila. Zkus to prosím znovu."
       );
       return;
     }
     // Pokud je zapnuté potvrzení e-mailu, session zatím není.
     if (!data.session) {
-      setInfo("Hotovo! Poslal jsem ti potvrzovací e-mail – klikni na odkaz a pak se přihlas.");
+      setInfo("Hotovo! Poslal jsem ti potvrzovací e-mail – klikni na odkaz a pak se přihlas. Zkontroluj i spam.");
       setTab("prihlaseni");
     } else {
       router.refresh();
@@ -354,7 +367,7 @@ export default function UcetPage() {
     const daysLeft = tierUntil
       ? Math.ceil((new Date(tierUntil).getTime() - Date.now()) / 86400000)
       : null;
-    const tiles: {
+    const allTiles: {
       label: string;
       Icon: typeof BookOpen;
       tint: string;
@@ -372,12 +385,14 @@ export default function UcetPage() {
       { href: "/odznaky", label: "Odznaky", Icon: Award, tint: TINT.sinslavy },
       { href: "/denik", label: "Můj deník", Icon: LineChart, req: "VIP", tint: TINT.denik },
     ];
+    // v launch módu skryj dlaždice vedoucí na „připravuje se"
+    const tiles = allTiles.filter((t) => !t.href || isNavReady(t.href));
 
     // Hierarchie členství (pro dlaždici „Stav členství")
     const planByTier = Object.fromEntries(MOCK_MEMBERSHIP_PLANS.map((p) => [p.tier, p]));
     const membershipHierarchy: { tier: UserTier; tagline?: string; price: number; features: string[] }[] = [
       { tier: "FREE", tagline: "Na vyzkoušení", price: 0, features: ["Ukázková videa zdarma", "Základní přístup k webu"] },
-      ...(["MEMBER", "VIP", "VIP_PLUS"] as UserTier[]).map((t) => {
+      ...(["MEMBER", "VIP"] as UserTier[]).map((t) => {
         const p = planByTier[t];
         return { tier: t, tagline: p?.tagline, price: p?.priceKcMonth ?? 0, features: p?.features ?? [] };
       }),
@@ -419,7 +434,7 @@ export default function UcetPage() {
                 <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-bold ${TIER_STYLES[tier].badge}`}>
                   {TIER_STYLES[tier].label}
                 </span>
-                {tier !== "VIP_PLUS" && (
+                {(tier === "FREE" || tier === "MEMBER") && (
                   <Link href="/clenstvi" className="text-xs font-semibold text-brand-blue hover:underline whitespace-nowrap">
                     Vylepšit →
                   </Link>
@@ -832,7 +847,7 @@ export default function UcetPage() {
               </div>
 
               <div className="mt-5 flex flex-wrap items-center gap-4">
-                {tier !== "VIP_PLUS" && (
+                {(tier === "FREE" || tier === "MEMBER") && (
                   <Link href="/clenstvi" className="btn-primary text-sm">
                     {tier === "FREE" ? "Vybrat členství" : "Změnit úroveň"}
                   </Link>
@@ -924,8 +939,8 @@ export default function UcetPage() {
 
           {tab === "prihlaseni" ? (
             <form onSubmit={handleLogin} className="space-y-5">
-              <Field id="login-email" label="E-mail" type="email" value={email} onChange={setEmail} placeholder="vas@email.cz" />
-              <Field id="login-password" label="Heslo" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
+              <Field id="login-email" label="E-mail" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="vas@email.cz" />
+              <Field id="login-password" label="Heslo" type="password" autoComplete="current-password" value={password} onChange={setPassword} placeholder="••••••••" />
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
                 {loading ? "Přihlašuji…" : "Přihlásit se"}
               </button>
@@ -935,18 +950,18 @@ export default function UcetPage() {
                 disabled={loading}
                 className="block w-full text-center text-xs font-semibold text-gray-500 hover:text-brand-blue disabled:opacity-50"
               >
-                Zapomněl jsi heslo?
+                Zapomenuté heslo?
               </button>
             </form>
           ) : (
             <form onSubmit={handleRegister} className="space-y-5">
-              <Field id="reg-name" label="Jméno" type="text" value={name} onChange={setName} placeholder="Jan Novák" />
-              <Field id="reg-email" label="E-mail" type="email" value={email} onChange={setEmail} placeholder="vas@email.cz" />
-              <Field id="reg-password" label="Heslo" type="password" value={password} onChange={setPassword} placeholder="alespoň 6 znaků" minLength={6} />
+              <Field id="reg-name" label="Jméno" type="text" autoComplete="name" value={name} onChange={setName} placeholder="Jan Novák" />
+              <Field id="reg-email" label="E-mail" type="email" autoComplete="email" value={email} onChange={setEmail} placeholder="vas@email.cz" />
+              <Field id="reg-password" label="Heslo" type="password" autoComplete="new-password" value={password} onChange={setPassword} placeholder="alespoň 6 znaků" minLength={6} />
               <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-50">
                 {loading ? "Vytvářím účet…" : "Vytvořit účet"}
               </button>
-              <p className="text-xs text-center text-gray-400">
+              <p className="text-xs text-center text-gray-500">
                 Registrací souhlasíš s{" "}
                 <Link href="/obchodni-podminky" className="text-brand-blue hover:underline">obchodními podmínkami</Link>{" "}
                 a{" "}
@@ -961,26 +976,42 @@ export default function UcetPage() {
 }
 
 function Field({
-  id, label, type, value, onChange, placeholder, minLength,
+  id, label, type, value, onChange, placeholder, minLength, autoComplete,
 }: {
   id: string; label: string; type: string; value: string;
-  onChange: (v: string) => void; placeholder?: string; minLength?: number;
+  onChange: (v: string) => void; placeholder?: string; minLength?: number; autoComplete?: string;
 }) {
+  const isPassword = type === "password";
+  const [show, setShow] = useState(false);
   return (
     <div>
       <label className="block text-sm font-semibold text-brand-dark mb-1.5" htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        required
-        minLength={minLength}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm"
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={isPassword ? (show ? "text" : "password") : type}
+          required
+          minLength={minLength}
+          autoComplete={autoComplete}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm ${isPassword ? "pr-11" : ""}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow((s) => !s)}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-brand-dark"
+            aria-label={show ? "Skrýt heslo" : "Zobrazit heslo"}
+            tabIndex={-1}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -35,7 +35,7 @@ const CLIPS: Clip[] = [
     gradient: "from-[#062A6B] to-[#1976FF]",
   },
   {
-    title: "Záda bez bolesti",
+    title: "Záda v pohybu",
     duration: "0:24",
     access: "VIP",
     hint: "🧘",
@@ -51,7 +51,7 @@ const CLIPS: Clip[] = [
   {
     title: "Dech a uvolnění",
     duration: "0:16",
-    access: "VIP_PLUS",
+    access: "VIP",
     hint: "🌬️",
     gradient: "from-[#062A6B] to-[#0a3a8a]",
   },
@@ -77,7 +77,7 @@ export function MovementClips() {
             <p className="mt-5 text-lg text-white/70 leading-relaxed">
               Nejde o dokonalý pohyb. Jde o objevování možností. Nakoukni do
               krátkých video ukázek z domácího cvičení – něco je volně dostupné,
-              to nejlepší čeká na tebe ve VIP a VIP+. Přesně takhle se hýbeme
+              to nejlepší čeká na tebe ve VIP. Přesně takhle se hýbeme
               společně. Tak co, jdeš do toho?
             </p>
           </Reveal>

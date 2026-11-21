@@ -1,27 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Check, ArrowLeft, ClipboardList } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { getSessionUser } from "@/lib/supabase/user";
 
 export const metadata: Metadata = {
   title: "Pohybový audit",
   description:
-    "Komplexní pohybová diagnostika: dech, postura, pohybové vzory. Osobní plán na měsíc a kontrola výsledků. Řešíme příčinu, ne symptom.",
+    "Funkční diagnostika pohybu: dech, držení těla, pohybové vzory. Osobní plán na měsíc a kontrola výsledků. Pohybový rozbor a poradenství, ne lékařská diagnóza.",
+  alternates: { canonical: "/produkty/pohybovy-audit" },
 };
 
 const OBSAH = [
   "Vstupní dotazník (vyplníš předem – ušetří čas)",
   "Setkání ~90 min: dech, postura, pohybové vzory, symetrie",
-  "Celotělový pohled – hledáme příčinu, ne jen místo bolesti",
+  "Celotělový pohled – hledáme souvislosti v tvém pohybu, ne jen místo, které se ozývá",
   "Osobní plán na měsíc (jasné cviky, frekvence, priority)",
   "Follow-up: kontrola výsledků a úprava plánu",
 ];
 
-export default async function PohybovyAuditPage() {
-  const u = await getSessionUser();
-  if (!u?.isAdmin) redirect("/");
+export default function PohybovyAuditPage() {
   return (
     <>
       <section className="bg-brand-light py-12 lg:py-16">
@@ -32,8 +29,9 @@ export default async function PohybovyAuditPage() {
           <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Produkt</p>
           <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">Pohybový audit</h1>
           <p className="text-lg text-gray-600">
-            Svoboda pohybu vychází z bezbolestného pohybu. Podívám se na tvé tělo jako celek a najdu
-            <strong className="text-brand-dark"> příčinu</strong> – ne jen místo, které bolí.
+            Dobrý pohyb je základ. Podívám se na to, jak se hýbeš jako celek, a společně najdeme
+            <strong className="text-brand-dark"> souvislosti</strong>, které mohou tvoje pohybové potíže
+            ovlivňovat – ne jen místo, které se ozývá.
           </p>
         </div>
       </section>
@@ -54,7 +52,7 @@ export default async function PohybovyAuditPage() {
           <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-brand-dark">Pohybový audit</h3>
-              <p className="text-sm text-gray-500 mb-3">Diagnostika + plán na měsíc + follow-up</p>
+              <p className="text-sm text-gray-500 mb-3">Funkční diagnostika pohybu + plán na měsíc + kontrola</p>
               <p className="text-3xl font-semibold text-brand-dark">2 900 Kč</p>
             </div>
             <div className="card p-6 ring-2 ring-brand-blue/30">
@@ -64,8 +62,10 @@ export default async function PohybovyAuditPage() {
             </div>
           </div>
           <p className="mt-3 text-xs text-gray-500">
-            Lze i online (video hovor + rozbor zaslaného videa). Jde o pohybový screening a poradenství,
-            ne lékařskou diagnózu.
+            Lze i online (video hovor + rozbor zaslaného videa). Pohybový audit je rozbor pohybu
+            a kondiční poradenství. Není to lékařské ani fyzioterapeutické vyšetření, nestanovuje diagnózu
+            a nenahrazuje léčbu. Není vhodný při akutní nebo nevysvětlené bolesti, čerstvém úrazu, otoku,
+            necitlivosti či slabosti končetiny – v takovém případě nejdřív navštiv lékaře.
           </p>
 
           {/* CTA */}

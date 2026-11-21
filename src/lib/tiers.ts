@@ -1,8 +1,9 @@
 import type { AccessLevel, UserTier } from "@/types";
 
 /**
- * Jednotné barevné značení úrovní napříč celým webem:
- *   FREE = šedá · MEMBER = modrá · VIP = fialová · VIP+ = zlatá (amber)
+ * Jednotné barevné značení úrovní napříč celým webem (barvy značky):
+ *   FREE = šedá · MEMBER = modrá · VIP = zlatá (nejvyšší úroveň).
+ *   VIP+ je zrušená úroveň – styl ponechán jen kvůli starým datům, nikde se veřejně nenabízí.
  */
 export const TIER_STYLES: Record<
   AccessLevel,
@@ -33,11 +34,11 @@ export const TIER_STYLES: Record<
   },
   VIP: {
     label: "VIP",
-    badge: "bg-violet-100 text-violet-700",
-    card: "bg-violet-50",
-    accentText: "text-violet-700",
-    solid: "bg-violet-600 text-white",
-    dot: "bg-violet-500",
+    badge: "bg-amber-100 text-amber-800",
+    card: "bg-gradient-to-b from-amber-50 to-yellow-100",
+    accentText: "text-amber-700",
+    solid: "bg-amber-500 text-amber-950",
+    dot: "bg-amber-500",
   },
   VIP_PLUS: {
     label: "VIP+",

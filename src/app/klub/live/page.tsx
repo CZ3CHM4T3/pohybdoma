@@ -43,7 +43,7 @@ export default function LivePage() {
       const user = au.user;
       if (!user) { setPhase("anon"); return; }
       const { data: p } = await supabase.from("profiles").select("tier").eq("id", user.id).maybeSingle();
-      const ok = normalizeTier(p?.tier as string | undefined) === "VIP_PLUS" || isAdminEmail(user.email);
+      const ok = ["VIP", "VIP_PLUS"].includes(normalizeTier(p?.tier as string | undefined)) || isAdminEmail(user.email);
       if (!ok) { setPhase("locked"); return; }
       const { data } = await supabase
         .from("streams")
@@ -70,8 +70,8 @@ export default function LivePage() {
     return (
       <Centered>
         <Lock className="mx-auto mb-3 h-10 w-10 text-amber-500" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">LIVE je pro VIP+</h1>
-        <p className="text-sm text-gray-500 mb-5">Živé lekce a záznamy jsou součást VIP+.</p>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">LIVE je pro VIP</h1>
+        <p className="text-sm text-gray-500 mb-5">Živé lekce a záznamy jsou součást VIP.</p>
         <Link href="/clenstvi" className="btn-primary">Zobrazit členství</Link>
       </Centered>
     );

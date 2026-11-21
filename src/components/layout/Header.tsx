@@ -67,7 +67,7 @@ export function Header() {
       .eq("id", authUser.id)
       .maybeSingle()
       .then(({ data }) =>
-        setIsClub(admin || normalizeTier(data?.tier as string | undefined) === "VIP_PLUS")
+        setIsClub(admin || ["VIP", "VIP_PLUS"].includes(normalizeTier(data?.tier as string | undefined)))
       );
   }, [authUser]);
 
@@ -76,7 +76,7 @@ export function Header() {
   const previewing = viewAs !== "admin";
   const effSignedIn = previewing ? viewAs !== "visitor" : signedIn;
   const effIsAdmin = previewing ? false : isAdmin;
-  const effIsClub = previewing ? viewAs === "VIP_PLUS" : isClub;
+  const effIsClub = previewing ? (viewAs === "VIP" || viewAs === "VIP_PLUS") : isClub;
 
   const MEMBER_PREFIXES = ["/ucet", "/videoknihovna", "/kurzy", "/kruhy", "/denik", "/odznaky", "/chlubirna", "/buddies", "/klub"];
   // Členská lišta se schová během launch režimu (členská sekce ještě není hotová;

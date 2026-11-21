@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "POHYB DOMA",
     short_name: "POHYB DOMA",
-    description: "Cvič doma, naprav si tělo a vrať si svobodu pohybu. Tvoje cesta na jednom místě.",
+    description: "Cvič doma, hýbej se s větší jistotou a buduj pohyblivost a sílu. Tvoje cesta na jednom místě.",
     start_url: "/",
     scope: "/",
     display: "standalone",

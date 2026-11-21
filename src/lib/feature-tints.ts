@@ -1,5 +1,5 @@
 // Jednotná barva pro každou funkci (ikonka = bg + text). Klidné pastely.
-// Používá se v dlaždicích účtu i ve VIP+ Klubu, ať je to konzistentní.
+// Používá se v dlaždicích účtu i ve VIP Klubu, ať je to konzistentní.
 export const TINT: Record<string, string> = {
   videa: "bg-violet-50 text-violet-600",
   kurzy: "bg-indigo-50 text-indigo-600",

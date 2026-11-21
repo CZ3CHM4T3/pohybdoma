@@ -66,7 +66,7 @@ export default function KruhyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const canCreate = isAdmin || tier === "VIP_PLUS";
+  const canCreate = isAdmin || tier === "VIP" || tier === "VIP_PLUS";
   const canJoin = !!userId && tier !== "FREE";
 
   async function join(c: Circle) {
@@ -144,7 +144,7 @@ export default function KruhyPage() {
           )}
         </div>
 
-        {/* Formulář založení (VIP+) */}
+        {/* Formulář založení (VIP) */}
         {creating && canCreate && (
           <form onSubmit={createCircle} className="card p-5 mb-6 space-y-3">
             <input
@@ -167,7 +167,7 @@ export default function KruhyPage() {
         {/* Hláška o oprávnění */}
         {userId && !canCreate && (
           <p className="mb-6 text-xs text-gray-400">
-            Zakládat nové kruhy mohou členové <strong className="text-amber-700">VIP+</strong>.{" "}
+            Zakládat nové kruhy mohou členové <strong className="text-amber-700">VIP</strong>.{" "}
             <Link href="/clenstvi" className="text-brand-blue hover:underline">Zjistit více →</Link>
           </p>
         )}

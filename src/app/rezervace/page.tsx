@@ -85,6 +85,7 @@ export default function RezervacePage() {
   const [serviceId, setServiceId] = useState<string | null>(defaultServiceId);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [mobileDayKey, setMobileDayKey] = useState<string | null>(null); // který den je otevřený na mobilu
   // Týdenní přehled dostupnosti (Po daného týdne)
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const x = startOfDay(new Date());
@@ -103,6 +104,7 @@ export default function RezervacePage() {
   const [billAddress, setBillAddress] = useState("");
   const [billIco, setBillIco] = useState("");
   const [billDic, setBillDic] = useState("");
+  const [healthConsent, setHealthConsent] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isVipPlus, setIsVipPlus] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -175,14 +177,14 @@ export default function RezervacePage() {
       if (p?.bill_address) setBillAddress((v) => v || p.bill_address!);
       if (p?.bill_ico) setBillIco((v) => v || p.bill_ico!);
       if (p?.bill_dic) setBillDic((v) => v || p.bill_dic!);
-      setIsVipPlus(normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS");
+      setIsVipPlus(["VIP", "VIP_PLUS"].includes(normalizeTier(profile?.tier as string | undefined)));
     });
   }, []);
 
   // Obnovení výběru po návratu z přihlášení (aby uživatel nezačínal znovu).
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("pd_booking_sel");
+      const raw = localStorage.getItem("pd_booking_sel");
       if (!raw) return;
       const sel = JSON.parse(raw) as { serviceId?: string; date?: string; time?: string };
       if (sel.serviceId) setServiceId(sel.serviceId);
@@ -196,7 +198,7 @@ export default function RezervacePage() {
     if (userId) return;
     if (serviceId && selectedDate && selectedTime) {
       try {
-        sessionStorage.setItem("pd_booking_sel", JSON.stringify({ serviceId, date: dateKey(selectedDate), time: selectedTime }));
+        localStorage.setItem("pd_booking_sel", JSON.stringify({ serviceId, date: dateKey(selectedDate), time: selectedTime }));
       } catch { /* ignore */ }
     }
   }, [userId, serviceId, selectedDate, selectedTime]);
@@ -207,7 +209,7 @@ export default function RezervacePage() {
   const isInPerson = !selectedEvent && service?.mode === "inPerson";
   // „Zobrazit jako" (admin náhled) přebije reálnou úroveň pro zobrazení cen.
   const { viewAs } = useViewAs();
-  const effVipPlus = viewAs === "admin" ? isVipPlus : viewAs === "VIP_PLUS";
+  const effVipPlus = viewAs === "admin" ? isVipPlus : (viewAs === "VIP" || viewAs === "VIP_PLUS");
   const fullPrice = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePrice(service, selectedDate) : 0);
   const price = selectedEvent ? (selectedEvent.priceKc ?? 0) : (service ? getServicePriceForTier(service, selectedDate, effVipPlus) : 0);
   const vipSaved = selectedEvent ? 0 : fullPrice - price; // kolik VIP+ ušetří (0, když není sleva)
@@ -245,6 +247,14 @@ export default function RezervacePage() {
     [weekStart]
   );
   const thisWeekMonday = useMemo(() => { const x = startOfDay(new Date()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }, []);
+  // Mobil: aktivní den = vybraný, jinak první den s volnem, jinak první budoucí den.
+  const activeDay = useMemo(() => {
+    const avail = weekDays.filter((d) => d >= today);
+    const match = mobileDayKey ? avail.find((d) => dateKey(d) === mobileDayKey) : null;
+    if (match) return match;
+    const withFree = avail.find((d) => slotsFor(d).some((s) => s.status === "free"));
+    return withFree ?? avail[0] ?? weekDays[0];
+  }, [weekDays, mobileDayKey, today, slotsFor]);
 
   // Nejbližší nadcházející akce (pro kartu Workshop)
   const upcomingEvents = useMemo(
@@ -282,7 +292,8 @@ export default function RezervacePage() {
     name.trim().length > 0 &&
     email.trim().length > 0 &&
     (selectedEvent ? true : (!!service && reason.trim().length > 0)) &&
-    (!isInPerson || (municipality !== "" && municipality !== OTHER && address.trim().length > 0));
+    (!isInPerson || (municipality !== "" && municipality !== OTHER && address.trim().length > 0)) &&
+    healthConsent;
 
   function resetDateTime() {
     setSelectedDate(null);
@@ -324,6 +335,8 @@ export default function RezervacePage() {
       bill_dic: billDic.trim() || null,
       price_kc: price,
       status: "pending",
+      health_consent: healthConsent,
+      health_consent_at: new Date().toISOString(),
     });
 
     setSaving(false);
@@ -341,7 +354,7 @@ export default function RezervacePage() {
       }).eq("id", userId).then(() => { /* tiché – neblokuje potvrzení */ });
     }
     setSubmitted(true);
-    try { sessionStorage.removeItem("pd_booking_sel"); } catch { /* ignore */ }
+    try { localStorage.removeItem("pd_booking_sel"); } catch { /* ignore */ }
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -476,7 +489,7 @@ export default function RezervacePage() {
                     </div>
                     {s.vipPlusDiscountKc ? (
                       <p className="mt-1.5 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800">
-                        {effVipPlus ? "Tvoje VIP+ cena " : "VIP+ cena "}{s.priceKc - s.vipPlusDiscountKc} Kč
+                        {effVipPlus ? "Tvoje VIP cena " : "VIP cena "}{s.priceKc - s.vipPlusDiscountKc} Kč
                       </p>
                     ) : null}
                   </div>
@@ -570,7 +583,75 @@ export default function RezervacePage() {
                   →
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+              {/* Mobil: vyber den → velké sloty (týdenní mřížka je od sm výš) */}
+              <div className="sm:hidden">
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {weekDays.map((d) => {
+                    const past = d < today;
+                    const hasFree = !past && slotsFor(d).some((s) => s.status === "free");
+                    const hasEvent = !past && eventsFor(d).length > 0;
+                    const act = sameDay(d, activeDay);
+                    return (
+                      <button
+                        key={d.toISOString()}
+                        type="button"
+                        disabled={past}
+                        onClick={() => setMobileDayKey(dateKey(d))}
+                        className={`flex-1 min-w-[46px] rounded-xl px-1 py-2 text-center transition-colors ${
+                          act ? "bg-brand-dark text-white" : past ? "opacity-30" : "bg-brand-light text-brand-dark"
+                        }`}
+                      >
+                        <span className="block text-[11px] font-bold leading-tight">{WEEKDAYS_CS[(d.getDay() + 6) % 7]}</span>
+                        <span className="block text-xs leading-tight">{d.getDate()}.{d.getMonth() + 1}.</span>
+                        <span className={`mx-auto mt-1 block h-1.5 w-1.5 rounded-full ${
+                          hasFree ? (act ? "bg-emerald-300" : "bg-emerald-500") : hasEvent ? (act ? "bg-white" : "bg-brand-blue") : "bg-transparent"
+                        }`} />
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex flex-col gap-2">
+                  {eventsFor(activeDay).map((ev) => {
+                    const evSel = selectedEvent?.id === ev.id;
+                    return (
+                      <button
+                        key={ev.id}
+                        type="button"
+                        onClick={() => bookEvent(ev)}
+                        className={`w-full rounded-xl px-4 py-3 text-left text-sm font-bold text-white ${evSel ? "ring-2 ring-offset-1 ring-brand-dark" : ""}`}
+                        style={{ background: eventColorOf(ev) }}
+                      >
+                        {ev.time && <span className="mr-1">{ev.time}{ev.endTime ? `–${ev.endTime}` : ""}</span>}
+                        {ev.title}
+                        <span className="block text-xs font-normal opacity-90">{ev.priceKc != null ? (ev.priceKc === 0 ? "zdarma · přihlásit" : `${ev.priceKc} Kč · přihlásit`) : "přihlásit"}</span>
+                      </button>
+                    );
+                  })}
+                  {slotsFor(activeDay).filter((s) => s.status === "free").map((s) => {
+                    const isSel = !!selectedDate && sameDay(activeDay, selectedDate) && selectedTime === s.time;
+                    return (
+                      <button
+                        key={s.time}
+                        type="button"
+                        onClick={() => { setSelectedEvent(null); setSelectedDate(activeDay); setSelectedTime(s.time); setTimeout(() => document.getElementById("dokoncit")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120); }}
+                        className={`w-full rounded-xl py-3.5 text-base font-bold transition-all ${
+                          isSel ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-300" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                        }`}
+                      >
+                        {s.time} <span className="font-medium">— volno</span>
+                      </button>
+                    );
+                  })}
+                  {slotsFor(activeDay).filter((s) => s.status === "free").length === 0 && eventsFor(activeDay).length === 0 && (
+                    <p className="text-center text-sm text-gray-400 py-3">V tento den necvičím nebo není volno.</p>
+                  )}
+                  {slotsFor(activeDay).filter((s) => s.status !== "free").length > 0 && (
+                    <p className="text-center text-xs text-gray-400 pt-1">Obsazeno: {slotsFor(activeDay).filter((s) => s.status !== "free").map((s) => s.time).join(" · ")}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="hidden sm:grid sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
                 {weekDays.map((d) => {
                   const past = d < today;
                   const daySlots = past ? [] : slotsFor(d);
@@ -611,7 +692,7 @@ export default function RezervacePage() {
                                 key={s.time}
                                 type="button"
                                 disabled={!isFree}
-                                onClick={() => { setSelectedEvent(null); setSelectedDate(d); setSelectedTime(s.time); }}
+                                onClick={() => { setSelectedEvent(null); setSelectedDate(d); setSelectedTime(s.time); setTimeout(() => document.getElementById("dokoncit")?.scrollIntoView({ behavior: "smooth", block: "start" }), 120); }}
                                 title={isFree ? `${s.time} – volno` : `${s.time} – obsazeno`}
                                 className={`rounded-lg px-1.5 py-2 text-sm font-bold transition-all ${
                                   isSel
@@ -664,7 +745,7 @@ export default function RezervacePage() {
                 <p className="text-brand-dark font-semibold mb-1">Rezervace jen pro registrované</p>
                 <p className="text-sm text-gray-500 mb-5 max-w-md mx-auto">
                   Pro objednání lekce se prosím přihlas nebo si vytvoř účet – je to rychlé.
-                  Členové <strong>VIP+</strong> navíc rovnou uvidí svoji zvýhodněnou cenu.
+                  Členové <strong>VIP</strong> navíc rovnou uvidí svoji zvýhodněnou cenu.
                 </p>
                 <a href="/ucet?next=/rezervace" className="btn-primary inline-block">Přihlásit se / registrovat</a>
                 <p className="mt-3 text-xs text-gray-500">Neboj – tvůj výběr (služba, den i čas) ti zůstane a po přihlášení tě vrátíme sem.</p>
@@ -680,7 +761,7 @@ export default function RezervacePage() {
                     <span className="text-gray-500 line-through">{fullPrice} Kč</span>{" "}
                     <strong className="text-amber-700">{price} Kč</strong>
                     <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                      VIP+ sleva −{vipSaved} Kč
+                      VIP sleva −{vipSaved} Kč
                     </span>
                   </>
                 ) : (
@@ -763,17 +844,17 @@ export default function RezervacePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="name">Jméno *</label>
-                  <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} required
+                  <input id="name" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="email">E-mail *</label>
-                  <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                  <input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="phone">Telefon</label>
-                  <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  <input id="phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
                 </div>
               </div>
@@ -788,13 +869,13 @@ export default function RezervacePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billName">Jméno / název na faktuře</label>
-                    <input id="billName" type="text" value={billName} onChange={(e) => setBillName(e.target.value)}
+                    <input id="billName" type="text" autoComplete="name" value={billName} onChange={(e) => setBillName(e.target.value)}
                       placeholder="Jan Novák / Firma s.r.o."
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-semibold text-brand-dark mb-2" htmlFor="billAddress">Fakturační adresa</label>
-                    <textarea id="billAddress" value={billAddress} onChange={(e) => setBillAddress(e.target.value)} rows={2}
+                    <textarea id="billAddress" autoComplete="street-address" value={billAddress} onChange={(e) => setBillAddress(e.target.value)} rows={2}
                       placeholder="Ulice a číslo, PSČ, město"
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm resize-none" />
                   </div>
@@ -813,6 +894,25 @@ export default function RezervacePage() {
                 </div>
               </div>
 
+              {/* Zdravotní souhlas – povinný před odesláním */}
+              <label className="mb-5 flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={healthConsent}
+                  onChange={(e) => setHealthConsent(e.target.checked)}
+                  required
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue"
+                />
+                <span>
+                  Přečetl/a jsem{" "}
+                  <a href="/zdravotni-upozorneni" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-blue hover:underline">
+                    Zdravotní upozornění
+                  </a>{" "}
+                  a souhlasím, aby lektor zpracoval údaje o zdraví, které zde dobrovolně uvedu, pro
+                  přípravu a vedení lekce. Souhlas mohu kdykoli odvolat.
+                </span>
+              </label>
+
               {saveError && (
                 <p className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                   {saveError}
@@ -823,13 +923,10 @@ export default function RezervacePage() {
                 disabled={!formValid || saving}
                 className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {saving ? "Odesílám…" : `Rezervovat a zaplatit ${price} Kč`}
-                {!saving && (
-                  <span className="text-white/70 font-normal text-xs ml-1">(platba zatím neaktivní)</span>
-                )}
+                {saving ? "Odesílám…" : `Odeslat žádost o rezervaci (${price} Kč)`}
               </button>
               <p className="mt-3 text-xs text-center text-gray-500">
-                Termín ti potvrdím e-mailem. Zrušení / přesun možný 24 h předem.
+                Zatím nic neplatíš – termín i platební údaje ti pošlu e-mailem. Zrušení / přesun možný 24 h předem.
               </p>
             </form>
             )}

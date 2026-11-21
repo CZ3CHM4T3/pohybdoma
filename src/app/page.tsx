@@ -6,17 +6,19 @@ import { Reveal } from "@/components/ui/Reveal";
 import { MovementClips } from "@/components/MovementClips";
 import { Reviews } from "@/components/Reviews";
 import { getApprovedReviews } from "@/lib/reviews-server";
-import { Dumbbell, Film, Star, Play } from "lucide-react";
+import { Dumbbell, Film, Star } from "lucide-react";
 import { MOCK_COURSES, SERVICE_AREA } from "@/lib/mock-data";
+import { LAUNCH_MODE } from "@/lib/launch";
 import { getVideos } from "@/lib/content-server";
 import { COURSE_ICONS, DEFAULT_COURSE_ICON } from "@/lib/course-icons";
 import { VideoCard } from "@/components/VideoCard";
 import { NewsletterForm } from "@/components/NewsletterForm";
 
 export const metadata: Metadata = {
-  title: "Domů",
+  title: { absolute: "Cvičení doma s fitness trenérem · Dobřichovice a online" },
   description:
-    "Cvič doma, naprav si tělo a vrať si svobodu pohybu s minimem vybavení.",
+    "Cvič doma, vrať se k pohybu a buduj pohyblivost a sílu s minimem vybavení. Osobní lekce, videoknihovna a kurzy.",
+  alternates: { canonical: "/" },
 };
 
 // 👉 Až budeš mít video, nahraj ho do /public/videos/intro.mp4 (+ poster intro-poster.jpg)
@@ -24,10 +26,10 @@ export const metadata: Metadata = {
 const HAS_INTRO_VIDEO = false;
 
 const STATS = [
-  { value: `${MOCK_COURSES.length}`, label: "kurzů v přípravě" },
+  { value: "10+", label: "let praxe" },
   { value: `${SERVICE_AREA.length}`, label: "obcí, kam dojíždím" },
   { value: "1:1", label: "osobní přístup" },
-  { value: "0", label: "nutné vybavení" },
+  { value: "Mgr.", label: "pedagog & trenér" },
 ];
 
 const STEPS = [
@@ -39,12 +41,12 @@ const STEPS = [
   {
     num: "02",
     title: "Cvič doma",
-    desc: "Čas je to nejcennější. Být nekonečným začátečníkem, co sleduje generická youtube videa a doufá ve změnu – to je nekonečný cyklus začátků a frustrace. Nabízím jinou cestu: za zlomek ceny v domácím prostředí identifikuj příčiny svých pohybových obtíží a nauč se je řešit efektivně a sám. Trénink musí být udržitelný a snadno realizovatelný. Snadněji než doma to nejde. Využij svůj domov na maximum a ušetříš čas, peníze i nervy.",
+    desc: "Čas je to nejcennější. Být nekonečným začátečníkem, co sleduje generická youtube videa a doufá ve změnu – to je nekonečný cyklus začátků a frustrace. Nabízím jinou cestu: za zlomek ceny si v domácím prostředí udělej jasno v tom, jak se hýbeš, co ti pohyb usnadňuje a co ztěžuje, a nauč se s tím pracovat – bezpečně, postupně a samostatně. Trénink musí být udržitelný a snadno realizovatelný. Snadněji než doma to nejde. Využij svůj domov na maximum a ušetříš čas, peníze i nervy.",
   },
   {
     num: "03",
     title: "Pochop proces",
-    desc: "Každé tělo je jiné, se silnými i slabými stránkami a nekonečný progres neexistuje. Vybuduj si komplexní pohybové kompetence na kvalitních, ověřených základech, postupně si spravuj roky opomíjené tělo a zlepšuj návyky. Edukuj se, získávej o svém těle hlubší povědomí, zkušenosti a sleduj svůj posun v reálném čase. Vše je v tvých rukách, stačí začít a nepřestat.",
+    desc: "Každé tělo je jiné, se silnými i slabými stránkami a nekonečný progres neexistuje. Vybuduj si komplexní pohybové kompetence na srozumitelných základech, postupně rozvíjej pohyblivost a sílu, kterou jsi dlouho nevyužíval/a, a zlepšuj návyky. Edukuj se, získávej o svém těle hlubší povědomí, zkušenosti a sleduj svůj posun v reálném čase. Vše je v tvých rukách, stačí začít a nepřestat.",
   },
 ];
 
@@ -76,10 +78,10 @@ export default async function HomePage() {
           </h1>
         </Reveal>
 
-        {/* Video – představení projektu (logo zůstává dominantou) */}
-        <Reveal variant="up" delay={160}>
-          <div className="mt-6 w-[88vw] max-w-2xl">
-            {HAS_INTRO_VIDEO ? (
+        {/* Video – představení projektu (zobrazí se, až bude nahrané) */}
+        {HAS_INTRO_VIDEO && (
+          <Reveal variant="up" delay={160}>
+            <div className="mt-6 w-[88vw] max-w-2xl">
               <video
                 src="/videos/intro.mp4"
                 poster="/videos/intro-poster.jpg"
@@ -87,30 +89,32 @@ export default async function HomePage() {
                 playsInline
                 className="aspect-video w-full rounded-2xl object-cover shadow-xl ring-1 ring-black/5"
               />
-            ) : (
-              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark to-[#1256c0] shadow-xl ring-1 ring-black/5">
-                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-                <div className="relative px-6 text-center text-white">
-                  <span className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white/90 text-brand-dark shadow-lg">
-                    <Play className="ml-1 h-7 w-7" fill="currentColor" strokeWidth={0} />
-                  </span>
-                  <p className="font-semibold">Představení projektu</p>
-                  <p className="text-sm text-white/60">Video už brzy</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </Reveal>
+            </div>
+          </Reveal>
+        )}
 
         {/* CTA tlačítka */}
         <Reveal variant="up" delay={200}>
           <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
-              Začít svou cestu
-            </Link>
-            <Link href="/videoknihovna" className="btn-outline text-base py-3 px-8">
-              Procházet videa zdarma
-            </Link>
+            {LAUNCH_MODE ? (
+              <>
+                <Link href="/rezervace" className="btn-primary text-base py-3 px-8">
+                  Rezervovat lekci
+                </Link>
+                <Link href="/o-mne" className="btn-outline text-base py-3 px-8">
+                  Víc o mně
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/clenstvi" className="btn-primary text-base py-3 px-8">
+                  Začít svou cestu
+                </Link>
+                <Link href="/videoknihovna" className="btn-outline text-base py-3 px-8">
+                  Procházet videa zdarma
+                </Link>
+              </>
+            )}
           </div>
         </Reveal>
 
@@ -181,8 +185,8 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ── Ukázky cvičení (videosekvence) ── */}
-      <MovementClips />
+      {/* ── Ukázky cvičení (videosekvence) ── do launche skryté (zatím bez videí) ── */}
+      {!LAUNCH_MODE && <MovementClips />}
 
       {/* ── Stats band ── */}
       <section className="bg-white">
@@ -224,7 +228,7 @@ export default async function HomePage() {
               {
                 Icon: Film,
                 title: "Video-knihovna",
-                desc: "Videa tříděná dle části těla, obtížnosti a problému. Cvič kdy a kde chceš.",
+                desc: "Videa tříděná dle části těla, obtížnosti a tématu. Cvič kdy a kde chceš.",
                 href: "/videoknihovna",
                 cta: "Procházet ukázky zdarma",
               },
@@ -368,7 +372,7 @@ export default async function HomePage() {
               <SectionHeading
                 label="Videokurzy"
                 title="Strukturované programy"
-                subtitle="Od bolavých zad přes kyčle až po dech – ucelené kurzy krok za krokem."
+                subtitle="Od zad a kyčlí až po dech – ucelené kurzy krok za krokem."
               />
               <Link href="/kurzy" className="btn-outline shrink-0 text-sm">
                 Všechny kurzy →

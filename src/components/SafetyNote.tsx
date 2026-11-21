@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 
 const DEFAULT_NOTE =
-  "Cvičení na POHYB DOMA je pohybová edukace a kondiční vedení, ne zdravotní péče. Cvič vždy v rozsahu bez bolesti. Při akutní či silné bolesti, po úrazu nebo operaci, v těhotenství a po porodu nebo při potížích (vystřelující bolest, mravenčení, závrať) se nejdřív poraď s lékařem nebo fyzioterapeutem.";
+  "Cvičení na POHYB DOMA je pohybová edukace a kondiční vedení, ne zdravotní péče. Cvič vždy v rozsahu bez bolesti; bolest, která se zhoršuje, je signál přestat. Při akutní či silné bolesti, po úrazu nebo operaci, v těhotenství a po porodu, při vystřelující bolesti, mravenčení nebo závrati se nejdřív poraď s lékařem nebo fyzioterapeutem. U cvičení na dálku se řiď pokyny v lekci a vlastními pocity. Při bolesti na hrudi, dušnosti nebo mdlobě cvičení přeruš a volej 155 / 112.";
 
 /** Upozornění / kontraindikace u cviku, videa nebo kurzu. */
 export function SafetyNote({ note, className = "" }: { note?: string; className?: string }) {

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Obchodní podmínky" };
+export const metadata: Metadata = {
+  title: "Obchodní podmínky",
+  description: "Obchodní podmínky POHYB DOMA – objednávky, platby, členství, odstoupení od smlouvy a storno rezervací.",
+  alternates: { canonical: "/obchodni-podminky" },
+};
 
 export default function ObchodniPodminkyPage() {
   return (
@@ -25,7 +29,7 @@ export default function ObchodniPodminkyPage() {
           <h2>2. Předmět a služby</h2>
           <p>Provozovatel nabízí:</p>
           <ul>
-            <li><strong>Členství</strong> (MEMBER / VIP / VIP+) – opakované měsíční předplatné s přístupem k digitálnímu obsahu.</li>
+            <li><strong>Členství</strong> (MEMBER / VIP) – opakované měsíční předplatné s přístupem k digitálnímu obsahu.</li>
             <li><strong>Videokurzy</strong> – jednorázově zakoupený digitální obsah.</li>
             <li><strong>Osobní a online lekce, konzultace, masáže, plány</strong> – služby rezervované přes web.</li>
           </ul>
@@ -40,7 +44,7 @@ export default function ObchodniPodminkyPage() {
           <h2>4. Ceny a platby</h2>
           <p>
             Ceny jsou uvedené u jednotlivých služeb v Kč (provozovatel je neplátce DPH).
-            Platby zpracovává platební brána <strong>Stripe</strong> (po spuštění plateb).
+            Platby zpracovává platební brána <strong>Barion</strong> (po spuštění plateb).
             Doklad je vystaven provozovatelem a zaslán e-mailem. Členství je opakovaná platba,
             která se automaticky obnovuje vždy na další období, dokud ji zákazník nezruší.
           </p>
@@ -68,9 +72,9 @@ export default function ObchodniPodminkyPage() {
 
           <h2>8. Storno rezervací</h2>
           <p>
-            Rezervovaný termín lze zrušit či přesunout nejpozději <strong>24 hodin předem</strong>.
-            Při pozdějším zrušení nebo nedostavení se může cena propadnout. Konkrétní podmínky jsou
-            uvedeny u rezervace.
+            Rezervovaný termín lze <strong>zdarma zrušit či přesunout nejpozději 24 hodin předem</strong>.
+            Při pozdějším zrušení se domluvíme na náhradním termínu; při opakovaném pozdním rušení nebo
+            nedostavení bez omluvy může být lekce účtována. Konkrétní podmínky jsou uvedeny u rezervace.
           </p>
 
           <h2>9. Reklamace a odpovědnost za vady</h2>
@@ -109,8 +113,7 @@ export default function ObchodniPodminkyPage() {
           </p>
 
           <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">
-            Před spuštěním online plateb doporučuji nechat podmínky zkontrolovat právníkem
-            (zejm. platební brána a fakturace).
+            Toto znění doplňují Zásady ochrany osobních údajů (GDPR) a Zdravotní upozornění.
           </p>
         </div>
       </div>

@@ -41,7 +41,14 @@ export function Footer() {
               />
             </Link>
             <p className="mt-4 text-sm text-white/70 leading-relaxed">
-              Cvič doma. Naprav si tělo.<br />Rostu na pohybové cestě.
+              Cvič doma. Tvoje možnosti. Tvoje cesta.<br />Rostu na pohybové cestě.
+            </p>
+            <p className="mt-4 text-sm text-white/70 leading-relaxed">
+              <a href="tel:+420721327545" className="hover:text-white">+420 721 327 545</a>
+              {" · "}
+              <a href="mailto:pohybdoma@seznam.cz" className="hover:text-white">pohybdoma@seznam.cz</a>
+              <br />Dobřichovice a okolí · online po celé ČR
+              <br /><span className="text-white/50">Mgr. Jan Schröffel · IČO 045 31 817</span>
             </p>
             <div className="mt-6 flex gap-3">
               <a
@@ -107,7 +114,8 @@ export function Footer() {
             edukaci a kondiční vedení. Nejde o zdravotní službu a obsah nenahrazuje péči lékaře ani
             fyzioterapeuta. Při akutní či silné bolesti, po úrazu nebo operaci, v těhotenství a po porodu
             nebo při zdravotních potížích (vystřelující bolest, mravenčení, závratě) se nejdřív poraď
-            s odborníkem. Cvič vždy v rozsahu bez bolesti – ostrá bolest je signál přestat.
+            s lékařem nebo fyzioterapeutem. U cvičení na dálku se řiď pokyny v lekci a vlastními pocity.
+            Cvič vždy v rozsahu bez bolesti – ostrá bolest je signál přestat.
           </p>
         </div>
 

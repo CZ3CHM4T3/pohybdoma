@@ -1685,6 +1685,11 @@ export default function AdminPage() {
     e.preventDefault();
     setError(null);
     if (!viTitle.trim()) return;
+    // PRAV-9: video s kontraindikacemi nesmí jít ven bez textu upozornění.
+    if (viUnsuitable.length > 0 && !viCaution.trim()) {
+      setError(`Vybral jsi, pro koho video NENÍ vhodné (sekce „Nevhodné pro"), ale chybí text upozornění. Doplň pole „Upozornění / kontraindikace", než video uložíš a zveřejníš.`);
+      return;
+    }
     const row = {
       slug: `${slugifyVideo(viTitle)}-${Math.random().toString(36).slice(2, 5)}`,
       title: viTitle.trim(),
@@ -1717,6 +1722,14 @@ export default function AdminPage() {
   }
   async function toggleVideoPublished(id: string, published: boolean) {
     setError(null);
+    // PRAV-9: při zveřejňování (published === false → zapínáme) ověř, že rizikové video má upozornění.
+    if (!published) {
+      const v = videos.find((x) => x.id === id);
+      if (v && (v.unsuitable_for?.length ?? 0) > 0 && !v.caution?.trim()) {
+        setError(`Tohle video má vyplněné kontraindikace (sekce „Nevhodné pro"), ale chybí text upozornění. Doplň upozornění (edituj video v DB), než ho zveřejníš.`);
+        return;
+      }
+    }
     const { error } = await supabase.from("videos").update({ published: !published }).eq("id", id);
     if (error) { setError("Změna stavu videa selhala: " + error.message); return; }
     setVideos((prev) => prev.map((x) => (x.id === id ? { ...x, published: !published } : x)));
@@ -2151,7 +2164,12 @@ export default function AdminPage() {
               <textarea value={viDesc} onChange={(e) => setViDesc(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-brand-dark mb-1">Upozornění / kontraindikace text (nepovinné)</label>
+              <label className="block text-xs font-semibold text-brand-dark mb-1">
+                Upozornění / kontraindikace text{" "}
+                {viUnsuitable.length > 0
+                  ? <span className="text-red-600">(povinné – vybral jsi kontraindikace)</span>
+                  : <span className="text-gray-400">(nepovinné)</span>}
+              </label>
               <textarea value={viCaution} onChange={(e) => setViCaution(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue" />
             </div>
             <div className="sm:col-span-2">
@@ -2190,7 +2208,7 @@ export default function AdminPage() {
             <Radio className="h-5 w-5 text-amber-600" /> LIVE streamy <span className="text-gray-400 font-normal">({streams.length})</span>
           </h2>
           <p className="text-sm text-gray-500 mb-5">
-            Naplánuj živý přenos. Odkaz z YouTube/Vimeo se vloží jako přehrávač, jiný se otevře odkazem. Záznam je pro VIP+ dostupný týden po streamu.
+            Naplánuj živý přenos. Odkaz z YouTube/Vimeo se vloží jako přehrávač, jiný se otevře odkazem. Záznam je pro VIP dostupný týden po streamu.
           </p>
 
           {streams.length > 0 && (

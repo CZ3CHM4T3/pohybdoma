@@ -7,7 +7,7 @@
 export const LAUNCH_MODE = true;
 
 // Veřejně hotové marketing/obsah stránky (Domů „/" je veřejná vždy).
-export const READY_PATHS = ["/rezervace", "/recenze", "/o-mne", "/kontakt"];
+export const READY_PATHS = ["/rezervace", "/recenze", "/o-mne", "/kontakt", "/produkty"];
 
 // Systémové / vždy funkční stránky (nikdy „připravuje se").
 const ALWAYS_PATHS = [

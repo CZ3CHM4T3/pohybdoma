@@ -114,7 +114,7 @@ export default function KlubPage() {
   const uidRef = useRef<string | null>(null);
   const [pins, setPins] = useState<Record<string, string[]>>({});
 
-  // Kolik VIP+ je právě online (na /klub se dostanou jen VIP+)
+  // Kolik VIP je právě online (na /klub se dostanou jen VIP)
   useEffect(() => {
     if (phase !== "ready" || !userId) return;
     const ch = supabase.channel("klub-presence", { config: { presence: { key: userId } } });
@@ -200,7 +200,7 @@ export default function KlubPage() {
         .eq("id", user.id)
         .maybeSingle();
       const admin = isAdminEmail(user.email);
-      const member = admin || normalizeTier(profile?.tier as string | undefined) === "VIP_PLUS";
+      const member = admin || ["VIP", "VIP_PLUS"].includes(normalizeTier(profile?.tier as string | undefined));
 
       setUserId(user.id);
       uidRef.current = user.id;
@@ -248,7 +248,8 @@ export default function KlubPage() {
     const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const { error: upErr } = await supabase.storage.from("community").upload(path, file);
     if (upErr) {
-      setError("Obrázek se nepodařilo nahrát (" + upErr.message + "). Spustil jsi community_v4.sql?");
+      console.error("klub image upload failed:", upErr.message);
+      setError("Obrázek se nepodařilo nahrát. Zkus to prosím znovu.");
       return "error";
     }
     return supabase.storage.from("community").getPublicUrl(path).data.publicUrl;
@@ -442,7 +443,8 @@ export default function KlubPage() {
     const rows = choices.map((label, i) => ({ post_id: post.id, label, position: i }));
     const { error: optErr } = await supabase.from("community_poll_options").insert(rows);
     if (optErr) {
-      setError("Možnosti ankety se nepodařilo uložit (" + optErr.message + "). Spustil jsi community_v5.sql?");
+      console.error("klub poll options save failed:", optErr.message);
+      setError("Možnosti ankety se nepodařilo uložit. Zkus to prosím znovu.");
       return;
     }
     setPollQuestion("");
@@ -499,8 +501,8 @@ export default function KlubPage() {
     return (
       <Centered>
         <Crown className="mx-auto mb-3 h-10 w-10 text-amber-500" strokeWidth={1.8} />
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">VIP+ Klub</h1>
-        <p className="text-sm text-gray-500 mb-5">Uzavřená komunita pro členy VIP+. Přihlas se.</p>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">VIP Klub</h1>
+        <p className="text-sm text-gray-500 mb-5">Uzavřená komunita pro členy VIP. Přihlas se.</p>
         <Link href="/ucet" className="btn-primary">Přihlásit se</Link>
       </Centered>
     );
@@ -511,13 +513,13 @@ export default function KlubPage() {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
           <Lock className="h-6 w-6 text-amber-600" strokeWidth={2} />
         </div>
-        <h1 className="text-xl font-semibold text-brand-dark mb-2">VIP+ Klub je zamčený</h1>
+        <h1 className="text-xl font-semibold text-brand-dark mb-2">VIP Klub je zamčený</h1>
         <p className="text-sm text-gray-500 mb-5">
-          Tahle komunita je exkluzivní pro úroveň <strong className="text-amber-700">VIP+</strong> –
+          Tahle komunita je exkluzivní pro úroveň <strong className="text-amber-700">VIP</strong> –
           přímý kontakt se mnou, sdílení pokroku a vzájemná podpora.
         </p>
         <Link href="/clenstvi" className="btn-primary bg-amber-500 hover:bg-amber-600">
-          Odemknout s VIP+
+          Odemknout s VIP
         </Link>
       </Centered>
     );
@@ -551,14 +553,14 @@ export default function KlubPage() {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 text-white shadow-sm">
             <Crown className="h-6 w-6" strokeWidth={2} />
           </span>
-          <h1 className="text-2xl font-semibold text-brand-dark">VIP+ Klub</h1>
+          <h1 className="text-2xl font-semibold text-brand-dark">VIP Klub</h1>
         </div>
 
         {/* Uvítací banner */}
         <div className="mb-6 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-500 p-5 text-white shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-lg font-semibold">Vítej! Užij si všechny výhody VIP+ 👑</p>
+              <p className="text-lg font-semibold">Vítej! Užij si všechny výhody VIP 👑</p>
               <p className="text-sm text-white/85">Tvoje prémiové zázemí na jednom místě.</p>
             </div>
             <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 text-sm font-semibold">
@@ -568,14 +570,14 @@ export default function KlubPage() {
           </div>
         </div>
 
-        {/* Rozcestník VIP+ funkcí */}
+        {/* Rozcestník VIP funkcí */}
         <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
             { href: "/klub/mixer", label: "Mixér", Icon: Wand2, desc: "Sestav si lekci" },
             { href: "/klub/live", label: "LIVE", Icon: Radio, desc: "Streamy + záznam" },
             { href: "/klub/kalkulacka", label: "Kalorie", Icon: Calculator, desc: "Kalkulačka jídla" },
             { href: "/kruhy", label: "Kruhy", Icon: Users, desc: "Komunita" },
-            { href: "/videoknihovna", label: "VIP+ videa", Icon: Film, desc: "Exkluzivní obsah" },
+            { href: "/videoknihovna", label: "VIP videa", Icon: Film, desc: "Exkluzivní obsah" },
           ].map(({ href, label, Icon, desc }) => (
             <Link
               key={href}
@@ -833,7 +835,7 @@ export default function KlubPage() {
                         {honza ? (
                           <FounderBadge />
                         ) : (
-                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">VIP+</span>
+                          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">VIP</span>
                         )}
                       </p>
                       <p className="text-xs text-gray-400">{timeAgo(post.created_at)}</p>

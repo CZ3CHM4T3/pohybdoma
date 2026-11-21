@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Blog o pohybu, bolestech zad a cvičení doma",
   description:
-    "Pohybová Myslánka – praktické tipy na cvičení doma, bolesti zad ze sezení, mobilitu a nápravu těla od lektora pohybu.",
+    "Pohybová Myslánka – praktické tipy na cvičení doma, pohyb při sedavém zaměstnání, mobilitu a sílu od lektora pohybu.",
 };
 
 export const dynamic = "force-dynamic";

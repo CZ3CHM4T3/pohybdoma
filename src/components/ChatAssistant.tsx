@@ -51,7 +51,7 @@ const FAQS: Faq[] = [
   {
     keywords: ["clenstvi", "členství", "cena", "ceny", "kolik stoji", "kolik stojí", "predplatne", "předplatné", "member", "vip", "free", "tarif", "uroven", "úroveň", "platit"],
     answer:
-      "Členství má úrovně FREE (zdarma, ukázky), MEMBER (přístup do videoknihovny), VIP (vedená cesta a víc obsahu) a VIP+ (navíc komunitní Klub). Přesné ceny a co je v každé úrovni najdeš na stránce Členství.",
+      "Členství má tři úrovně: FREE (zdarma, ukázky), MEMBER (přístup do videoknihovny) a VIP (vedená cesta, víc obsahu, Můj deník a komunitní VIP Klub s Q&A). Přesné ceny a co je v každé úrovni najdeš na stránce Členství.",
     links: [{ label: "Zobrazit členství", href: "/clenstvi" }],
   },
   {
@@ -115,13 +115,13 @@ const FAQS: Faq[] = [
   {
     keywords: ["kruh", "kruhy", "komunita", "skupina", "skupinka"],
     answer:
-      "Kruhy jsou tematické komunitní skupinky. Připojit se může člen od úrovně MEMBER, vlastní kruh může založit VIP+.",
+      "Kruhy jsou tematické komunitní skupinky. Připojit se může člen od úrovně MEMBER, vlastní kruh může založit VIP.",
     links: [{ label: "Procházet kruhy", href: "/kruhy" }],
   },
   {
-    keywords: ["klub", "vip+", "vip plus"],
+    keywords: ["klub", "vip", "vip klub"],
     answer:
-      "VIP+ Klub je komunitní prostor (zeď, chat a Q&A, kde odpovídá Honza). Je přístupný pro členy VIP+.",
+      "VIP Klub je komunitní prostor (zeď, chat a Q&A, kde odpovídá Honza). Je přístupný pro členy VIP.",
     links: [{ label: "Členství", href: "/clenstvi" }],
   },
   {

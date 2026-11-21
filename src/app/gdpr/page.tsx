@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Ochrana osobních údajů (GDPR)" };
+export const metadata: Metadata = {
+  title: "Ochrana osobních údajů (GDPR)",
+  description: "Jak POHYB DOMA zpracovává osobní údaje – rozsah, účely, zpracovatelé, doba uchování a tvoje práva.",
+  alternates: { canonical: "/gdpr" },
+};
 
 export default function GdprPage() {
   return (
@@ -29,19 +33,21 @@ export default function GdprPage() {
             <li><strong>Registrace a účet:</strong> e-mail, jméno, heslo (v zašifrované podobě), profilová fotka (nahraješ-li ji).</li>
             <li><strong>Rezervace:</strong> jméno, e-mail, telefon, obec a adresa (u osobních lekcí), důvod/popis obtíží, který sám uvedeš.</li>
             <li><strong>Členství a platby:</strong> zvolená úroveň, historie plateb (platbu zpracovává platební brána, viz níže).</li>
-            <li><strong>Deník a postup:</strong> údaje, které si sám dobrovolně zapíšeš (váha, spánek, bolest, energie, poznámky).</li>
+            <li><strong>Deník:</strong> záznamy, které si dobrovolně zapíšeš (váha, spánek, bolest, energie, poznámky), se ukládají <strong>jen ve tvém prohlížeči</strong> – neodesílají se k nám a jako správce k nim nemáme přístup.</li>
             <li><strong>Newsletter:</strong> e-mail (jen pokud se přihlásíš k odběru).</li>
             <li><strong>Technické údaje:</strong> IP adresa, typ zařízení a prohlížeče, základní logy (nezbytné pro provoz a bezpečnost).</li>
           </ul>
           <p className="text-gray-500">
-            Údaje o zdraví (např. popis obtíží, deník) jsou zvláštní kategorií údajů a zpracovávám je
-            pouze na základě tvého souhlasu, výhradně pro účel poskytnutí služby.
+            Údaje o zdraví (např. popis obtíží u rezervace) jsou zvláštní kategorií údajů a zpracovávám
+            je pouze na základě tvého <strong>výslovného souhlasu</strong> (čl. 9/2/a GDPR), výhradně pro
+            přípravu a vedení objednané služby. Záznamy v deníku zůstávají jen ve tvém prohlížeči a
+            nezpracovávám je.
           </p>
 
           <h2>3. Účely a právní základ</h2>
           <ul>
             <li><strong>Plnění smlouvy</strong> (čl. 6/1/b) – vedení účtu, rezervace, členství, poskytnutí obsahu.</li>
-            <li><strong>Souhlas</strong> (čl. 6/1/a, u zdravotních údajů čl. 9/2/a) – newsletter, deník a údaje o obtížích. Souhlas lze kdykoliv odvolat.</li>
+            <li><strong>Souhlas</strong> (čl. 6/1/a, u zdravotních údajů čl. 9/2/a) – newsletter a údaje o obtížích uvedené u rezervace. Souhlas lze kdykoliv odvolat.</li>
             <li><strong>Oprávněný zájem</strong> (čl. 6/1/f) – zabezpečení webu, prevence zneužití.</li>
             <li><strong>Právní povinnost</strong> (čl. 6/1/c) – účetní a daňové doklady.</li>
           </ul>
@@ -49,14 +55,14 @@ export default function GdprPage() {
           <h2>4. Příjemci a zpracovatelé</h2>
           <p>Pro provoz využívám prověřené zpracovatele, s nimiž mám uzavřené zpracovatelské smlouvy:</p>
           <ul>
-            <li><strong>Supabase</strong> – databáze a přihlašování (hosting EU).</li>
+            <li><strong>Supabase</strong> – databáze a přihlašování (úložiště v EU – Frankfurt).</li>
             <li><strong>Vercel</strong> – hosting webu.</li>
             <li><strong>Resend</strong> – odesílání e-mailů (potvrzení, upozornění).</li>
             <li><strong>Ecomail</strong> – rozesílka newsletteru.</li>
-            <li><strong>Stripe</strong> – zpracování plateb (bude aktivní po spuštění plateb).</li>
+            <li><strong>Barion</strong> – zpracování plateb (bude aktivní po spuštění plateb).</li>
             <li>Vlastní fakturace přes <strong>Air Bank</strong> – vystavování dokladů.</li>
           </ul>
-          <p>Někteří zpracovatelé mohou údaje zpracovávat i mimo EU; v takovém případě je zajištěna odpovídající ochrana (standardní smluvní doložky EU).</p>
+          <p>Hlavní úložiště dat (databáze) je <strong>v EU (Frankfurt)</strong>. Někteří dílčí zpracovatelé (např. doručování e-mailů) mohou část údajů zpracovávat i mimo EU; v takovém případě je zajištěna odpovídající ochrana (standardní smluvní doložky EU, resp. rámec EU–USA Data Privacy Framework).</p>
 
           <h2>5. Doba uchování</h2>
           <p>
@@ -85,8 +91,7 @@ export default function GdprPage() {
           </p>
 
           <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">
-            Tento dokument se snažím držet aktuální. Před spuštěním online plateb doporučuji nechat
-            zpracování údajů a podmínky zkontrolovat právníkem.
+            Tento dokument se snažím držet aktuální. Doplňují ho Obchodní podmínky a Zdravotní upozornění.
           </p>
         </div>
       </div>

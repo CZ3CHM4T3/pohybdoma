@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "O mně",
   description:
     "Jsem vystudovaný pedagog se zaměřením na biologii a tělesnou výchovu. Pohyb a lidské tělo mě fascinují odjakživa. Pracuji s tělem, ne proti němu.",
+  alternates: { canonical: "/o-mne" },
 };
 
 // Co ode mě můžeš čekat (text v závorkách tučně)
@@ -25,25 +26,25 @@ const EXPECT: { Icon: LucideIcon; title: string; desc: React.ReactNode }[] = [
         Osobně pracuji především s dlouhodobými klienty.{" "}
         <strong>Změna, která vydrží, potřebuje čas, trpělivost a poctivě
         vybudované základy – ne pár týdnů dřiny vytržených z kontextu.</strong>{" "}
-        Pokud je potřeba, rád pomohu i s akutnějšími pohybovými obtížemi, ale
-        skutečný cíl vidím v dobrém pohybu, který je zároveň jejich jedinou
-        fungující prevencí.
+        U akutních obtíží ti nejdřív doporučím lékaře nebo fyzioterapeuta; po
+        jeho vyjádření rád navážu pohybovou přípravou. Skutečný cíl vidím
+        v dobrém pohybu, který je jednou z nejdůležitějších složek prevence.
       </>
     ),
   },
   {
     Icon: Brain,
-    title: "HOLISTICKY A FUNKČNĚ",
+    title: "CELÝ POHYB, NE JEN BOLAVÉ MÍSTO",
     desc: (
       <>
-        Nelze se zaměřit jen na místo, které bolí. Bude mě zajímat, jak se hýbeš,
-        dýcháš, jíš, spíš, jak trávíš svůj běžný den, jaká je tvoje historie
-        zranění i pohybových stereotypů a co všechno může stát za tvými obtížemi
-        nebo nezdary.{" "}
-        <strong>Tělo má být silné, pružné a schopné celý život, přiměřeně
-        věku.</strong>{" "}
-        Pokud pociťuješ ztrátu pohyblivosti, nebo dokonce slyšíš stáří klepat na
-        dveře, začni žít jinak a otevři mu s klidem a vědomím, že děláš, co můžeš.
+        Nestačí se dívat jen na místo, které se ozývá. Bude mě zajímat, jak se
+        hýbeš a dýcháš, jak trávíš svůj běžný den, jaká je tvoje historie zranění
+        i pohybových návyků a co všechno může tvoje pohybové potíže ovlivňovat.
+        Tématům mimo pohyb (jídlo, spánek) se věnuji jen obecně – nejsem lékař ani
+        nutriční terapeut.{" "}
+        <strong>Pohyblivost a sílu lze udržovat a zlepšovat i ve vyšším věku,
+        přiměřeně možnostem.</strong>{" "}
+        Začni od toho, co zvládáš – s klidem a vědomím, že děláš, co můžeš.
       </>
     ),
   },
@@ -128,9 +129,9 @@ export default function AboutPage() {
               ne proti němu – a každý rok se cítím líp.
             </p>
             <p>
-              Propojuji biomechaniku, funkční trénink, práci s fasciemi,
-              regeneraci i každodenní pohyb a neřeším jen symptomy, ale
-              především jejich příčinu. Klienta vnímám jako propojený celek.
+              Vycházím z biomechaniky, funkčního tréninku, regenerace
+              i každodenního pohybu. Nedívám se jen na místo, které se ozývá, ale
+              na to, jak se hýbeš jako celek. Klienta vnímám jako propojený celek.
             </p>
             <p>
               Jako táta vím, jak těžké je skloubit rodinu s péčí o vlastní zdraví –

@@ -105,6 +105,15 @@ export default async function VideoDetailPage({ params }: Props) {
             </div>
 
             <SafetyNote note={video.caution} className="mt-6" />
+
+            {(video.unsuitableFor?.length ?? 0) > 0 && (
+              <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                <p className="mb-1 text-sm font-semibold text-red-800">Nevhodné pro</p>
+                <p className="text-sm leading-relaxed text-red-900/90">
+                  {video.unsuitableFor?.join(", ")}
+                </p>
+              </div>
+            )}
           </div>
 
           <aside className="card p-5">

@@ -28,6 +28,28 @@ type Form = {
 };
 const EMPTY_FORM: Form = { weight: "", pain: "", energy: "", sleep: "", symptoms: "", food: "", training: "", note: "" };
 
+// Deník je SOUKROMÝ – ukládá se jen lokálně v prohlížeči (nikdy na server),
+// takže provozovatel zdravotní údaje vůbec nevidí. Klíč je per-uživatel,
+// aby se na sdíleném zařízení záznamy různých účtů nemíchaly.
+const LS_PREFIX = "pd_denik_";
+function loadLocal(uid: string): Record<string, Entry> {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + uid);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, Entry>) : {};
+  } catch {
+    return {};
+  }
+}
+function saveLocal(uid: string, entries: Record<string, Entry>) {
+  try {
+    localStorage.setItem(LS_PREFIX + uid, JSON.stringify(entries));
+  } catch {
+    /* ignore – např. privátní okno */
+  }
+}
+
 function dateKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -78,22 +100,9 @@ export default function DenikPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const loadMonth = useCallback(
-    async (userId: string, month: Date) => {
-      const from = dateKey(startOfMonth(month));
-      const to = dateKey(endOfMonth(month));
-      const { data } = await supabase
-        .from("diary_entries")
-        .select("date, weight, pain, energy, sleep, symptoms, food, training, note")
-        .eq("user_id", userId)
-        .gte("date", from)
-        .lte("date", to);
-      const map: Record<string, Entry> = {};
-      for (const e of (data ?? []) as Entry[]) map[e.date] = e;
-      setEntries(map);
-    },
-    [supabase]
-  );
+  const loadMonth = useCallback((userId: string) => {
+    setEntries(loadLocal(userId));
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -103,15 +112,10 @@ export default function DenikPage() {
         (data.user.user_metadata?.full_name as string | undefined) || data.user.email || ""
       );
       setPhase("ready");
-      loadMonth(data.user.id, view);
+      loadMonth(data.user.id);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (uid) loadMonth(uid, view);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, uid]);
 
   // Naplň formulář podle vybraného dne
   useEffect(() => {
@@ -141,13 +145,12 @@ export default function DenikPage() {
     return Number.isFinite(n) ? n : null;
   }
 
-  async function save() {
+  function save() {
     if (!uid) return;
     setSaving(true);
     setMsg(null);
     const key = dateKey(selected);
-    const row = {
-      user_id: uid,
+    const row: Entry = {
       date: key,
       weight: num(form.weight),
       pain: num(form.pain),
@@ -157,18 +160,12 @@ export default function DenikPage() {
       food: form.food.trim() || null,
       training: form.training.trim() || null,
       note: form.note.trim() || null,
-      updated_at: new Date().toISOString(),
     };
-    const { error } = await supabase
-      .from("diary_entries")
-      .upsert(row, { onConflict: "user_id,date" });
+    const next = { ...entries, [key]: row };
+    setEntries(next);
+    saveLocal(uid, next);
     setSaving(false);
-    if (error) {
-      setMsg("Uložení selhalo (" + error.message + "). Spustil jsi journey.sql?");
-      return;
-    }
-    setEntries((m) => ({ ...m, [key]: { ...row } as Entry }));
-    setMsg("Uloženo ✓");
+    setMsg("Uloženo ✓ (jen v tomto prohlížeči)");
   }
 
   if (phase === "loading") {
@@ -213,6 +210,10 @@ export default function DenikPage() {
             <Printer className="h-4 w-4" /> Vytisknout měsíc
           </button>
         </div>
+
+        <p className="mb-6 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900/90">
+          🔒 Deník je soukromý – ukládá se jen ve tvém prohlížeči a nikam se neodesílá. Na jiném zařízení nebo po smazání dat prohlížeče se záznamy neukážou, proto si důležité zálohuj tiskem.
+        </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Kalendář */}

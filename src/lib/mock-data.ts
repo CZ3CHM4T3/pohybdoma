@@ -115,7 +115,7 @@ export const SERVICES: Service[] = [
     icon: "💆",
     tone: "violet",
     description:
-      "Regenerační a sportovní masáž pro uvolnění napětí, obnovu rozsahu pohybu a lepší regeneraci. V okolí Dobřichovic.",
+      "Regenerační a sportovní masáž pro uvolnění svalového napětí a podporu regenerace po zátěži. Není to léčebná masáž ani rehabilitace. Není vhodná při horečce, akutním zánětu, čerstvém úraze, otevřených ranách, trombóze ani v těhotenství – v případě pochybností se nejdřív poraď s lékařem. V okolí Dobřichovic.",
   },
   {
     id: "svc-plan-doma",
@@ -142,7 +142,7 @@ export const SERVICES: Service[] = [
     icon: "🎥",
     tone: "rose",
     description:
-      "Nahraj mi video, jak se hýbeš, cvičíš konkrétní cvik, nebo jaký pohybový problém řešíš a já ti pošlu podrobný rozbor s návodem na opravu a doporučeními. Bez domlouvání termínu.",
+      "Nahraj mi video, jak se hýbeš nebo cvičíš konkrétní cvik, a já ti pošlu pohybový rozbor s doporučeními k technice a cvičení. Nejde o zdravotní vyšetření; při bolesti, po úrazu nebo při potížích nejdřív navštiv lékaře. Bez domlouvání termínu.",
   },
   {
     id: "svc-workshop",
@@ -155,7 +155,7 @@ export const SERVICES: Service[] = [
     icon: "👥",
     tone: "amber",
     description:
-      "Skupinový pohybový workshop na konkrétní téma (mobilita, síla, zdravá záda, regenerace…). Nejbližší termín najdeš níže a přihlásíš se přímo v kalendáři.",
+      "Skupinový pohybový workshop na konkrétní téma (mobilita, síla, péče o záda, regenerace…). Nejbližší termín najdeš níže a přihlásíš se přímo v kalendáři.",
   },
 ];
 
@@ -178,8 +178,8 @@ export function hasDayPricing(service: Service): boolean {
 }
 
 /**
- * Cena pro daného člena. VIP+ má u vybraných služeb slevu (vipPlusDiscountKc).
- * isVipPlus = true → odečte slevu; jinak plná cena.
+ * Cena pro daného člena. VIP má u vybraných služeb slevu (pole vipPlusDiscountKc – interní název).
+ * isVipPlus = true (= člen VIP) → odečte slevu; jinak plná cena.
  */
 export function getServicePriceForTier(
   service: Service,
@@ -273,7 +273,7 @@ export const CALENDAR_EVENTS: CalendarEvent[] = [
     time: "10:00–13:00",
     location: "Dobřichovice",
     description:
-      "Půldenní workshop zaměřený na úlevu a prevenci bolestí zad. Teorie i praxe, vhodné pro každého.",
+      "Půldenní workshop zaměřený na pohybovou prevenci a péči o záda. Teorie i praxe, vhodné pro zdravé dospělé bez akutní bolesti.",
     priceKc: 890,
   },
   {
@@ -369,8 +369,8 @@ export const MOCK_VIDEOS: Video[] = [
   {
     id: "v2",
     slug: "zada-ulevova-sestava",
-    title: "Záda – úlevová sestava",
-    description: "Přesně cílená cvičení pro úlevu od bolesti zad. Ideální po dlouhém sezení.",
+    title: "Záda – sestava po dlouhém sezení",
+    description: "Šetrná sestava pro uvolnění a posílení zad po dlouhém sezení. Není určena pro akutní bolest zad.",
     thumbnailUrl: "/thumbnails/back-relief.jpg",
     durationSeconds: 900,
     accessLevel: "FREE",
@@ -481,12 +481,12 @@ export const MOCK_VIDEOS: Video[] = [
   },
   {
     id: "v9",
-    slug: "vip-plus-exkluzivni-trening",
-    title: "VIP PLUS – Exkluzivní trénink",
-    description: "Komplexní tréninková jednotka jen pro VIP PLUS členy. Intenzivní a efektivní.",
+    slug: "vip-exkluzivni-trening",
+    title: "VIP – Exkluzivní trénink",
+    description: "Komplexní tréninková jednotka jen pro VIP členy. Intenzivní a efektivní.",
     thumbnailUrl: "/thumbnails/vip-plus.jpg",
     durationSeconds: 2700,
-    accessLevel: "VIP_PLUS",
+    accessLevel: "VIP",
     providerId: "placeholder-mux-id-9",
     bodyParts: ["celé tělo"],
     difficulty: "pokročilý",
@@ -617,13 +617,13 @@ const BASE_COURSES: Course[] = [
     id: "c7",
     slug: "office",
     title: "OFFICE",
-    subtitle: "Cvič u stolu a zůstaň bez bolestí",
+    subtitle: "Cvič u stolu a dopřej tělu pohyb během sedavého dne",
     description:
       "Pro všechny, kdo tráví den u počítače. Micro-cvičení a pohybové návyky, které ochrání tvoje záda, krk i ramena před následky dlouhého sezení.",
     thumbnailUrl: "/thumbnails/course-office.jpg",
     priceKc: 890,
     lessons: [
-      { id: "l30", order: 1, title: "Proč sezení ničí tělo", durationSeconds: 720, accessLevel: "FREE" },
+      { id: "l30", order: 1, title: "Co dlouhé sezení dělá s tělem", durationSeconds: 720, accessLevel: "FREE" },
       { id: "l31", order: 2, title: "Nastavení pracovního místa", durationSeconds: 900, accessLevel: "FREE" },
       { id: "l32", order: 3, title: "Micro-cvičení každou hodinu", durationSeconds: 600, accessLevel: "MEMBER" },
       { id: "l33", order: 4, title: "Záda, krk a ramena", durationSeconds: 1200, accessLevel: "MEMBER" },
@@ -675,7 +675,7 @@ const BASE_COURSES: Course[] = [
     title: "NOHA",
     subtitle: "Zdravá chodidla, kolena a kotníky",
     description:
-      "Péče o nohu od prstů až po koleno. Silná a mobilní chodidla jsou základ celého těla. Vhodné po zranění i jako prevence.",
+      "Péče o nohu od prstů až po koleno. Silná a mobilní chodidla jsou základ celého těla. Vhodné jako prevence a pro návrat k pohybu po ukončené léčbě se souhlasem lékaře nebo fyzioterapeuta.",
     thumbnailUrl: "/thumbnails/course-noha.jpg",
     priceKc: 990,
     lessons: [
@@ -691,9 +691,9 @@ const BASE_COURSES: Course[] = [
     id: "c11",
     slug: "kycel",
     title: "KYČEL",
-    subtitle: "Mobilní kyčle = zdravá záda",
+    subtitle: "Pohyblivé a silné kyčle",
     description:
-      "Tuhé kyčle jsou nejčastější příčinou bolavých zad. Tento kurz ti vrátí mobilitu a uvolní kyčelní klouby do plného rozsahu.",
+      "Omezená pohyblivost kyčlí může u někoho zvyšovat zátěž bederní páteře, zvlášť při dlouhém sezení. Kurz tě naučí ji postupně rozvíjet v rozsahu, který je pro tebe pohodlný.",
     thumbnailUrl: "/thumbnails/course-kycel.jpg",
     priceKc: 1090,
     lessons: [
@@ -732,7 +732,7 @@ const BASE_COURSES: Course[] = [
     title: "PÁNEV",
     subtitle: "Stabilní střed a pevné pánevní dno",
     description:
-      "Pánev je centrum pohybu i stability. Naučíš se vnímat a posilovat pánevní dno a hluboký stabilizační systém – základ pro zdravá záda, dech i sílu.",
+      "Pánev je centrum pohybu i stability. Naučíš se vnímat a posilovat pánevní dno a hluboký stabilizační systém – důležitou součást pohybu, dechu a stability trupu.",
     thumbnailUrl: "/thumbnails/course-panev.jpg",
     priceKc: 1090,
     lessons: [
@@ -816,29 +816,16 @@ export const MOCK_MEMBERSHIP_PLANS: MembershipPlan[] = [
     id: "mp2",
     tier: "VIP",
     name: "VIP",
-    tagline: "Konec tápání – cvič s vedením",
-    priceKcMonth: 399,
-    highlighted: false,
+    tagline: "Jako bys měl trenéra po ruce",
+    priceKcMonth: 599,
+    highlighted: true,
     features: [
       "Všechno z MEMBER, a navíc:",
       "VIP videa a pokročilé kurzy navíc",
       "Chytré filtry knihovny – najdeš přesně to svoje",
       "Můj deník – váha, bolest, energie a pokrok v grafech",
-      "Členská sleva 10 % na kurzy",
-    ],
-  },
-  {
-    id: "mp3",
-    tier: "VIP_PLUS",
-    name: "VIP+",
-    tagline: "Jako bys měl trenéra po ruce",
-    priceKcMonth: 599,
-    highlighted: true,
-    features: [
-      "Všechno z VIP, a k tomu to nejlepší:",
-      "VIP+ videa jen pro tebe",
       "Mixér – sestav si vlastní lekci na míru",
-      "VIP+ Klub – Q&A přímo s Honzou",
+      "VIP Klub – Q&A přímo s Honzou",
       "Živé streamy + záznam (týden zpětně)",
       "Kalorická kalkulačka",
       "Zakládej vlastní Kruhy",
@@ -855,26 +842,24 @@ export const MEMBERSHIP_MATRIX: {
   free: MatrixCell;
   member: MatrixCell;
   vip: MatrixCell;
-  vipPlus: MatrixCell;
 }[] = [
-  { label: "Ukázková videa zdarma", desc: "Vyzkoušíš si cvičení i bez placení – hned uvidíš, jestli ti styl sedí.", free: true, member: true, vip: true, vipPlus: true },
-  { label: "Video-knihovna pro členy", desc: "Spousta lekcí na konkrétní potíže. Cvičíš přesně na to, co tě trápí.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "VIP videa", desc: "Pokročilejší a hlubší lekce navíc, které posunou tvůj pohyb dál.", free: false, member: false, vip: true, vipPlus: true },
-  { label: "VIP+ videa", desc: "To úplně nejlepší a nejnovější – dostupné jen pro VIP+.", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Chytré filtry video-knihovny", desc: "Rychle najdeš přesně to svoje podle části těla, systému i toho, co máš doma.", free: false, member: false, vip: true, vipPlus: true },
-  { label: "Kurzy pro členy", desc: "Ucelené série krok za krokem – víš, čím začít a kam pokračovat.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Oblíbená videa", desc: "Uložíš si srdíčkem, k čemu se vracíš, a máš to vždy po ruce.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Náhodné přehrávání", desc: "Jedním klikem ti pustím náhodné video – ideální, když nevíš, do čeho se pustit.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Mixér – sestav si vlastní lekci", desc: "Zadáš, na co chceš cvičit, a Mixér ti poskládá videa za sebe do jedné plynulé lekce.", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Kruhy – propojení uživatelů", desc: "Najdeš lidi se stejným cílem a budete se navzájem hecovat.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Chlubírna (nástěnka pokroku)", desc: "Pochlub se pokrokem, sdílej fotku a povzbuď ostatní – komunitní nástěnka.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Buddies + soukromý chat", desc: "Přidej si buddies podle e-mailu a pište si naživo. Společně to jde líp.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Založení vlastního kruhu", desc: "Vytvoříš si vlastní skupinu a povedeš parťáky k pohybu.", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Napsat recenzi", desc: "Podělíš se o zkušenost a pomůžeš ostatním s rozhodnutím.", free: false, member: true, vip: true, vipPlus: true },
-  { label: "Můj deník", desc: "Sleduješ váhu, bolest, energii i spánek a v grafu vidíš, že to funguje.", free: false, member: false, vip: true, vipPlus: true },
-  { label: "Měsíční výzva", desc: "Krátká hravá výzva na každý měsíc – pro všechny, pro radost a motivaci.", free: true, member: true, vip: true, vipPlus: true },
-  { label: "Členská sleva na kurzy", desc: "Placené kurzy koupíš levněji – VIP 10 %, VIP+ 20 %.", free: false, member: false, vip: "10 %", vipPlus: "20 %" },
-  { label: "Kalorická kalkulačka", desc: "Naklikáš, co jsi snědl, a spočítá ti kalorie i makra na den.", free: false, member: false, vip: false, vipPlus: true },
-  { label: "VIP+ Klub – Q&A s Honzou", desc: "Zeptáš se mě přímo na svůj pohyb a dostaneš osobní odpověď.", free: false, member: false, vip: false, vipPlus: true },
-  { label: "Živé streamy + záznam (týden)", desc: "Cvičíš se mnou naživo, a když nestihneš, týden zpětně si pustíš záznam.", free: false, member: false, vip: false, vipPlus: true },
+  { label: "Ukázková videa zdarma", desc: "Vyzkoušíš si cvičení i bez placení – hned uvidíš, jestli ti styl sedí.", free: true, member: true, vip: true },
+  { label: "Video-knihovna pro členy", desc: "Spousta lekcí podle části těla a tématu. Vybereš si, na co se chceš zaměřit.", free: false, member: true, vip: true },
+  { label: "VIP videa", desc: "Pokročilejší a hlubší lekce navíc, které posunou tvůj pohyb dál.", free: false, member: false, vip: true },
+  { label: "Chytré filtry video-knihovny", desc: "Rychle najdeš přesně to svoje podle části těla, systému i toho, co máš doma.", free: false, member: false, vip: true },
+  { label: "Kurzy pro členy", desc: "Ucelené série krok za krokem – víš, čím začít a kam pokračovat.", free: false, member: true, vip: true },
+  { label: "Oblíbená videa", desc: "Uložíš si srdíčkem, k čemu se vracíš, a máš to vždy po ruce.", free: false, member: true, vip: true },
+  { label: "Náhodné přehrávání", desc: "Jedním klikem ti pustím náhodné video – ideální, když nevíš, do čeho se pustit.", free: false, member: true, vip: true },
+  { label: "Mixér – sestav si vlastní lekci", desc: "Zadáš, na co chceš cvičit, a Mixér ti poskládá videa za sebe do jedné plynulé lekce.", free: false, member: false, vip: true },
+  { label: "Kruhy – propojení uživatelů", desc: "Najdeš lidi se stejným cílem a budete se navzájem hecovat.", free: false, member: true, vip: true },
+  { label: "Chlubírna (nástěnka pokroku)", desc: "Pochlub se pokrokem, sdílej fotku a povzbuď ostatní – komunitní nástěnka.", free: false, member: true, vip: true },
+  { label: "Buddies + soukromý chat", desc: "Přidej si buddies podle e-mailu a pište si naživo. Společně to jde líp.", free: false, member: true, vip: true },
+  { label: "Založení vlastního kruhu", desc: "Vytvoříš si vlastní skupinu a povedeš parťáky k pohybu.", free: false, member: false, vip: true },
+  { label: "Napsat recenzi", desc: "Podělíš se o zkušenost a pomůžeš ostatním s rozhodnutím.", free: false, member: true, vip: true },
+  { label: "Můj deník", desc: "Sleduješ váhu, bolest, energii i spánek a v grafu vidíš vývoj v čase.", free: false, member: false, vip: true },
+  { label: "Měsíční výzva", desc: "Krátká hravá výzva na každý měsíc – pro všechny, pro radost a motivaci.", free: true, member: true, vip: true },
+  { label: "Členská sleva na kurzy", desc: "Placené kurzy koupíš levněji – VIP 20 %.", free: false, member: false, vip: "20 %" },
+  { label: "Kalorická kalkulačka", desc: "Naklikáš, co jsi snědl, a spočítá ti kalorie i makra na den.", free: false, member: false, vip: true },
+  { label: "VIP Klub – Q&A s Honzou", desc: "Zeptáš se mě přímo na svůj pohyb a dostaneš osobní odpověď.", free: false, member: false, vip: true },
+  { label: "Živé streamy + záznam (týden)", desc: "Cvičíš se mnou naživo, a když nestihneš, týden zpětně si pustíš záznam.", free: false, member: false, vip: true },
 ];

@@ -8,11 +8,10 @@ import { TIER_STYLES } from "@/lib/tiers";
 import type { AccessLevel } from "@/types";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 
-const MATRIX_COLS: { key: "free" | "member" | "vip" | "vipPlus"; tier: AccessLevel }[] = [
+const MATRIX_COLS: { key: "free" | "member" | "vip"; tier: AccessLevel }[] = [
   { key: "free", tier: "FREE" },
   { key: "member", tier: "MEMBER" },
   { key: "vip", tier: "VIP" },
-  { key: "vipPlus", tier: "VIP_PLUS" },
 ];
 
 function MatrixValue({ v }: { v: MatrixCell }) {
@@ -23,7 +22,7 @@ function MatrixValue({ v }: { v: MatrixCell }) {
 
 export const metadata: Metadata = {
   title: "Členství",
-  description: "Úrovně členství FREE, MEMBER, VIP a VIP+. Video-knihovna, kurzy, Můj deník, Mixér, živé streamy, kalorická kalkulačka a VIP+ Klub.",
+  description: "Úrovně členství FREE, MEMBER a VIP. Video-knihovna, kurzy, Můj deník, Mixér, živé streamy, kalorická kalkulačka a VIP Klub.",
 };
 
 export default function ClenstviPage() {
@@ -45,7 +44,7 @@ export default function ClenstviPage() {
       {/* Plans */}
       <section className="bg-white py-12 lg:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
             {/* FREE karta */}
             <div className={`card-3d relative rounded-2xl overflow-hidden ${TIER_STYLES.FREE.card}`}>
               <div className="p-7">
@@ -76,11 +75,7 @@ export default function ClenstviPage() {
             {MOCK_MEMBERSHIP_PLANS.map((plan) => {
               const t = TIER_STYLES[plan.tier];
               const isHighlighted = plan.highlighted;
-              const badge = isHighlighted
-                ? "Nejoblíbenější"
-                : plan.tier === "VIP_PLUS"
-                  ? "Nejvýhodnější investice"
-                  : null;
+              const badge = isHighlighted ? "Nejoblíbenější" : null;
               return (
                 <div
                   key={plan.id}
@@ -138,7 +133,7 @@ export default function ClenstviPage() {
                   <tr className="border-b border-gray-200">
                     <th className="p-3 text-left font-semibold text-brand-dark">Co je součástí</th>
                     {MATRIX_COLS.map((c) => (
-                      <th key={c.key} className={`p-3 text-center ${c.tier === "VIP_PLUS" ? "bg-amber-50" : ""}`}>
+                      <th key={c.key} className={`p-3 text-center ${c.tier === "VIP" ? "bg-amber-50" : ""}`}>
                         <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${TIER_STYLES[c.tier].badge}`}>
                           {TIER_STYLES[c.tier].label}
                         </span>
@@ -159,7 +154,7 @@ export default function ClenstviPage() {
                         </span>
                       </td>
                       {MATRIX_COLS.map((c) => (
-                        <td key={c.key} className={`p-3 text-center ${c.tier === "VIP_PLUS" ? "bg-amber-50" : ""}`}>
+                        <td key={c.key} className={`p-3 text-center ${c.tier === "VIP" ? "bg-amber-50" : ""}`}>
                           <MatrixValue v={row[c.key]} />
                         </td>
                       ))}

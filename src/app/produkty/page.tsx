@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Package, ArrowRight } from "lucide-react";
-import { getSessionUser } from "@/lib/supabase/user";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Produkty",
   description:
-    "Prémiové produkty a nástroje POHYB DOMA. Pohybový audit – komplexní diagnostika, osobní plán a kontrola výsledků.",
+    "Prémiové produkty a nástroje POHYB DOMA. Pohybový audit – rozbor pohybu, osobní plán a kontrola výsledků.",
+  alternates: { canonical: "/produkty" },
 };
 
 export const dynamic = "force-dynamic";
@@ -41,8 +40,6 @@ async function getProducts(): Promise<Product[]> {
 }
 
 export default async function ProduktyPage() {
-  const u = await getSessionUser();
-  if (!u?.isAdmin) redirect("/");
   const products = await getProducts();
 
   return (
@@ -52,7 +49,7 @@ export default async function ProduktyPage() {
           <p className="text-xs font-semibold tracking-widest uppercase text-brand-blue mb-2">Produkty</p>
           <h1 className="text-4xl lg:text-5xl font-semibold text-brand-dark mb-4">Prémiové produkty a nástroje</h1>
           <p className="text-lg text-gray-600 max-w-xl mx-auto">
-            Cílené služby, které tě posunou nejrychleji. Začínáme Pohybovým auditem.
+            Cílené služby pro tvůj pohyb. Začínáme Pohybovým auditem.
           </p>
         </div>
       </section>

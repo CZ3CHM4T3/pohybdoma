@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
 
 export type ViewAsRole = "admin" | "visitor" | "FREE" | "MEMBER" | "VIP" | "VIP_PLUS";
-const ROLES: ViewAsRole[] = ["visitor", "FREE", "MEMBER", "VIP", "VIP_PLUS"];
+const ROLES: ViewAsRole[] = ["visitor", "FREE", "MEMBER", "VIP"];
 
 const Ctx = createContext<{ viewAs: ViewAsRole; setViewAs: (r: ViewAsRole) => void }>({
   viewAs: "admin",
