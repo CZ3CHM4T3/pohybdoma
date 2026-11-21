@@ -313,6 +313,7 @@ export default function AdminPage() {
   const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv" | "ucetnictvi">("prehled");
   const [ucetMonth, setUcetMonth] = useState<string>(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM" pro záložku Účetnictví
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
+  const [prodSrc, setProdSrc] = useState<string | null>(null); // filtr zdroje příjmu v Rozboru (null = vše)
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m" | "custom">("12m");
   const [analFrom, setAnalFrom] = useState("");
   const [analTo, setAnalTo] = useState("");
@@ -4661,7 +4662,7 @@ export default function AdminPage() {
                   {/* Pod-záložky produktů */}
                   <div className="mb-3 inline-flex rounded-lg bg-gray-100 p-1">
                     {([["ind", "Individuály"], ["grp", "Skupinovky"]] as const).map(([k, l]) => (
-                      <button key={k} type="button" onClick={() => setProdView(k)} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-white text-brand-dark shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                      <button key={k} type="button" onClick={() => { setProdView(k); setProdSrc(null); }} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-white text-brand-dark shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
                   {/* Přepínač období */}
@@ -4690,19 +4691,35 @@ export default function AdminPage() {
                     for (const l of grpLines) { const k = l.svcLabel || "Skupinové"; if (!byProduct.has(k)) byProduct.set(k, []); byProduct.get(k)!.push(l); }
                     const products = [...byProduct.entries()].map(([label, lines]) => ({ label, lines, total: lines.reduce((s, x) => s + x.amount, 0) })).sort((a, b) => b.total - a.total);
                     const grandTotal = Math.max(1, products.reduce((s, p) => s + p.total, 0));
+                    const shownProducts = prodSrc ? products.filter((p) => p.label === prodSrc) : products;
                     return (
                       <div className="space-y-6">
-                        <p className="text-xs text-gray-400">Skupinové produkty (kruháč, PPT, workshopy) — tržba a účast za dostupné období.</p>
+                        <p className="text-xs text-gray-400">Skupinové produkty (kruháč, PPT, workshopy) — tržba a účast za období. Barvy odlišují produkty; klikni čip pro jeden.</p>
+                        <div>
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                            <button type="button" onClick={() => setProdSrc(null)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${!prodSrc ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>Vše</button>
+                            {products.map((p) => (
+                              <button key={p.label} type="button" onClick={() => setProdSrc(prodSrc === p.label ? null : p.label)} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${prodSrc === p.label ? "text-white" : "bg-gray-100 text-gray-600 hover:text-brand-dark"}`} style={prodSrc === p.label ? { background: catColor(p.label) } : undefined}>
+                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: catColor(p.label) }} />{p.label} · {czk(p.total)}
+                              </button>
+                            ))}
+                          </div>
+                          {products.length > 1 && (
+                            <div className="flex h-3 w-full overflow-hidden rounded-full" title="Podíl produktů">
+                              {products.map((p) => <div key={p.label} style={{ width: `${p.total / grandTotal * 100}%`, background: catColor(p.label) }} />)}
+                            </div>
+                          )}
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-3">
-                          {products.map((p) => (
+                          {shownProducts.map((p) => (
                             <div key={p.label} className="rounded-xl border border-gray-100 p-3 text-center">
-                              <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-400">{p.label}</div>
+                              <div className="flex items-center justify-center gap-1.5 truncate text-[11px] font-semibold uppercase tracking-wide text-gray-400"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: catColor(p.label) }} />{p.label}</div>
                               <div className="mt-1 text-lg font-bold text-brand-dark">{czk(p.total)}</div>
                               <div className="text-[11px] text-gray-400">{Math.round(p.total / grandTotal * 100)} % skupinovek</div>
                             </div>
                           ))}
                         </div>
-                        {products.map((p) => {
+                        {shownProducts.map((p) => {
                           const byClient = new Map<string, number>();
                           for (const l of p.lines) { const who = resolveGroup(l.client); byClient.set(who, (byClient.get(who) ?? 0) + l.amount); }
                           const top = [...byClient.entries()].sort((a, b) => b[1] - a[1]);
@@ -4750,8 +4767,14 @@ export default function AdminPage() {
                       </div>
                     );
                   })() : (() => {
-                    const indLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0 && inPeriod(l.date));
-                    if (indLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné individuální lekce k analýze.</p>;
+                    const allIndLines = lessonLines.filter((l) => (l.kind === "staly" || l.kind === "lekce" || l.kind === "web") && l.amount > 0 && inPeriod(l.date));
+                    if (allIndLines.length === 0) return <p className="text-sm text-gray-400">Zatím nejsou žádné individuální lekce k analýze.</p>;
+                    // Zdroje příjmu (fitness lekce, masáže, online konzultace…) – barevně.
+                    const indSrcMap = new Map<string, number>();
+                    for (const l of allIndLines) { const k = l.svcLabel || "Lekce"; indSrcMap.set(k, (indSrcMap.get(k) ?? 0) + l.amount); }
+                    const indSources = [...indSrcMap.entries()].map(([label, val]) => ({ label, val, color: catColor(label) })).sort((a, b) => b.val - a.val);
+                    const indGrand = Math.max(1, indSources.reduce((s, x) => s + x.val, 0));
+                    const indLines = prodSrc && indSrcMap.has(prodSrc) ? allIndLines.filter((l) => (l.svcLabel || "Lekce") === prodSrc) : allIndLines;
                     const total = indLines.reduce((s, l) => s + l.amount, 0);
                     const count = indLines.length;
                     const avg = Math.round(total / count);
@@ -4783,6 +4806,24 @@ export default function AdminPage() {
                     return (
                       <div className="space-y-6">
                         <p className="text-xs text-gray-400">Za období <strong>{analPeriod === "all" ? "celá doba" : `${pFrom ? fmtCzDate(pFrom) : "—"} – ${fmtCzDate(pTo === "9999-12-31" ? todayKeyP : pTo)}`}</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
+
+                        {/* Zdroje příjmu – barevně, klik = zobrazit jen jeden */}
+                        <div>
+                          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                            <button type="button" onClick={() => setProdSrc(null)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${!prodSrc ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>Vše</button>
+                            {indSources.map((s) => (
+                              <button key={s.label} type="button" onClick={() => setProdSrc(prodSrc === s.label ? null : s.label)} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${prodSrc === s.label ? "text-white" : "bg-gray-100 text-gray-600 hover:text-brand-dark"}`} style={prodSrc === s.label ? { background: s.color } : undefined}>
+                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: s.color }} />{s.label} · {czk(s.val)}
+                              </button>
+                            ))}
+                          </div>
+                          {indSources.length > 1 && (
+                            <div className="flex h-3 w-full overflow-hidden rounded-full" title="Podíl jednotlivých zdrojů">
+                              {indSources.map((s) => <div key={s.label} style={{ width: `${s.val / indGrand * 100}%`, background: s.color }} />)}
+                            </div>
+                          )}
+                        </div>
+
                         {/* Souhrn */}
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           {[["Tržba celkem", czk(total)], ["Počet lekcí", `${count}×`], ["Průměr na lekci", czk(avg)], ["Top 3 klienti", `${top3Share} % tržby`]].map(([l, v]) => (
