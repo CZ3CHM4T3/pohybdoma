@@ -3951,7 +3951,7 @@ export default function AdminPage() {
                     key={k}
                     type="button"
                     onClick={() => setFinView(k)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${finView === k ? "bg-white shadow text-brand-dark" : "text-gray-500 hover:text-brand-dark"}`}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${finView === k ? "bg-brand-blue text-white shadow" : "text-gray-500 hover:text-brand-dark"}`}
                   >
                     {l}
                   </button>
@@ -4662,7 +4662,7 @@ export default function AdminPage() {
                   {/* Pod-záložky produktů */}
                   <div className="mb-3 inline-flex rounded-lg bg-gray-100 p-1">
                     {([["ind", "Individuály"], ["grp", "Skupinovky"]] as const).map(([k, l]) => (
-                      <button key={k} type="button" onClick={() => { setProdView(k); setProdSrc(null); }} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-white text-brand-dark shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                      <button key={k} type="button" onClick={() => { setProdView(k); setProdSrc(null); }} className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${prodView === k ? "bg-brand-blue text-white shadow" : "text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
                   {/* Přepínač období */}
@@ -4674,7 +4674,7 @@ export default function AdminPage() {
                       onChange={(a, b) => { const [by, bm] = b.split("-").map(Number); const last = new Date(by, bm, 0).getDate(); setAnalFrom(`${a}-01`); setAnalTo(`${b}-${String(last).padStart(2, "0")}`); setAnalPeriod("custom"); }}
                     />
                     <span className="text-xs text-gray-300">nebo dny:</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-1 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
+                    <span className="inline-flex items-center gap-1">
                       <DatePicker value={analFrom} onChange={(v) => { setAnalFrom(v); setAnalPeriod("custom"); }} placeholder="od" />
                       <span className="text-xs text-gray-400">–</span>
                       <DatePicker value={analTo} onChange={(v) => { setAnalTo(v); setAnalPeriod("custom"); }} placeholder="do" />
@@ -4692,6 +4692,11 @@ export default function AdminPage() {
                     const products = [...byProduct.entries()].map(([label, lines]) => ({ label, lines, total: lines.reduce((s, x) => s + x.amount, 0) })).sort((a, b) => b.total - a.total);
                     const grandTotal = Math.max(1, products.reduce((s, p) => s + p.total, 0));
                     const shownProducts = prodSrc ? products.filter((p) => p.label === prodSrc) : products;
+                    // Tržba po klientech napříč produkty (kdo chodí na kruháč i PPT i workshop).
+                    const grpByClient = new Map<string, { total: number; byProd: Map<string, number> }>();
+                    for (const l of grpLines) { const who = resolveGroup(l.client); const e = grpByClient.get(who) || { total: 0, byProd: new Map<string, number>() }; e.total += l.amount; e.byProd.set(l.svcLabel || "?", (e.byProd.get(l.svcLabel || "?") ?? 0) + l.amount); grpByClient.set(who, e); }
+                    const clientRows = [...grpByClient.entries()].map(([name, e]) => ({ name, total: e.total, prods: [...e.byProd.entries()].sort((a, b) => b[1] - a[1]) })).sort((a, b) => b.total - a.total);
+                    const maxCR = Math.max(1, ...clientRows.map((x) => x.total));
                     return (
                       <div className="space-y-6">
                         <p className="text-xs text-gray-400">Skupinové produkty (kruháč, PPT, workshopy) — tržba a účast za období. Barvy odlišují produkty; klikni čip pro jeden.</p>
@@ -4719,6 +4724,32 @@ export default function AdminPage() {
                             </div>
                           ))}
                         </div>
+                        {!prodSrc && clientRows.length > 0 && (
+                          <div className="rounded-xl border border-gray-100 p-4">
+                            <h4 className="mb-1 text-sm font-semibold text-brand-dark">Tržba po klientech (napříč produkty)</h4>
+                            <p className="mb-3 text-[11px] text-gray-400">Kolik každý platí celkem za skupinovky; barvy ukazují za co (kruháč, PPT, workshop…).</p>
+                            <div className="space-y-2.5">
+                              {clientRows.slice(0, 15).map((c) => (
+                                <div key={c.name}>
+                                  <div className="flex items-center gap-3 text-sm">
+                                    <span className="w-32 shrink-0 truncate">{c.name}</span>
+                                    <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100">
+                                      <div className="flex h-full" style={{ width: `${c.total / maxCR * 100}%` }}>
+                                        {c.prods.map(([lbl, v]) => <div key={lbl} style={{ width: `${v / c.total * 100}%`, background: catColor(lbl) }} title={`${lbl}: ${czk(v)}`} />)}
+                                      </div>
+                                    </div>
+                                    <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(c.total)}</span>
+                                  </div>
+                                  {c.prods.length > 1 && (
+                                    <div className="ml-32 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-400">
+                                      {c.prods.map(([lbl, v]) => <span key={lbl} className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full" style={{ background: catColor(lbl) }} />{lbl} {czk(v)}</span>)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {shownProducts.map((p) => {
                           const byClient = new Map<string, number>();
                           for (const l of p.lines) { const who = resolveGroup(l.client); byClient.set(who, (byClient.get(who) ?? 0) + l.amount); }
@@ -4908,6 +4939,72 @@ export default function AdminPage() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* === Projekce nových cen individuálek === */}
+                  {(() => {
+                    const czk2 = (n: number) => Math.round(n).toLocaleString("cs-CZ") + " Kč";
+                    const periodLines = lessonLines.filter((l) => l.amount > 0 && inPeriod(l.date));
+                    const isOther = (l: typeof periodLines[number]) => { const s = (l.svcLabel || "").toLowerCase(); return l.kind === "blok" || l.kind === "extra" || s.includes("mas") || s.includes("konzult"); };
+                    const cl = new Map<string, { indCount: number; indCur: number; other: number; hasOther: boolean }>();
+                    for (const l of periodLines) {
+                      const who = resolveGroup(l.client);
+                      if (!who || who === "—") continue;
+                      const c = cl.get(who) || { indCount: 0, indCur: 0, other: 0, hasOther: false };
+                      if (isOther(l)) { c.other += l.amount; c.hasOther = true; } else { c.indCount += 1; c.indCur += l.amount; }
+                      cl.set(who, c);
+                    }
+                    const rows = [...cl.entries()].filter(([, c]) => c.indCount > 0).map(([name, c]) => {
+                      const rate = c.hasOther ? 1000 : 1200;
+                      return { name, indCount: c.indCount, rate, hasOther: c.hasOther, indCur: c.indCur, other: c.other, projTotal: c.indCount * rate + c.other };
+                    }).sort((a, b) => b.projTotal - a.projTotal);
+                    if (rows.length === 0) return null;
+                    const curAll = periodLines.reduce((s, l) => s + l.amount, 0);
+                    const indCurTotal = rows.reduce((s, r) => s + r.indCur, 0);
+                    const indNewTotal = rows.reduce((s, r) => s + r.indCount * r.rate, 0);
+                    const projAll = curAll - indCurTotal + indNewTotal;
+                    const scenarios = [0, 1, 2, 3, 4, 5].map((n) => {
+                      const leavers = rows.slice(0, n);
+                      return { n, revenue: projAll - leavers.reduce((s, r) => s + r.projTotal, 0), leavers: leavers.map((r) => r.name) };
+                    });
+                    return (
+                      <div className="mt-8 rounded-2xl border-2 border-brand-blue/30 bg-brand-light/40 p-5">
+                        <h3 className="text-sm font-bold text-brand-dark">💰 Projekce nových cen (individuál 1200 / 1000 Kč/h)</h3>
+                        <p className="mt-0.5 mb-4 text-[11px] text-gray-500">Kdo má <strong>pouze</strong> individuálky = 1200/h; kdo má i jinou službu (masáž, kruháč, PPT, online…) = 1000/h. Kruháč, PPT a masáže zůstávají beze změny. Počítá za <strong>zvolené období</strong>; 1 lekce ≈ 1 hodina.</p>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          <div className="rounded-xl bg-white p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Teď (reálně)</div><div className="mt-1 text-lg font-bold text-brand-dark">{czk2(curAll)}</div></div>
+                          <div className="rounded-xl bg-white p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Nové ceny</div><div className="mt-1 text-lg font-bold text-emerald-600">{czk2(projAll)}</div></div>
+                          <div className="rounded-xl bg-white p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Rozdíl</div><div className="mt-1 text-lg font-bold text-brand-blue">+{czk2(projAll - curAll)}</div></div>
+                        </div>
+                        <div className="mt-4 overflow-x-auto">
+                          <table className="w-full border-collapse text-sm">
+                            <thead><tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-400"><th className="p-2">Odejde lidí</th><th className="p-2 text-right">Tržba (nové ceny)</th><th className="p-2 text-right">Ztráta</th><th className="p-2">Kdo odešel (nejdražší)</th></tr></thead>
+                            <tbody>
+                              {scenarios.map((s) => (
+                                <tr key={s.n} className={`border-b border-gray-100 ${s.n === 0 ? "font-bold" : ""}`}>
+                                  <td className="p-2">{s.n === 0 ? "nikdo" : `${s.n}×`}</td>
+                                  <td className="p-2 text-right font-semibold text-brand-dark">{czk2(s.revenue)}</td>
+                                  <td className="p-2 text-right text-red-600">{s.n === 0 ? "—" : `−${czk2(projAll - s.revenue)}`}</td>
+                                  <td className="p-2 text-[11px] text-gray-500">{s.leavers.join(", ") || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="mt-2 text-[11px] text-gray-400">Scénář „odchod" = odejdou ti <strong>nejdražší</strong> individuální klienti (nejhorší případ) i se všemi jejich službami.</p>
+                        <details className="mt-3">
+                          <summary className="cursor-pointer text-xs font-semibold text-brand-blue">Jak jsem rozdělil ceny u jednotlivých klientů ▾</summary>
+                          <div className="mt-2 space-y-1">
+                            {rows.map((r) => (
+                              <div key={r.name} className="flex items-center justify-between rounded-lg bg-white px-3 py-1.5 text-xs">
+                                <span className="truncate">{r.name} <span className="text-gray-400">· {r.indCount}× individuál{r.hasOther ? " + jiná služba" : " (jen individuál)"}</span></span>
+                                <span className="shrink-0 font-semibold text-brand-dark">{r.rate} Kč/h</span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
                       </div>
                     );
                   })()}
