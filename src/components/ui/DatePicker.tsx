@@ -214,3 +214,69 @@ export function MonthRangePicker({ from, to, onChange, className = "" }: {
     </div>
   );
 }
+
+/** Brandový výběr VÍCE MĚSÍCŮ (toggle). value/onChange jako pole "YYYY-MM".
+ *  Klik přepne měsíc (přidá/odebere), popup zůstane otevřený a zavře se až kliknutím mimo. */
+export function MonthMultiPicker({ value, onChange, className = "" }: {
+  value: string[]; onChange: (months: string[]) => void; className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [flip, setFlip] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const sorted = [...value].sort();
+  const [vy, setVy] = useState(() => Number((sorted[0] || "").slice(0, 4)) || new Date().getFullYear());
+  useOutside(ref, open, () => setOpen(false));
+  useEffect(() => { if (open) setVy(Number((sorted[sorted.length - 1] || "").slice(0, 4)) || new Date().getFullYear()); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggle = () => { setOpen((o) => { if (!o) setFlip(measureFlip(btn.current, 300)); return !o; }); };
+
+  const label = (() => {
+    if (sorted.length === 0) return "Měsíce";
+    if (sorted.length === 1) { const fm = Number(sorted[0].slice(5, 7)); return `${MONTHS[fm - 1]} ${sorted[0].slice(0, 4)}`; }
+    return `${sorted.length} měsíců`;
+  })();
+
+  const toggleMonth = (i: number) => {
+    const k = `${vy}-${pad(i + 1)}`;
+    onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
+  };
+  const selectWholeYear = () => {
+    const ys = Array.from({ length: 12 }, (_, i) => `${vy}-${pad(i + 1)}`);
+    onChange([...value.filter((x) => x.slice(0, 4) !== String(vy)), ...ys]);
+  };
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button ref={btn} type="button" onClick={toggle}
+        className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize text-brand-dark hover:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue ${className}`}>
+        <span>{label}</span>{calIcon}
+      </button>
+      {open && (
+        <div className={`absolute left-0 z-50 w-60 rounded-xl border border-gray-200 bg-white p-3 shadow-xl ${flip ? "bottom-full mb-1" : "top-full mt-1"}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" aria-label="Předchozí rok" onClick={() => setVy((v) => v - 1)} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">‹</button>
+            <span className="text-sm font-semibold text-brand-dark">{vy}</span>
+            <button type="button" aria-label="Další rok" onClick={() => setVy((v) => v + 1)} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">›</button>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {MSHORT.map((nm, i) => {
+              const k = `${vy}-${pad(i + 1)}`;
+              const isSel = value.includes(k);
+              return (
+                <button key={i} type="button" onClick={() => toggleMonth(i)}
+                  className={`rounded-md py-2 text-sm font-semibold capitalize transition-colors ${isSel ? "bg-brand-blue text-white" : "text-brand-dark hover:bg-gray-100"}`}>
+                  {nm}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+            <button type="button" onClick={() => onChange([])} className="text-gray-400 hover:text-gray-600">Vymazat</button>
+            <button type="button" onClick={selectWholeYear} className="font-semibold text-brand-blue hover:underline">Celý {vy}</button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-gray-400">{value.length ? `Vybráno: ${value.length} · klik = přidat/odebrat, zavři mimo` : "Klikni měsíce. Zavři kliknutím mimo."}</p>
+        </div>
+      )}
+    </div>
+  );
+}

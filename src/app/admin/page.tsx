@@ -18,7 +18,7 @@ import { BUSINESS } from "@/lib/invoice-business";
 import { buildSpayd, qrUrl, fmtCzDate, fillIntro, monthLabelCs } from "@/lib/invoice";
 import { InvoiceDocument, type InvoiceDocData } from "@/components/InvoiceDocument";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
-import { DatePicker, MonthPicker, MonthRangePicker } from "@/components/ui/DatePicker";
+import { DatePicker, MonthPicker, MonthMultiPicker } from "@/components/ui/DatePicker";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
 } from "@/lib/filters";
@@ -316,9 +316,10 @@ export default function AdminPage() {
   const [prodSrc, setProdSrc] = useState<string | null>(null); // filtr zdroje příjmu v Rozboru (null = vše)
   // Okamžitý tooltip nad dílem sloupce ve stacked grafu (nahrazuje pomalý černý title)
   const [barTip, setBarTip] = useState<{ x: number; y: number; label: string; month: string; amount: number } | null>(null);
-  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m" | "custom">("12m");
+  const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m" | "custom" | "months">("12m");
   const [analFrom, setAnalFrom] = useState("");
   const [analTo, setAnalTo] = useState("");
+  const [analMonths, setAnalMonths] = useState<string[]>([]); // vybrané měsíce "YYYY-MM" (toggle) pro Rozbor
   const [celkemPeriod, setCelkemPeriod] = useState<"mesic" | "3m" | "6m" | "12m" | "rok" | "vse">("rok");
   const [bookView, setBookView] = useState<"aktivni" | "probehle" | "propadle">("aktivni");
   const [dochKind, setDochKind] = useState<"ind" | "grp">("ind");
@@ -4689,10 +4690,14 @@ export default function AdminPage() {
               // Období ohraničené KALENDÁŘNĚ (od 1. dne měsíce), nebo vlastní rozsah od–do.
               let pFrom = ""; let pTo = todayKeyP;
               if (analPeriod === "all") { pFrom = ""; pTo = "9999-12-31"; }
+              else if (analPeriod === "months") { pFrom = ""; pTo = "9999-12-31"; }
               else if (analPeriod === "custom") { pFrom = analFrom; pTo = analTo || todayKeyP; }
               else if (analPeriod === "year") { pFrom = `${nowP.getFullYear()}-01-01`; pTo = `${nowP.getFullYear()}-12-31`; }
               else { const M = analPeriod === "12m" ? 12 : analPeriod === "6m" ? 6 : analPeriod === "1m" ? 1 : 3; pFrom = new Date(nowP.getFullYear(), nowP.getMonth() - (M - 1), 1).toLocaleDateString("sv-SE"); }
-              const inPeriod = (dateStr: string) => !!dateStr && (!pFrom || dateStr >= pFrom) && dateStr <= pTo;
+              const monthSet = new Set(analMonths);
+              const inPeriod = (dateStr: string) => analPeriod === "months"
+                ? (!!dateStr && monthSet.has(dateStr.slice(0, 7)))
+                : (!!dateStr && (!pFrom || dateStr >= pFrom) && dateStr <= pTo);
               return (
                 <div className="mt-8 border-t border-gray-100 pt-6">
                   <h3 className="mb-3 text-sm font-semibold text-brand-dark">Rozbor — kdo, kdy a kolik</h3>
@@ -4705,19 +4710,18 @@ export default function AdminPage() {
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     <span className="mr-1 text-xs text-gray-400">Měsíce:</span>
-                    <MonthRangePicker
-                      from={analFrom ? analFrom.slice(0, 7) : ""}
-                      to={analTo ? analTo.slice(0, 7) : ""}
-                      onChange={(a, b) => { const [by, bm] = b.split("-").map(Number); const last = new Date(by, bm, 0).getDate(); setAnalFrom(`${a}-01`); setAnalTo(`${b}-${String(last).padStart(2, "0")}`); setAnalPeriod("custom"); }}
+                    <MonthMultiPicker
+                      value={analPeriod === "months" ? analMonths : []}
+                      onChange={(ms) => { setAnalMonths(ms); if (ms.length) { setAnalPeriod("months"); } else { setAnalPeriod("12m"); } }}
                     />
                     <span className="text-xs text-gray-300">nebo dny:</span>
                     <span className="inline-flex items-center gap-1">
-                      <DatePicker value={analFrom} onChange={(v) => { setAnalFrom(v); setAnalPeriod("custom"); }} placeholder="od" />
+                      <DatePicker value={analFrom} onChange={(v) => { setAnalFrom(v); setAnalMonths([]); setAnalPeriod("custom"); }} placeholder="od" />
                       <span className="text-xs text-gray-400">–</span>
-                      <DatePicker value={analTo} onChange={(v) => { setAnalTo(v); setAnalPeriod("custom"); }} placeholder="do" />
+                      <DatePicker value={analTo} onChange={(v) => { setAnalTo(v); setAnalMonths([]); setAnalPeriod("custom"); }} placeholder="do" />
                     </span>
                     {([["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
-                      <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
+                      <button key={k} type="button" onClick={() => { setAnalMonths([]); setAnalPeriod(k); }} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
 
@@ -4875,7 +4879,15 @@ export default function AdminPage() {
                     const reliable = recClients.filter((n) => !cancelsByClient.get(n)).sort((a, b) => a.localeCompare(b, "cs"));
                     return (
                       <div className="space-y-6">
-                        <p className="text-xs text-gray-400">Za období <strong>{analPeriod === "all" ? "celá doba" : `${pFrom ? fmtCzDate(pFrom) : "—"} – ${fmtCzDate(pTo === "9999-12-31" ? todayKeyP : pTo)}`}</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
+                        <p className="text-xs text-gray-400">Za období <strong>{
+                          analPeriod === "all" ? "celá doba"
+                          : analPeriod === "months"
+                            ? (analMonths.length === 0 ? "žádné měsíce"
+                              : analMonths.length <= 3
+                                ? [...analMonths].sort().map((m) => new Date(m + "-01T00:00:00").toLocaleDateString("cs-CZ", { month: "long", year: "numeric" })).join(", ")
+                                : `${analMonths.length} vybraných měsíců`)
+                            : `${pFrom ? fmtCzDate(pFrom) : "—"} – ${fmtCzDate(pTo === "9999-12-31" ? todayKeyP : pTo)}`
+                        }</strong>. Tržba je sdružená podle <strong>fakturační rodiny</strong> (plátce) a bere reálné ceny z fakturace.</p>
 
                         {/* Zdroje příjmu – barevně, klik = zobrazit jen jeden */}
                         <div>
