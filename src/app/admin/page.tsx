@@ -314,6 +314,8 @@ export default function AdminPage() {
   const [ucetMonth, setUcetMonth] = useState<string>(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM" pro záložku Účetnictví
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [prodSrc, setProdSrc] = useState<string | null>(null); // filtr zdroje příjmu v Rozboru (null = vše)
+  // Okamžitý tooltip nad dílem sloupce ve stacked grafu (nahrazuje pomalý černý title)
+  const [barTip, setBarTip] = useState<{ x: number; y: number; label: string; month: string; amount: number } | null>(null);
   const [analPeriod, setAnalPeriod] = useState<"all" | "year" | "12m" | "6m" | "3m" | "1m" | "custom">("12m");
   const [analFrom, setAnalFrom] = useState("");
   const [analTo, setAnalTo] = useState("");
@@ -2113,7 +2115,7 @@ export default function AdminPage() {
         )}
 
         {/* Záložky – 1. úroveň: hlavní skupiny */}
-        <div className="mb-2 flex flex-wrap gap-1 rounded-xl bg-white p-1 shadow-sm sticky top-2 z-10">
+        <div className="mb-2 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 shadow-sm ring-1 ring-slate-200/70 sticky top-2 z-10">
           {ADMIN_GROUPS.map((g) => {
             const activeG = g.tabs.includes(tab);
             return (
@@ -2122,7 +2124,7 @@ export default function AdminPage() {
                 type="button"
                 onClick={() => setTab(g.tabs[0])}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  activeG ? g.active : "text-gray-500 hover:bg-gray-50"
+                  activeG ? `${g.active} shadow-sm` : "text-slate-600 hover:bg-white"
                 }`}
               >
                 <g.Icon className={`h-4 w-4 ${activeG ? "" : g.icon}`} strokeWidth={2} />
@@ -2138,14 +2140,14 @@ export default function AdminPage() {
           if (!g || g.tabs.length <= 1) return <div className="mb-6" />;
           const subs = ADMIN_TABS.filter((t) => g.tabs.includes(t.k));
           return (
-            <div className="mb-6 flex flex-wrap gap-1 pl-1">
+            <div className="mb-6 flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 ring-1 ring-slate-200/70 w-fit max-w-full">
               {subs.map((t) => (
                 <button
                   key={t.k}
                   type="button"
                   onClick={() => setTab(t.k)}
                   className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                    tab === t.k ? t.active : "text-gray-500 hover:bg-gray-50"
+                    tab === t.k ? `${t.active} shadow-sm` : "text-slate-600 hover:bg-white"
                   }`}
                 >
                   <t.Icon className={`h-4 w-4 ${tab === t.k ? "" : t.icon}`} strokeWidth={2} />
@@ -3679,6 +3681,9 @@ export default function AdminPage() {
               </div>
             );
           const lessonsTotal = monthLines.reduce((s, x) => s + x.amount, 0);
+          // Příjem rozdělený pro jednotlivé záložky (Individuály vs. Skupinovky).
+          const indTotal = monthLines.filter((l) => l.kind !== "blok").reduce((s, x) => s + x.amount, 0);
+          const grpTotal = monthLines.filter((l) => l.kind === "blok").reduce((s, x) => s + x.amount, 0);
           // Agregace položek faktury po službách a OSOBÁCH: „služba (Anička) — Nx á cena".
           //  U rodin se u položky ukáže, čí lekce to je (osoba ≠ plátce).
           const aggregateInvoiceLines = (lines: Line[], payer: string): { date: string; what: string; amount: number }[] => {
@@ -3751,7 +3756,7 @@ export default function AdminPage() {
 
           // Barvy zdrojů příjmů – každá kategorie jinou barvou
           const CAT_COLOR: Record<string, string> = {
-            "Fitness lekce": "#1976ff",        // fitness individuály + fitness lekce = jedno, modrá
+            "Individuály": "#1976ff",          // fitness individuály + fitness lekce = jedno, modrá
             "Sportovní masáž": "#e11d48",      // růžovo-červená
             "Kruhový trénink": "#6d28d9",      // fialová
             "Příprava tenistů": "#0d9488",     // teal – odlišné od MS GEM
@@ -3765,9 +3770,9 @@ export default function AdminPage() {
             "Extra / mimořádné": "#0891b2",
             "Jiné": "#64748b",
           };
-          // Fitness individuály i ruční „Fitness lekce" se vykazují jako JEDNO
+          // Fitness individuály i ruční „Fitness lekce" se v grafech vykazují jako JEDNO = „Individuály"
           const normCat = (c: string) => {
-            if (c === "Fitness individuály" || c === "Fitness lekce" || c === "Fitness trénink") return "Fitness lekce";
+            if (c === "Fitness individuály" || c === "Fitness lekce" || c === "Fitness trénink" || c === "Individuály") return "Individuály";
             if (c === "Pohybová příprava tenistů" || c === "Příprava tenistů") return "Příprava tenistů";
             return c;
           };
@@ -3792,7 +3797,7 @@ export default function AdminPage() {
               ? (l.what.replace(/ \(celý měsíc.*/, "") || "Skupinové lekce")
               : l.kind === "extra"
                 ? (fixedPayerNames.has(l.client) ? "MS GEM" : "Extra / mimořádné")
-                : "Fitness lekce";
+                : "Individuály";
             addMC(Number(l.date.slice(5, 7)) - 1, cat, l.amount);
           });
           finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === year).forEach((e) => addMC(Number(String(e.at).slice(5, 7)) - 1, normCat(e.category), Number(e.amount_kc)));
@@ -4042,13 +4047,22 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-              <div className="rounded-lg bg-green-50 px-4 py-2">
-                <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">Příjem celkem · <span className="capitalize">{monthLabel}</span></p>
-                <p className="text-xl font-bold text-green-800">{monthGrand.toLocaleString("cs-CZ")} Kč</p>
-                {manualTotal > 0 && lessonsTotal > 0 && (
-                  <p className="text-[11px] text-green-600">lekce {lessonsTotal.toLocaleString("cs-CZ")} + MS GEM {manualTotal.toLocaleString("cs-CZ")}</p>
-                )}
-              </div>
+              {(() => {
+                const box = finView === "individualy"
+                  ? { lab: "Příjem z individuálů", val: indTotal }
+                  : finView === "skupinovky"
+                    ? { lab: "Příjem ze skupinovek", val: grpTotal }
+                    : { lab: "Příjem celkem", val: monthGrand };
+                return (
+                  <div className="rounded-lg bg-green-50 px-4 py-2">
+                    <p className="text-[11px] text-green-700 font-semibold uppercase tracking-wide">{box.lab} · <span className="capitalize">{monthLabel}</span></p>
+                    <p className="text-xl font-bold text-green-800">{box.val.toLocaleString("cs-CZ")} Kč</p>
+                    {box.lab === "Příjem celkem" && manualTotal > 0 && lessonsTotal > 0 && (
+                      <p className="text-[11px] text-green-600">lekce {lessonsTotal.toLocaleString("cs-CZ")} + MS GEM {manualTotal.toLocaleString("cs-CZ")}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             )}
 
@@ -4160,11 +4174,12 @@ export default function AdminPage() {
             <p className="text-xs text-gray-400 mb-3">Příjem po měsících, barevně podle zdroje. Klikni na měsíc pro detail nahoře.</p>
 
             {/* Sloupcový graf po měsících (stacked podle zdroje) */}
-            <div className="rounded-xl border border-gray-100 p-4 mb-5">
+            <div className="rounded-xl border border-gray-100 p-4 mb-5" onMouseLeave={() => setBarTip(null)}>
               <div className="flex h-48 items-end gap-1.5">
                 {yearMonths.map((m, i) => {
                   const cats = orderedCats.filter((c) => (monthCats[i][c] ?? 0) > 0);
                   const isSel = invMonth === `${year}-${m.mm}`;
+                  const mLabel = new Date(Number(year), i, 1).toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
                   return (
                     <button
                       key={m.mm}
@@ -4182,7 +4197,8 @@ export default function AdminPage() {
                         {cats.map((c) => (
                           <div
                             key={c}
-                            title={`${MSHORT[i]} · ${c}: ${Math.round(monthCats[i][c]).toLocaleString("cs-CZ")} Kč`}
+                            onMouseEnter={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
+                            onMouseMove={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
                             style={{ height: `${(monthCats[i][c] / m.total) * 100}%`, background: catColor(c) }}
                           />
                         ))}
@@ -4193,6 +4209,21 @@ export default function AdminPage() {
                 })}
               </div>
             </div>
+
+            {/* Okamžitý tooltip nad dílem sloupce */}
+            {barTip && (
+              <div
+                className="pointer-events-none fixed z-50 rounded-lg bg-white px-3 py-2 shadow-xl ring-1 ring-black/5"
+                style={{ left: barTip.x, top: barTip.y - 14, transform: "translate(-50%, -100%)" }}
+              >
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-dark">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: catColor(barTip.label) }} />
+                  {barTip.label}
+                </div>
+                <div className="mt-0.5 text-[11px] capitalize text-gray-400">{barTip.month}</div>
+                <div className="text-sm font-bold text-green-700">{Math.round(barTip.amount).toLocaleString("cs-CZ")} Kč</div>
+              </div>
+            )}
 
             {/* Koláč podle zdroje + legenda */}
             <div className="rounded-xl border border-gray-100 p-4">
