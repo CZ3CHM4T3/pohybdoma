@@ -4434,6 +4434,7 @@ export default function AdminPage() {
                               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-500">stornováno{inv.storno_at ? ` · ${fmtCzDate(inv.storno_at.slice(0, 10))}` : ""}</span>
                                 <span className="text-xs text-gray-400">Číslo #{inv.number} zrušeno. Opravenou vystavíš výše (dostane nové číslo).</span>
+                                <a href={`/api/faktura-pdf/${inv.token}`} download={`faktura-${inv.number}.pdf`} className="ml-auto font-semibold text-gray-500 hover:text-brand-dark hover:underline" title="Stáhnout PDF (pošli e-mailem, přes WhatsApp…)">⬇ PDF</a>
                               </div>
                             ) : (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -4447,6 +4448,7 @@ export default function AdminPage() {
                                   <span className="font-semibold text-red-500">chybí e-mail</span>
                                 )}
                                 {deliveryBadges(inv)}
+                                <a href={`/api/faktura-pdf/${inv.token}`} download={`faktura-${inv.number}.pdf`} className="font-semibold text-gray-500 hover:text-brand-dark hover:underline" title="Stáhnout PDF (pošli e-mailem, přes WhatsApp…)">⬇ PDF</a>
                                 {inv.status === "sent" && inv.email && (
                                   <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40" title="Jemné připomenutí platby na e-mail klienta">⏳ Poslat upomínku</button>
                                 )}
@@ -4478,6 +4480,7 @@ export default function AdminPage() {
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                               <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
+                              <a href={`/api/faktura-pdf/${inv.token}`} download={`faktura-${inv.number}.pdf`} className="font-semibold text-gray-500 hover:text-brand-dark hover:underline" title="Stáhnout PDF (pošli e-mailem, přes WhatsApp…)">⬇ PDF</a>
                               {inv.status === "storno" ? (
                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-500">stornováno{inv.storno_at ? ` · ${fmtCzDate(inv.storno_at.slice(0, 10))}` : ""}</span>
                               ) : (
@@ -4549,6 +4552,23 @@ export default function AdminPage() {
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     <span className="mr-1 text-xs text-gray-400">Období:</span>
+                    <label className="inline-flex items-center gap-1 text-xs text-gray-400" title="Vyber konkrétní měsíc – otevře kalendářík s měsícem a rokem">
+                      Měsíc:
+                      <input
+                        type="month"
+                        onChange={(e) => {
+                          const v = e.target.value; // "YYYY-MM"
+                          if (!v) return;
+                          const [yy, mm] = v.split("-").map(Number);
+                          const last = new Date(yy, mm, 0).getDate();
+                          setAnalFrom(`${v}-01`);
+                          setAnalTo(`${v}-${String(last).padStart(2, "0")}`);
+                          setAnalPeriod("custom");
+                        }}
+                        className="rounded-md border border-gray-200 px-1.5 py-1 text-xs"
+                      />
+                    </label>
+                    <span className="text-xs text-gray-300">nebo</span>
                     <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
                       <input type="date" value={analFrom} onChange={(e) => { setAnalFrom(e.target.value); setAnalPeriod("custom"); }} className="rounded-md border border-gray-200 px-1.5 py-1 text-xs" />
                       <span className="text-xs text-gray-400">–</span>
