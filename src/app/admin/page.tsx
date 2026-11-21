@@ -1025,7 +1025,8 @@ export default function AdminPage() {
     if (invBusy) return;
     setError(null); setInvBusy(true);
     try {
-      const existing = new Set(invoices.filter((i) => i.month === month).map((i) => i.payer_name));
+      // Stornované faktury NEblokují nové vystavení (plátce se smí vyfakturovat znovu).
+      const existing = new Set(invoices.filter((i) => i.month === month && i.status !== "storno").map((i) => i.payer_name));
       const dueDays = invCfg?.due_days ?? 7;
       const issued = new Date().toLocaleDateString("sv-SE");
       const dd = new Date(); dd.setDate(dd.getDate() + dueDays);
