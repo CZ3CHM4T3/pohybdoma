@@ -18,6 +18,7 @@ export type InvoiceDocData = {
   intro?: string | null;
   lines: InvoiceLine[];
   paid?: boolean;
+  storno?: boolean;                // stornovaná faktura – skrýt platbu/QR, ukázat upozornění
   qr?: string | null;              // URL na QR PNG; null = nezobrazovat (náhled)
 };
 
@@ -34,10 +35,18 @@ export function InvoiceDocument({ business, data }: { business: InvoiceBusiness;
             {preview ? "náhled" : `č. ${data.number}`}
           </div>
         </div>
-        {data.paid && (
+        {data.storno ? (
+          <span className="rounded-full bg-gray-200 px-3 py-1 text-sm font-semibold text-gray-600 line-through">Stornováno</span>
+        ) : data.paid && (
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">✓ Zaplaceno</span>
         )}
       </div>
+      {data.storno && (
+        <div className="mt-4 rounded-xl border-2 border-gray-300 bg-gray-50 p-4 text-center">
+          <div className="text-lg font-bold uppercase tracking-wide text-gray-500">Faktura stornována</div>
+          <div className="mt-0.5 text-sm text-gray-500">Tato faktura byla zrušena a je neplatná. Prosím neplaťte ji.</div>
+        </div>
+      )}
 
       {/* Dodavatel | Odběratel – na stejné úrovni */}
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -97,7 +106,8 @@ export function InvoiceDocument({ business, data }: { business: InvoiceBusiness;
         </tfoot>
       </table>
 
-      {/* Platba + QR */}
+      {/* Platba + QR (u stornované faktury se neukazuje) */}
+      {!data.storno && (
       <div className="mt-8 grid gap-6 rounded-xl bg-slate-50 p-6 sm:grid-cols-[1fr_auto] sm:items-center">
         <div className="text-sm leading-7">
           <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">Platební údaje</div>
@@ -121,6 +131,7 @@ export function InvoiceDocument({ business, data }: { business: InvoiceBusiness;
           )}
         </div>
       </div>
+      )}
 
       {/* Patička */}
       <div className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-500">

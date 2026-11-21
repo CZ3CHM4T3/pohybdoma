@@ -89,6 +89,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const billTo = inv.bill_name || inv.payer_name;
   const paid = inv.status === "paid";
+  const storno = inv.status === "storno";
 
   const itemsBody: any[] = [
     [
@@ -158,7 +159,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       {
         columns: [
           { stack: [ { text: "FAKTURA", color: SLATE, fontSize: 11, bold: true, characterSpacing: 2 }, { text: `č. ${numLabel}`, color: DARK, fontSize: 24, bold: true, margin: [0, 2, 0, 0] } ] },
-          paid
+          storno
+            ? { text: "STORNOVÁNO", color: "#6b7280", bold: true, fontSize: 12, alignment: "right", margin: [0, 8, 0, 0] }
+            : paid
             ? { text: "ZAPLACENO", color: "#047857", bold: true, fontSize: 12, alignment: "right", margin: [0, 8, 0, 0] }
             : { text: "", alignment: "right" },
         ],
@@ -202,8 +205,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
         columns: [ { width: "*", text: "" }, { width: "auto", text: "Celkem k úhradě", bold: true, color: DARK, fontSize: 12, margin: [0, 4, 12, 0] }, { width: "auto", text: kc(inv.amount), bold: true, color: DARK, fontSize: 17, alignment: "right" } ],
       },
 
-      // Platba + QR
-      {
+      // Platba + QR — u stornované faktury skryté, místo něj upozornění
+      ...(storno ? [{
+        margin: [0, 22, 0, 0] as [number, number, number, number],
+        table: { widths: ["*"], body: [[{ text: "Faktura stornována — je neplatná, prosím neplaťte ji.", color: "#6b7280", bold: true, fontSize: 11, alignment: "center", border: [false, false, false, false], margin: [6, 10, 6, 10] }]] },
+        layout: { fillColor: () => LIGHT, hLineWidth: () => 0, vLineWidth: () => 0 },
+      }] : [{
         margin: [0, 22, 0, 0] as [number, number, number, number],
         table: {
           widths: ["*", "auto"],
@@ -219,7 +226,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
           hLineWidth: () => 0, vLineWidth: () => 0,
           paddingLeft: () => 14, paddingRight: () => 14, paddingTop: () => 14, paddingBottom: () => 14,
         },
-      },
+      }]),
     ],
     footer: () => ({
       margin: [40, 10, 40, 0] as [number, number, number, number],

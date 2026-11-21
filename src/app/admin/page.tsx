@@ -186,7 +186,7 @@ type InvoiceRow = {
   issued_on: string; due_on: string; amount: number; vs: string;
   intro: string | null;
   lines: { date: string; what: string; amount: number }[];
-  status: string; sent_at: string | null; paid_at: string | null;
+  status: string; sent_at: string | null; paid_at: string | null; storno_at?: string | null;
   delivery_status?: string | null; delivered_at?: string | null; bounced_at?: string | null; opened_at?: string | null;
 };
 type BlockRow = { id: string; weekday: number; start_time: string; end_time: string; label: string; category: string; note: string | null; active: boolean; price_kc: number | null; bill_mode: string | null };
@@ -249,6 +249,10 @@ export default function AdminPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invCfg, setInvCfg] = useState<{ due_days: number; next_number: number; intro_note: string | null } | null>(null);
   const [invBusy, setInvBusy] = useState(false);
+  // Storno faktury – potvrzení přepsáním náhodného kódu
+  const [stornoInv, setStornoInv] = useState<InvoiceRow | null>(null);
+  const [invStornoCode, setInvStornoCode] = useState("");
+  const [invStornoTyped, setInvStornoTyped] = useState("");
   const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalog[]>([]);
   const [clientPrices, setClientPrices] = useState<ClientPrice[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceChange[]>([]);
@@ -1214,6 +1218,70 @@ export default function AdminPage() {
     });
     if (mErr) { setError(`Odeslání upomínky k #${inv.number} selhalo: ` + mErr.message); return; }
     setError(`✅ Upomínka k faktuře #${inv.number} odeslána na ${inv.email}.`);
+  }
+  // ── Storno faktury ──────────────────────────────────────────────────────────
+  // Otevře potvrzovací okno s náhodným kódem (ochrana proti omylu).
+  function openStorno(inv: InvoiceRow) {
+    const ch = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const code = Array.from({ length: 5 }, () => ch[Math.floor(Math.random() * ch.length)]).join("");
+    setInvStornoCode(code); setInvStornoTyped(""); setStornoInv(inv);
+  }
+  // E-mail klientovi: faktura byla stornována, neplatit.
+  function stornoEmailHtml(inv: InvoiceRow): string {
+    const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Helvetica,Arial,sans-serif";
+    const monthTitle = monthLabelCs(inv.month);
+    return `
+<div style="background:#eef2f7;padding:24px 10px;font-family:${font}">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;border-collapse:collapse">
+    <tr><td style="background:#062A6B;height:6px;line-height:6px;font-size:0;border-radius:16px 16px 0 0">&nbsp;</td></tr>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:28px 28px 20px;text-align:center;border-bottom:1px solid #eef2f7">
+      <img src="https://pohybdoma.cz/LOGO.png" alt="POHYB DOMA" width="200" style="display:block;margin:0 auto 14px;width:200px;max-width:72%;height:auto">
+      <div style="font-size:23px;font-weight:bold;color:#062A6B;letter-spacing:.3px">Mgr. Jan Schröffel</div>
+      <div style="font-size:13px;color:#64748b;margin-top:3px">lektor pohybu · pohybdoma.cz</div>
+    </td></tr>
+    <tr><td bgcolor="#ffffff" style="background:#ffffff;padding:24px 28px 10px">
+      <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#94a3b8;font-weight:bold">Storno faktury</div>
+      <div style="font-size:26px;font-weight:bold;color:#062A6B;line-height:1;margin:4px 0 16px">č. ${inv.number}</div>
+      <div style="margin:0 0 6px;border-radius:10px;background:#f1f5f9;border:1px solid #e2e8f0;color:#334155;padding:12px 14px;font-size:14px;line-height:1.55">
+        Dobrý den, tímto Vás informuji, že <strong>faktura č. ${inv.number}</strong> za ${monthTitle} byla <strong>stornována</strong> a je neplatná. <strong>Prosím neplaťte ji.</strong> Pokud je potřeba, zašlu Vám opravenou fakturu zvlášť. Děkuji za pochopení.
+      </div>
+    </td></tr>
+    <tr><td bgcolor="#f8fafc" style="background:#f8fafc;border-radius:0 0 16px 16px;padding:20px 28px;text-align:center;color:#94a3b8;font-size:12px;line-height:1.7">
+      <span style="color:#062A6B;font-weight:bold;font-size:13px">Honza — POHYB DOMA</span><br>
+      ${BUSINESS.name} · ${BUSINESS.address} · IČO ${BUSINESS.ico}<br>
+      ${BUSINESS.vatNote} · <a href="https://pohybdoma.cz" style="color:#1976FF;text-decoration:none">pohybdoma.cz</a>
+    </td></tr>
+  </table>
+</div>`.trim();
+  }
+  // Provede storno: označí fakturu, (nejde zpět) + pošle klientovi oznámení.
+  async function confirmInvStorno() {
+    const inv = stornoInv;
+    if (!inv) return;
+    if (invStornoTyped.trim().toUpperCase() !== invStornoCode) { setError("Kód nesouhlasí – přepiš ho přesně podle okna."); return; }
+    setInvBusy(true);
+    try {
+      const at = new Date().toISOString();
+      const { error: uErr } = await supabase.from("invoices").update({ status: "storno", storno_at: at }).eq("id", inv.id);
+      if (uErr) { setError("Storno selhalo (spustil jsi invoice_storno.sql?): " + uErr.message); return; }
+      setInvoices((prev) => prev.map((i) => (i.id === inv.id ? { ...i, status: "storno", storno_at: at } : i)));
+      // Oznámení klientovi (best-effort – storno platí, i kdyby e-mail selhal).
+      if (inv.email) {
+        const { error: mErr } = await supabase.rpc("admin_send_email", {
+          p_to: inv.email,
+          p_subject: `Storno faktury č. ${inv.number} (${monthLabelCs(inv.month)})`,
+          p_html: stornoEmailHtml(inv),
+          p_attach_url: `https://pohybdoma.cz/api/faktura-pdf/${inv.token}`,
+          p_attach_name: `storno-faktura-${inv.number}.pdf`,
+          p_tag_value: String(inv.number),
+        });
+        if (mErr) setError(`Faktura #${inv.number} stornována, ale oznámení se nepodařilo odeslat: ` + mErr.message);
+        else setError(`✅ Faktura #${inv.number} stornována a oznámení odesláno na ${inv.email}. Teď můžeš vystavit opravenou.`);
+      } else {
+        setError(`✅ Faktura #${inv.number} stornována. (Klient nemá e-mail, oznámení neodesláno.)`);
+      }
+      setStornoInv(null);
+    } finally { setInvBusy(false); }
   }
   // Zkušební e-mail sobě – ukázková faktura. NEgeneruje fakturu ani neposouvá číslování.
   async function sendTestInvoiceEmail() {
@@ -4021,7 +4089,7 @@ export default function AdminPage() {
                   intro: fillIntro(invCfg?.intro_note, invMonth, introServices(lines)),
                 }))
                 .filter((g) => g.total > 0);
-              const invByPayer = new Map(invoices.filter((i) => i.month === invMonth).map((i) => [i.payer_name, i]));
+              const invByPayer = new Map(invoices.filter((i) => i.month === invMonth && i.status !== "storno").map((i) => [i.payer_name, i]));
               const toGenerate = groups.filter((g) => !invByPayer.has(g.payer) && !skipSet.has(g.payer));
               const monthInvoices = invoices.filter((i) => i.month === invMonth).sort((a, b) => a.number - b.number);
               const issuedWithMail = monthInvoices.filter((i) => i.status === "issued" && i.email);
@@ -4093,10 +4161,35 @@ export default function AdminPage() {
                 issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
                 sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
                 paid: { label: "zaplaceno", cls: "bg-emerald-100 text-emerald-700" },
+                storno: { label: "stornováno", cls: "bg-gray-200 text-gray-500 line-through" },
               };
               return (
               <div>
                 {/* Náhled celého dokumentu faktury (modal) */}
+                {stornoInv && mounted && createPortal(
+                  <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4" onClick={() => !invBusy && setStornoInv(null)}>
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                      <h3 className="text-lg font-bold text-brand-dark">Stornovat fakturu #{stornoInv.number}?</h3>
+                      <p className="mt-2 text-sm text-gray-600">
+                        Faktura <strong>#{stornoInv.number}</strong> ({stornoInv.payer_name}, {stornoInv.amount.toLocaleString("cs-CZ")} Kč) se označí jako <strong>stornovaná</strong> a {stornoInv.email ? <>klientovi se pošle <strong>oznámení na {stornoInv.email}</strong></> : "klient nemá e-mail, oznámení se nepošle"}. Číslo zůstane jako zrušené (nepoužije se znovu). Akce nejde vrátit.
+                      </p>
+                      <p className="mt-4 text-sm text-gray-600">Pro potvrzení přepiš tento kód:</p>
+                      <div className="mt-1 mb-2 select-none rounded-lg bg-gray-100 px-3 py-2 text-center text-xl font-bold tracking-[0.3em] text-brand-dark">{invStornoCode}</div>
+                      <input
+                        autoFocus
+                        value={invStornoTyped}
+                        onChange={(e) => setInvStornoTyped(e.target.value.toUpperCase())}
+                        placeholder="Přepiš kód"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-center text-lg font-semibold tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-red-400"
+                      />
+                      <div className="mt-5 flex gap-3">
+                        <button type="button" disabled={invBusy} onClick={() => setStornoInv(null)} className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40">Zpět</button>
+                        <button type="button" disabled={invBusy || invStornoTyped.trim().toUpperCase() !== invStornoCode} onClick={() => confirmInvStorno()} className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40">{invBusy ? "Stornuji…" : "Stornovat"}</button>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
                 {previewDoc && mounted && createPortal(
                   <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={() => setPreviewDoc(null)}>
                     <div className="my-8 w-full max-w-[820px]" onClick={(e) => e.stopPropagation()}>
@@ -4263,10 +4356,10 @@ export default function AdminPage() {
                               {!isFixed && (
                                 inv ? (
                                   (monthClosed || Math.round(inv.amount) === Math.round(g.total))
-                                    ? <span title={monthClosed ? "Uzavřený měsíc" : "Částka na faktuře sedí s kalendářem"} className="text-base leading-none text-emerald-600">✓</span>
-                                    : <span title={`Nesedí: faktura ${inv.amount.toLocaleString("cs-CZ")} Kč vs. kalendář ${g.total.toLocaleString("cs-CZ")} Kč`} className="text-base leading-none font-bold text-red-600">⚠</span>
+                                    ? <span title={monthClosed ? "Uzavřený měsíc" : "Částka na faktuře sedí s kalendářem"} aria-label="sedí s kalendářem" className="text-base font-bold leading-none text-emerald-600">✓</span>
+                                    : <span title={`Faktura ${inv.amount.toLocaleString("cs-CZ")} Kč vs. kalendář ${g.total.toLocaleString("cs-CZ")} Kč`} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">⚠ nesedí: {inv.amount.toLocaleString("cs-CZ")} vs {g.total.toLocaleString("cs-CZ")} Kč</span>
                                 ) : (
-                                  <span title="Odpovídá kalendáři (faktura se teprve vystaví)" className="text-base leading-none text-emerald-600">✓</span>
+                                  <span title="Odpovídá kalendáři (faktura se teprve vystaví)" aria-label="sedí s kalendářem" className="text-base font-bold leading-none text-emerald-600">✓</span>
                                 )
                               )}
                               {isFixed && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-600">pevná faktura</span>}
@@ -4334,7 +4427,12 @@ export default function AdminPage() {
                                 tento měsíc nefakturovat (nebyl / vyřadit z hromadného odeslání)
                               </label>
                             )}
-                            {inv && (
+                            {inv && (inv.status === "storno" ? (
+                              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-500">stornováno{inv.storno_at ? ` · ${fmtCzDate(inv.storno_at.slice(0, 10))}` : ""}</span>
+                                <span className="text-xs text-gray-400">Číslo #{inv.number} zrušeno. Opravenou vystavíš výše (dostane nové číslo).</span>
+                              </div>
+                            ) : (
                               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                                 {inv.email ? (
                                   inv.status === "issued" ? (
@@ -4353,11 +4451,14 @@ export default function AdminPage() {
                                   <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
                                   zaplaceno
                                 </label>
-                                {inv.status !== "paid" && (
-                                  <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}? Číslo se už nevrátí do pořadí.`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat fakturu"><Trash2 className="h-4 w-4" /></button>
+                                {inv.status === "issued" && (
+                                  <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}? Číslo se už nevrátí do pořadí.`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat rozpracovanou fakturu"><Trash2 className="h-4 w-4" /></button>
+                                )}
+                                {inv.status === "sent" && (
+                                  <button type="button" disabled={invBusy} onClick={() => openStorno(inv)} className="ml-auto font-semibold text-red-600 hover:underline" title="Zrušit odeslanou fakturu a poslat klientovi oznámení">Stornovat</button>
                                 )}
                               </div>
-                            )}
+                            ))}
                           </div>
                         );
                       })}
@@ -4374,25 +4475,34 @@ export default function AdminPage() {
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                               <a href={`/faktura/${inv.token}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Náhled faktury ↗</a>
-                              {inv.email ? (
-                                inv.status === "issued" ? (
-                                  <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
-                                ) : (
-                                  <button type="button" disabled={invBusy} onClick={() => resendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Poslat znovu</button>
-                                )
+                              {inv.status === "storno" ? (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-semibold text-gray-500">stornováno{inv.storno_at ? ` · ${fmtCzDate(inv.storno_at.slice(0, 10))}` : ""}</span>
                               ) : (
-                                <span className="font-semibold text-red-500">chybí e-mail</span>
-                              )}
-                              {deliveryBadges(inv)}
-                              {inv.status === "sent" && inv.email && (
-                                <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40" title="Jemné připomenutí platby na e-mail klienta">⏳ Poslat upomínku</button>
-                              )}
-                              <label className="inline-flex items-center gap-1.5 text-gray-600">
-                                <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
-                                zaplaceno
-                              </label>
-                              {inv.status !== "paid" && (
-                                <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}?`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat fakturu"><Trash2 className="h-4 w-4" /></button>
+                                <>
+                                  {inv.email ? (
+                                    inv.status === "issued" ? (
+                                      <button type="button" disabled={invBusy} onClick={() => sendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Odeslat jen tuto</button>
+                                    ) : (
+                                      <button type="button" disabled={invBusy} onClick={() => resendInvoice(inv)} className="text-blue-700 font-semibold hover:underline disabled:opacity-40">Poslat znovu</button>
+                                    )
+                                  ) : (
+                                    <span className="font-semibold text-red-500">chybí e-mail</span>
+                                  )}
+                                  {deliveryBadges(inv)}
+                                  {inv.status === "sent" && inv.email && (
+                                    <button type="button" disabled={invBusy} onClick={() => sendReminder(inv)} className="font-semibold text-amber-700 hover:underline disabled:opacity-40" title="Jemné připomenutí platby na e-mail klienta">⏳ Poslat upomínku</button>
+                                  )}
+                                  <label className="inline-flex items-center gap-1.5 text-gray-600">
+                                    <input type="checkbox" checked={inv.status === "paid"} onChange={(e) => setInvoicePaid(inv, e.target.checked)} />
+                                    zaplaceno
+                                  </label>
+                                  {inv.status === "issued" && (
+                                    <button type="button" onClick={() => { if (confirm(`Smazat fakturu #${inv.number}?`)) deleteInvoice(inv.id); }} className="ml-auto text-gray-300 hover:text-red-500" title="Smazat rozpracovanou fakturu"><Trash2 className="h-4 w-4" /></button>
+                                  )}
+                                  {inv.status === "sent" && (
+                                    <button type="button" disabled={invBusy} onClick={() => openStorno(inv)} className="ml-auto font-semibold text-red-600 hover:underline" title="Zrušit odeslanou fakturu a poslat klientovi oznámení">Stornovat</button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

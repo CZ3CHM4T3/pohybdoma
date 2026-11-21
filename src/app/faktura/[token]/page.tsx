@@ -74,6 +74,7 @@ export default async function FakturaPage({
           intro: inv.intro,
           lines: inv.lines,
           paid: inv.status === "paid",
+          storno: inv.status === "storno",
           qr,
         }}
       />
