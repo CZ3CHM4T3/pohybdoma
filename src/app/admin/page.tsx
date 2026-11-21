@@ -379,6 +379,7 @@ export default function AdminPage() {
   const [finNote, setFinNote] = useState("");
   const [finDate, setFinDate] = useState("");
   const [showFinList, setShowFinList] = useState(false);
+  const [editFinId, setEditFinId] = useState<number | null>(null); // který ruční záznam se právě upravuje
   // Rychlé zadání měsíčního příjmu odjinud (fitko apod.) v kartě Faktury
   const [extCat, setExtCat] = useState("Kurz");
   const [extAmount, setExtAmount] = useState("");
@@ -607,9 +608,41 @@ export default function AdminPage() {
     if (data) setFinEntries(data as FinEntry[]);
   }
   async function delFinance(id: number) {
+    if (editFinId === id) { setEditFinId(null); setFinAmount(""); setFinNote(""); }
     setFinEntries((e) => e.filter((x) => x.id !== id));
     await supabase.from("finance_entries").delete().eq("id", id);
   }
+  // Úprava existujícího ručního záznamu (příjem/výdaj)
+  async function updateFinance(id: number, patch: { kind?: string; category?: string; amount_kc?: number; note?: string | null; at?: string }) {
+    setFinEntries((e) => e.map((x) => (x.id === id ? { ...x, ...patch } as FinEntry : x)));
+    await supabase.from("finance_entries").update(patch).eq("id", id);
+  }
+  // Uloží nový NEBO upravovaný ruční záznam (podle editFinId)
+  async function saveFinance() {
+    const amt = Number(finAmount.replace(",", "."));
+    if (!amt || amt <= 0) { setError("Zadej částku v Kč."); return; }
+    setError(null);
+    const at = finDate || new Date().toISOString().slice(0, 10);
+    if (editFinId != null) {
+      await updateFinance(editFinId, { kind: finKind, category: finCat, amount_kc: amt, note: finNote.trim() || null, at });
+      setEditFinId(null);
+    } else {
+      const { error } = await supabase.from("finance_entries").insert({ kind: finKind, category: finCat, amount_kc: amt, note: finNote.trim() || null, at });
+      if (error) { setError("Uložení selhalo (spustil jsi finance.sql?): " + error.message); return; }
+      const { data } = await supabase.from("finance_entries").select("*").order("at", { ascending: false });
+      if (data) setFinEntries(data as FinEntry[]);
+    }
+    setFinAmount(""); setFinNote("");
+  }
+  function startEditFinance(e: FinEntry) {
+    setEditFinId(e.id);
+    setFinKind(e.kind === "expense" ? "expense" : "income");
+    setFinCat(e.category);
+    setFinAmount(String(Math.round(Number(e.amount_kc))));
+    setFinNote(e.note || "");
+    setFinDate(String(e.at).slice(0, 10));
+  }
+  function cancelEditFinance() { setEditFinId(null); setFinAmount(""); setFinNote(""); }
 
   // Rychlý měsíční příjem odjinud (fitko apod.) – zapíše se k 1. dni vybraného měsíce.
   async function addExternalIncome() {
@@ -1937,8 +1970,8 @@ export default function AdminPage() {
   const expenseSlices = Object.entries(expenseByCat).map(([label, value], i) => ({ label, value, color: FIN_COLORS[i % FIN_COLORS.length] }));
   let topMembership = "—"; let topMembershipVal = 0;
   for (const c of ["MEMBER", "VIP", "VIP+"]) { if ((incomeByCat[c] ?? 0) > topMembershipVal) { topMembershipVal = incomeByCat[c]; topMembership = c; } }
-  const finIncomeCats = ["MEMBER", "VIP", "VIP+", "Kurz", "MS GEM", "Fitness lekce", "Jiné"];
-  const finExpenseCats = ["Cloudflare", "Supabase", "Vercel", "Doména", "Marketing", "Jiné"];
+  const finIncomeCats = ["Pronájem garsonky", "MS GEM", "MEMBER", "VIP", "Kurz", "Jiné"];
+  const finExpenseCats = ["Vybavení / pomůcky", "Nájem prostor", "Doprava / auto", "Telefon / internet", "Vzdělávání", "Marketing", "Účetní", "Pojištění", "Software (Cloudflare, Vercel…)", "Doména", "Jiné"];
 
   // ── Opakované lekce stálých klientů → konkrétní výskyty (pro kalendář i agendu) ──
   const recCancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
@@ -3373,6 +3406,11 @@ export default function AdminPage() {
           const nezaplaceno = vyfakturovano - zaplaceno;
           const monthIncome = finEntries.filter((e) => e.kind === "income" && monthSet.has(String(e.at).slice(0, 7))).reduce((s, e) => s + Number(e.amount_kc), 0);
           const monthExpense = finEntries.filter((e) => e.kind === "expense" && monthSet.has(String(e.at).slice(0, 7))).reduce((s, e) => s + Number(e.amount_kc), 0);
+          // Daňová evidence (hotovostní princip): příjem = zaplacené faktury + ruční příjmy mimo faktury; zisk = příjmy − výdaje
+          const prijmyCelkem = zaplaceno + monthIncome;
+          const zisk = prijmyCelkem - monthExpense;
+          const periodFin = finEntries.filter((e) => monthSet.has(String(e.at).slice(0, 7)))
+            .sort((a, b) => String(b.at).localeCompare(String(a.at)));
           const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
           const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
           // Popisek a název souboru podle výběru (1 měsíc / celý rok / více měsíců)
@@ -3419,6 +3457,7 @@ export default function AdminPage() {
                   <button type="button" onClick={printRegister} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Hezký přehled k tisku / uložení do PDF">🖨 Tisk / PDF</button>
                 </div>
               </div>
+              <h3 className="text-sm font-bold text-brand-dark">Faktury <span className="font-normal text-gray-400">· stav úhrad za {periodLabel}</span></h3>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   { l: "Vyfakturováno", v: czk(vyfakturovano), sub: `${live.length}× faktura`, c: "text-brand-dark" },
@@ -3433,12 +3472,60 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl bg-emerald-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Příjmy (evidence)</div><div className="mt-1 text-lg font-bold text-emerald-700">{czk(monthIncome)}</div></div>
-                <div className="rounded-xl bg-red-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Výdaje</div><div className="mt-1 text-lg font-bold text-red-700">{czk(monthExpense)}</div></div>
-                <div className="rounded-xl bg-brand-light p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-brand-blue">Zisk</div><div className="mt-1 text-lg font-bold text-brand-dark">{czk(monthIncome - monthExpense)}</div></div>
+              {/* Hospodaření za období = podklad pro daňovou evidenci (hotovostní princip) */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-1">
+                  <h3 className="text-sm font-bold text-brand-dark">Hospodaření za období <span className="font-normal text-gray-400">· podklad pro účetní</span></h3>
+                  <span className="text-[11px] text-gray-400">příjem = co reálně přišlo (zaplaceno)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                  <div className="rounded-xl bg-emerald-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Zaplacené faktury</div><div className="mt-1 text-base font-bold text-emerald-700">{czk(zaplaceno)}</div></div>
+                  <div className="rounded-xl bg-emerald-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">+ Ostatní příjmy</div><div className="mt-1 text-base font-bold text-emerald-700">{czk(monthIncome)}</div><div className="text-[10px] text-emerald-600">ruční (pronájem…)</div></div>
+                  <div className="rounded-xl bg-emerald-100 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">= Příjmy celkem</div><div className="mt-1 text-base font-bold text-emerald-800">{czk(prijmyCelkem)}</div></div>
+                  <div className="rounded-xl bg-red-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">− Výdaje</div><div className="mt-1 text-base font-bold text-red-700">{czk(monthExpense)}</div></div>
+                  <div className="rounded-xl bg-brand-light p-3 text-center ring-1 ring-brand-blue/20"><div className="text-[11px] font-semibold uppercase tracking-wide text-brand-blue">= Zisk</div><div className="mt-1 text-lg font-extrabold text-brand-dark">{czk(zisk)}</div></div>
+                </div>
+                <p className="mt-3 text-[11px] text-gray-400">
+                  Hotovostní princip (daňová evidence): do zisku jdou jen <strong>zaplacené</strong> faktury + ruční příjmy. Nezaplacené faktury ({czk(nezaplaceno)}) se nepočítají, dokud nejsou uhrazené.
+                  <br />⚠ <strong>Ostatní příjmy</strong> zadávej jen pro peníze, které <strong>nejsou na faktuře</strong> (např. pronájem garsonky). Nepiš sem to, co už fakturuješ (individuály, MS GEM) — počítalo by se to dvakrát.
+                </p>
               </div>
-              <p className="text-[11px] text-gray-400">Příjmy/výdaje jsou z evidence financí (deník, rezervace, ruční položky) za daný měsíc — mohou se lišit od „vyfakturováno" (ne vše se fakturuje a ne vše je hned zaplaceno).</p>
+
+              {/* Ruční příjmy a výdaje pro účetní (pronájem, nákupy, provoz…) */}
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <h3 className="mb-1 text-sm font-bold text-brand-dark">Ruční příjmy a výdaje <span className="font-normal text-gray-400">· pro daňovou evidenci</span></h3>
+                <p className="mb-3 text-xs text-gray-500">Sem si dopíšeš příjmy mimo faktury (pronájem garsonky) a všechny výdaje. Rovnou se započítají do zisku výše a projeví se i v záložce <strong>Celkem</strong>. Datum = do kterého měsíce/roku položka spadne.</p>
+                <div className="flex flex-wrap items-end gap-2">
+                  <select value={finKind} onChange={(e) => { const k = e.target.value as "income" | "expense"; setFinKind(k); setFinCat(k === "income" ? finIncomeCats[0] : finExpenseCats[0]); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                    <option value="income">Příjem</option>
+                    <option value="expense">Výdaj</option>
+                  </select>
+                  <input list="ucet-fin-cats" value={finCat} onChange={(e) => setFinCat(e.target.value)} placeholder="kategorie" className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" />
+                  <datalist id="ucet-fin-cats">{(finKind === "income" ? finIncomeCats : finExpenseCats).map((c) => <option key={c} value={c} />)}</datalist>
+                  <input value={finAmount} onChange={(e) => setFinAmount(e.target.value)} placeholder="Částka (Kč)" inputMode="decimal" className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <DatePicker value={finDate} onChange={setFinDate} placeholder="datum" />
+                  <input value={finNote} onChange={(e) => setFinNote(e.target.value)} placeholder="Poznámka (nepovinné)" className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                  <button type="button" onClick={saveFinance} className="btn-primary text-sm">{editFinId != null ? "Uložit změnu" : "Přidat"}</button>
+                  {editFinId != null && <button type="button" onClick={cancelEditFinance} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">Zrušit</button>}
+                </div>
+                {periodFin.length > 0 ? (
+                  <div className="mt-3 space-y-1">
+                    {periodFin.map((e) => (
+                      <div key={e.id} className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-xs ${editFinId === e.id ? "border-brand-blue bg-brand-light/40" : "border-gray-100"}`}>
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-bold ${e.kind === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{e.kind === "income" ? "+" : "−"}</span>
+                        <span className="shrink-0 font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                        <span className="text-gray-500">{e.category}</span>
+                        {e.note && <span className="min-w-0 truncate text-gray-400">· {e.note}</span>}
+                        <span className="ml-auto shrink-0 text-gray-400">{new Date(e.at).toLocaleDateString("cs-CZ")}</span>
+                        <button type="button" onClick={() => startEditFinance(e)} className="shrink-0 font-semibold text-gray-400 hover:text-brand-blue" title="Upravit">✎</button>
+                        <button type="button" onClick={() => delFinance(e.id)} className="shrink-0 text-gray-300 hover:text-red-500" title="Smazat"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-gray-400">Za {periodLabel} zatím žádné ruční příjmy/výdaje.</p>
+                )}
+              </div>
               {monthInv.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {periodLabel} nejsou žádné faktury.</p>
               ) : (
