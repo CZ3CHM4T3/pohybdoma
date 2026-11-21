@@ -4806,6 +4806,8 @@ export default function AdminPage() {
                     const indSources = [...indSrcMap.entries()].map(([label, val]) => ({ label, val, color: catColor(label) })).sort((a, b) => b.val - a.val);
                     const indGrand = Math.max(1, indSources.reduce((s, x) => s + x.val, 0));
                     const indLines = prodSrc && indSrcMap.has(prodSrc) ? allIndLines.filter((l) => (l.svcLabel || "Lekce") === prodSrc) : allIndLines;
+                    // Barva grafů: konkrétní služba → její barva; „Vše" → neutrální značková modrá.
+                    const barColor = prodSrc && indSrcMap.has(prodSrc) ? catColor(prodSrc) : "#1976FF";
                     const total = indLines.reduce((s, l) => s + l.amount, 0);
                     const count = indLines.length;
                     const avg = Math.round(total / count);
@@ -4873,7 +4875,7 @@ export default function AdminPage() {
                             {topClients.slice(0, 10).map(([name, val]) => (
                               <div key={name} className="flex items-center gap-3 text-sm">
                                 <span className="w-32 shrink-0 truncate">{name}</span>
-                                <div className="flex-1"><Bar val={val} max={maxClient} color="#1976FF" /></div>
+                                <div className="flex-1"><Bar val={val} max={maxClient} color={barColor} /></div>
                                 <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
                                 <span className="w-16 shrink-0 text-right text-xs text-gray-400">{cntClient.get(name)}× · {Math.round(val / total * 100)} %</span>
                               </div>
@@ -4889,7 +4891,7 @@ export default function AdminPage() {
                               {wdIdx.map((d, i) => (
                                 <div key={d} className="flex items-center gap-3 text-sm">
                                   <span className="w-8 shrink-0 text-gray-500">{WD[i]}</span>
-                                  <div className="flex-1"><Bar val={byWd[d]} max={maxWd} color="#14b8a6" /></div>
+                                  <div className="flex-1"><Bar val={byWd[d]} max={maxWd} color={barColor} /></div>
                                   <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(byWd[d])}</span>
                                 </div>
                               ))}
@@ -4901,7 +4903,7 @@ export default function AdminPage() {
                               {months.map(([mk, val]) => (
                                 <div key={mk} className="flex items-center gap-3 text-sm">
                                   <span className="w-20 shrink-0 text-gray-500 capitalize">{monthLabelCs(mk)}</span>
-                                  <div className="flex-1"><Bar val={val} max={maxMonth} color="#8b5cf6" /></div>
+                                  <div className="flex-1"><Bar val={val} max={maxMonth} color={barColor} /></div>
                                   <span className="w-24 shrink-0 text-right font-semibold text-brand-dark">{czk(val)}</span>
                                 </div>
                               ))}
