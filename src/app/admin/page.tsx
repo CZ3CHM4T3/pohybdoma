@@ -18,6 +18,7 @@ import { BUSINESS } from "@/lib/invoice-business";
 import { buildSpayd, qrUrl, fmtCzDate, fillIntro, monthLabelCs } from "@/lib/invoice";
 import { InvoiceDocument, type InvoiceDocData } from "@/components/InvoiceDocument";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
+import { DatePicker, MonthPicker } from "@/components/ui/DatePicker";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
 } from "@/lib/filters";
@@ -2541,7 +2542,7 @@ export default function AdminPage() {
                       </div>
                       <div className="w-36">
                         <label className="block text-[11px] text-gray-500 mb-0.5">Účtovat od</label>
-                        <input type="date" value={edSince} onChange={(e) => setEdSince(e.target.value)} title="Od tohoto data se lekce počítá do faktur. Prázdné = od začátku (1. 9. 2026)." className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                        <DatePicker value={edSince} onChange={setEdSince} placeholder="od začátku" />
                       </div>
                       <button type="button" onClick={async () => { const p = edPrice.trim() === "" ? null : Number(edPrice); await updateRecurring(r.id, { client_name: edClient.trim() || r.client_name, weekday: Number(edWeekday), time: edTime, price_kc: Number.isFinite(p as number) ? p : null, since: edSince || null }); setEditRecId(null); }} className="rounded-md bg-brand-dark px-3 py-2 text-sm font-semibold text-white hover:opacity-90">
                         Uložit
@@ -3764,7 +3765,7 @@ export default function AdminPage() {
                 </div>
                 {(celkemPeriod === "mesic" || celkemPeriod === "rok") && (
                   <div className="mb-5 flex items-center gap-1.5">
-                    <input type="month" value={invMonth} onChange={(e) => setInvMonth(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
+                    <MonthPicker value={invMonth} onChange={setInvMonth} />
                     <button type="button" onClick={() => { const n = new Date(); setInvMonth(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`); }} className="rounded-md border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50">Tento</button>
                   </div>
                 )}
@@ -3899,12 +3900,7 @@ export default function AdminPage() {
               <div>
                 <label className="block text-xs font-semibold text-brand-dark mb-1">Měsíc</label>
                 <div className="flex items-center gap-1.5">
-                  <input
-                    type="month"
-                    value={invMonth}
-                    onChange={(e) => setInvMonth(e.target.value)}
-                    className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-blue text-sm"
-                  />
+                  <MonthPicker value={invMonth} onChange={setInvMonth} />
                   <button
                     type="button"
                     onClick={() => { const n = new Date(); setInvMonth(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`); }}
@@ -4553,27 +4549,18 @@ export default function AdminPage() {
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     <span className="mr-1 text-xs text-gray-400">Období:</span>
-                    <label className="inline-flex items-center gap-1 text-xs text-gray-400" title="Vyber konkrétní měsíc – otevře kalendářík s měsícem a rokem">
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                       Měsíc:
-                      <input
-                        type="month"
-                        onChange={(e) => {
-                          const v = e.target.value; // "YYYY-MM"
-                          if (!v) return;
-                          const [yy, mm] = v.split("-").map(Number);
-                          const last = new Date(yy, mm, 0).getDate();
-                          setAnalFrom(`${v}-01`);
-                          setAnalTo(`${v}-${String(last).padStart(2, "0")}`);
-                          setAnalPeriod("custom");
-                        }}
-                        className="rounded-md border border-gray-200 px-1.5 py-1 text-xs"
+                      <MonthPicker
+                        value={analFrom ? analFrom.slice(0, 7) : new Date().toISOString().slice(0, 7)}
+                        onChange={(ym) => { const [yy, mm] = ym.split("-").map(Number); const last = new Date(yy, mm, 0).getDate(); setAnalFrom(`${ym}-01`); setAnalTo(`${ym}-${String(last).padStart(2, "0")}`); setAnalPeriod("custom"); }}
                       />
-                    </label>
+                    </span>
                     <span className="text-xs text-gray-300">nebo</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
-                      <input type="date" value={analFrom} onChange={(e) => { setAnalFrom(e.target.value); setAnalPeriod("custom"); }} className="rounded-md border border-gray-200 px-1.5 py-1 text-xs" />
+                    <span className={`inline-flex items-center gap-1 rounded-full px-1 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
+                      <DatePicker value={analFrom} onChange={(v) => { setAnalFrom(v); setAnalPeriod("custom"); }} placeholder="od" />
                       <span className="text-xs text-gray-400">–</span>
-                      <input type="date" value={analTo} onChange={(e) => { setAnalTo(e.target.value); setAnalPeriod("custom"); }} className="rounded-md border border-gray-200 px-1.5 py-1 text-xs" />
+                      <DatePicker value={analTo} onChange={(v) => { setAnalTo(v); setAnalPeriod("custom"); }} placeholder="do" />
                     </span>
                     {([["1m", "1 měsíc"], ["3m", "3 měsíce"], ["6m", "6 měsíců"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
@@ -5037,7 +5024,7 @@ export default function AdminPage() {
                       </div>
                     ))}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <input type="date" value={pcDate} onChange={(e) => setPcDate(e.target.value)} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
+                      <DatePicker value={pcDate} onChange={setPcDate} />
                       <input type="number" value={pcPrice} onChange={(e) => setPcPrice(e.target.value)} placeholder="nová cena Kč" className="w-28 rounded-md border border-gray-200 px-2 py-1.5 text-sm" />
                       <button type="button" disabled={!pcDate || pcPrice.trim() === ""} onClick={() => { addPriceChange(cenikSvc, pcDate, Number(pcPrice)); setPcDate(""); setPcPrice(""); }} className="rounded-md bg-brand-dark px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">Přidat změnu</button>
                     </div>
@@ -5554,7 +5541,7 @@ export default function AdminPage() {
                   {(finKind === "income" ? finIncomeCats : finExpenseCats).map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input value={finAmount} onChange={(e) => setFinAmount(e.target.value)} placeholder="Částka (Kč)" inputMode="decimal" className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                <input type="date" value={finDate} onChange={(e) => setFinDate(e.target.value)} className="rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+                <DatePicker value={finDate} onChange={setFinDate} />
                 <input value={finNote} onChange={(e) => setFinNote(e.target.value)} placeholder="Poznámka (nepovinné)" className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
                 <button onClick={addFinance} className="btn-primary text-sm">Přidat</button>
               </div>
