@@ -4204,8 +4204,10 @@ export default function AdminPage() {
                 )}
                 {/* PŘEHLED – vyfakturováno / zaplaceno / zbývá (živě podle „zaplaceno") */}
                 {monthInvoices.length > 0 && (() => {
-                  const invTotal = monthInvoices.reduce((s, i) => s + i.amount, 0);
-                  const paidList = monthInvoices.filter((i) => i.status === "paid");
+                  // Stornované faktury se do souhrnu nepočítají (nejsou vyfakturované ani dlužné).
+                  const live = monthInvoices.filter((i) => i.status !== "storno");
+                  const invTotal = live.reduce((s, i) => s + i.amount, 0);
+                  const paidList = live.filter((i) => i.status === "paid");
                   const invPaid = paidList.reduce((s, i) => s + i.amount, 0);
                   const invRemaining = invTotal - invPaid;
                   const pct = invTotal > 0 ? Math.round((invPaid / invTotal) * 100) : 0;
@@ -4216,7 +4218,7 @@ export default function AdminPage() {
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Vyfakturováno</div>
                           <div className="mt-1 text-lg font-bold text-brand-dark sm:text-xl">{czk(invTotal)}</div>
-                          <div className="text-[11px] text-gray-400">{monthInvoices.length}× faktura</div>
+                          <div className="text-[11px] text-gray-400">{live.length}× faktura</div>
                         </div>
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Zaplaceno</div>
@@ -4226,7 +4228,7 @@ export default function AdminPage() {
                         <div>
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Zbývá</div>
                           <div className="mt-1 text-lg font-bold text-amber-600 sm:text-xl">{czk(invRemaining)}</div>
-                          <div className="text-[11px] text-gray-400">{monthInvoices.length - paidList.length}× čeká</div>
+                          <div className="text-[11px] text-gray-400">{live.length - paidList.length}× čeká</div>
                         </div>
                       </div>
                       <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
@@ -4751,7 +4753,7 @@ export default function AdminPage() {
             {finView === "nedoplatky" && (() => {
               const todayKey = new Date().toLocaleDateString("sv-SE");
               const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
-              const unpaid = invoices.filter((i) => i.status !== "paid").sort((a, b) => (a.due_on || "").localeCompare(b.due_on || ""));
+              const unpaid = invoices.filter((i) => i.status !== "paid" && i.status !== "storno").sort((a, b) => (a.due_on || "").localeCompare(b.due_on || ""));
               const overdue = unpaid.filter((i) => i.due_on && i.due_on < todayKey);
               const pending = unpaid.filter((i) => !(i.due_on && i.due_on < todayKey));
               const sum = (arr: InvoiceRow[]) => arr.reduce((s, i) => s + i.amount, 0);
