@@ -311,7 +311,7 @@ export default function AdminPage() {
   const [klientTab, setKlientTab] = useState<"individ" | "skupiny">("individ");
   const [invMonth, setInvMonth] = useState<string>(() => new Date().toLocaleDateString("sv-SE").slice(0, 7)); // "YYYY-MM"
   const [finView, setFinView] = useState<"prehled" | "mesic" | "individualy" | "skupinovky" | "celkem" | "fakturace" | "nedoplatky" | "analyza" | "cenik" | "archiv" | "ucetnictvi">("prehled");
-  const [ucetMonth, setUcetMonth] = useState<string>(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM" pro záložku Účetnictví
+  const [ucetMonths, setUcetMonths] = useState<string[]>(() => [new Date().toISOString().slice(0, 7)]); // vybrané měsíce "YYYY-MM" pro záložku Účetnictví (1, více, nebo celý rok)
   const [prodView, setProdView] = useState<"ind" | "grp">("ind");
   const [prodSrc, setProdSrc] = useState<string | null>(null); // filtr zdroje příjmu v Rozboru (null = vše)
   // Okamžitý tooltip nad dílem sloupce ve stacked grafu (nahrazuje pomalý černý title)
@@ -3362,22 +3362,27 @@ export default function AdminPage() {
         })()}
 
         {tab === "ucetnictvi" && (() => {
-          const monthInv = invoices.filter((i) => i.month === ucetMonth).sort((a, b) => a.number - b.number);
+          const selMonths = [...ucetMonths].sort();
+          const monthSet = new Set(selMonths);
+          const monthInv = invoices.filter((i) => monthSet.has(i.month)).sort((a, b) => (a.month === b.month ? a.number - b.number : a.month.localeCompare(b.month)));
           const live = monthInv.filter((i) => i.status !== "storno");
           const stornoCount = monthInv.length - live.length;
           const vyfakturovano = live.reduce((s, i) => s + i.amount, 0);
           const paidList = live.filter((i) => i.status === "paid");
           const zaplaceno = paidList.reduce((s, i) => s + i.amount, 0);
           const nezaplaceno = vyfakturovano - zaplaceno;
-          const monthIncome = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
-          const monthExpense = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
+          const monthIncome = finEntries.filter((e) => e.kind === "income" && monthSet.has(String(e.at).slice(0, 7))).reduce((s, e) => s + Number(e.amount_kc), 0);
+          const monthExpense = finEntries.filter((e) => e.kind === "expense" && monthSet.has(String(e.at).slice(0, 7))).reduce((s, e) => s + Number(e.amount_kc), 0);
           const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
           const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
-          const curY = Number(ucetMonth.slice(0, 4));
-          const curM = Number(ucetMonth.slice(5, 7));
-          const years: number[] = [];
-          for (let yy = 2025; yy <= new Date().getFullYear() + 1; yy++) years.push(yy);
-          const setYM = (yy: number, mm: number) => setUcetMonth(`${yy}-${String(mm).padStart(2, "0")}`);
+          // Popisek a název souboru podle výběru (1 měsíc / celý rok / více měsíců)
+          const selYears = new Set(selMonths.map((m) => m.slice(0, 4)));
+          const wholeYear = selYears.size === 1 && selMonths.length === 12;
+          const periodLabel = selMonths.length === 0 ? "—"
+            : selMonths.length === 1 ? `${MONTHS[Number(selMonths[0].slice(5, 7)) - 1]} ${selMonths[0].slice(0, 4)}`
+            : wholeYear ? `rok ${selMonths[0].slice(0, 4)}`
+            : `${selMonths.length} měsíců`;
+          const fileSlug = selMonths.length === 1 ? selMonths[0] : wholeYear ? selMonths[0].slice(0, 4) : "vyber";
           const STLBL: Record<string, string> = { issued: "vystaveno", sent: "odeslano", paid: "zaplaceno", storno: "STORNOVANO" };
           const STBADGE: Record<string, { label: string; cls: string }> = {
             issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
@@ -3394,24 +3399,21 @@ export default function AdminPage() {
             const csv = [head, ...body].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
             const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a"); a.href = url; a.download = `faktury-${ucetMonth}.csv`; a.click(); URL.revokeObjectURL(url);
+            const a = document.createElement("a"); a.href = url; a.download = `faktury-${fileSlug}.csv`; a.click(); URL.revokeObjectURL(url);
           };
           const printRegister = () => {
             const w = window.open("", "_blank"); if (!w) return;
-            const rows = monthInv.map((i) => `<tr style="${i.status === "storno" ? "color:#9ca3af;text-decoration:line-through" : ""}"><td>#${i.number}</td><td>${i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td><td>${i.bill_name || i.payer_name}</td><td>${i.ico || "—"}</td><td style="text-align:right">${czk(i.amount)}</td><td>${i.status === "storno" ? "STORNO" : (STLBL[i.status] || i.status)}</td><td>${i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td></tr>`).join("");
-            w.document.write(`<html><head><title>Faktury ${MONTHS[curM - 1]} ${curY}</title><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:24px}h1{color:#062A6B;font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left}th{color:#6b7280;text-transform:uppercase;font-size:10px}</style></head><body><h1>POHYB DOMA — faktury za ${MONTHS[curM - 1]} ${curY}</h1><p style="font-size:12px;color:#374151">Vyfakturováno: <b>${czk(vyfakturovano)}</b> · Zaplaceno: <b>${czk(zaplaceno)}</b> · Nezaplaceno: <b>${czk(nezaplaceno)}</b> · Stornováno: <b>${stornoCount}×</b></p><table><thead><tr><th>Číslo</th><th>Vystaveno</th><th>Odběratel</th><th>IČO</th><th style="text-align:right">Částka</th><th>Stav</th><th>Uhrazeno</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:14px;font-size:10px;color:#9ca3af">Stornované faktury si drží číslo (žádné díry v číslování) — doložené jako zrušené doklady. Vygenerováno z pohybdoma.cz.</p></body></html>`);
+            const perCol = selMonths.length > 1;
+            const rows = monthInv.map((i) => `<tr style="${i.status === "storno" ? "color:#9ca3af;text-decoration:line-through" : ""}"><td>#${i.number}</td><td>${i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td><td>${i.bill_name || i.payer_name}</td><td>${i.ico || "—"}</td>${perCol ? `<td>${i.month.slice(5, 7)}/${i.month.slice(0, 4)}</td>` : ""}<td style="text-align:right">${czk(i.amount)}</td><td>${i.status === "storno" ? "STORNO" : (STLBL[i.status] || i.status)}</td><td>${i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td></tr>`).join("");
+            w.document.write(`<html><head><title>Faktury ${periodLabel}</title><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:24px}h1{color:#062A6B;font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left}th{color:#6b7280;text-transform:uppercase;font-size:10px}</style></head><body><h1>POHYB DOMA — faktury za ${periodLabel}</h1><p style="font-size:12px;color:#374151">Vyfakturováno: <b>${czk(vyfakturovano)}</b> · Zaplaceno: <b>${czk(zaplaceno)}</b> · Nezaplaceno: <b>${czk(nezaplaceno)}</b> · Stornováno: <b>${stornoCount}×</b></p><table><thead><tr><th>Číslo</th><th>Vystaveno</th><th>Odběratel</th><th>IČO</th>${perCol ? "<th>Období</th>" : ""}<th style="text-align:right">Částka</th><th>Stav</th><th>Uhrazeno</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:14px;font-size:10px;color:#9ca3af">Stornované faktury si drží číslo (žádné díry v číslování) — doložené jako zrušené doklady. Vygenerováno z pohybdoma.cz.</p></body></html>`);
             w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
           };
           return (
             <div className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-400">Období:</span>
-                <select value={curM} onChange={(e) => setYM(curY, Number(e.target.value))} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize">
-                  {MONTHS.map((nm, i) => <option key={i} value={i + 1}>{nm}</option>)}
-                </select>
-                <select value={curY} onChange={(e) => setYM(Number(e.target.value), curM)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm">
-                  {years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
-                </select>
+                <MonthMultiPicker value={ucetMonths} onChange={setUcetMonths} />
+                <span className="text-xs text-gray-400 capitalize">{periodLabel}</span>
                 <div className="ml-auto flex gap-2">
                   <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Tabulka faktur do Excelu">⬇ CSV (Excel)</button>
                   <button type="button" onClick={printRegister} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Hezký přehled k tisku / uložení do PDF">🖨 Tisk / PDF</button>
@@ -3438,13 +3440,14 @@ export default function AdminPage() {
               </div>
               <p className="text-[11px] text-gray-400">Příjmy/výdaje jsou z evidence financí (deník, rezervace, ruční položky) za daný měsíc — mohou se lišit od „vyfakturováno" (ne vše se fakturuje a ne vše je hned zaplaceno).</p>
               {monthInv.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {MONTHS[curM - 1]} {curY} nejsou žádné faktury.</p>
+                <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {periodLabel} nejsou žádné faktury.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px] border-collapse text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-400">
                         <th className="p-2">Číslo</th><th className="p-2">Vystaveno</th><th className="p-2">Odběratel</th><th className="p-2">IČO</th>
+                        {selMonths.length > 1 && <th className="p-2">Období</th>}
                         <th className="p-2 text-right">Částka</th><th className="p-2">Stav</th><th className="p-2">Uhrazeno</th><th className="p-2 text-right">Doklad</th>
                       </tr>
                     </thead>
@@ -3458,6 +3461,7 @@ export default function AdminPage() {
                             <td className="p-2 whitespace-nowrap">{i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td>
                             <td className="p-2">{i.bill_name || i.payer_name}</td>
                             <td className="p-2">{i.ico || "—"}</td>
+                            {selMonths.length > 1 && <td className="p-2 whitespace-nowrap">{i.month ? `${i.month.slice(5, 7)}/${i.month.slice(0, 4)}` : "—"}</td>}
                             <td className="p-2 text-right font-semibold whitespace-nowrap">{czk(i.amount)}</td>
                             <td className="p-2 no-underline"><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${b.cls}`}>{b.label}</span></td>
                             <td className="p-2 whitespace-nowrap">{i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td>
