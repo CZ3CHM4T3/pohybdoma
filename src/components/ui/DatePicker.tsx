@@ -31,12 +31,21 @@ function useOutside(ref: React.RefObject<HTMLDivElement | null>, open: boolean, 
   }, [open, ref, close]);
 }
 
+/** Rozhodne, jestli se popup otevře nahoru (když dole není místo). */
+function measureFlip(btn: HTMLElement | null, needed: number) {
+  if (!btn) return false;
+  const r = btn.getBoundingClientRect();
+  return window.innerHeight - r.bottom < needed && r.top > needed;
+}
+
 /** Brandový výběr DNE. value/onChange ve formátu "YYYY-MM-DD" ("" = nevybráno). */
 export function DatePicker({ value, onChange, className = "", placeholder = "Vyber datum" }: {
   value: string; onChange: (v: string) => void; className?: string; placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [flip, setFlip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
   const sel = parseYmd(value);
   const [view, setView] = useState<Date>(() => sel ?? new Date());
   useEffect(() => { const s = parseYmd(value); if (s) setView(s); }, [value]);
@@ -51,14 +60,16 @@ export function DatePicker({ value, onChange, className = "", placeholder = "Vyb
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   const label = sel ? `${sel.getDate()}. ${sel.getMonth() + 1}. ${sel.getFullYear()}` : placeholder;
 
+  const toggle = () => { setOpen((o) => { if (!o) setFlip(measureFlip(btn.current, 360)); return !o; }); };
+
   return (
     <div ref={ref} className="relative inline-block">
-      <button type="button" onClick={() => setOpen((o) => !o)}
+      <button ref={btn} type="button" onClick={toggle}
         className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm hover:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue ${sel ? "text-brand-dark" : "text-gray-400"} ${className}`}>
         <span>{label}</span>{calIcon}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+        <div className={`absolute left-0 z-50 w-64 rounded-xl border border-gray-200 bg-white p-3 shadow-xl ${flip ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" aria-label="Předchozí měsíc" onClick={() => setView(new Date(y, m - 1, 1))} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">‹</button>
             <span className="text-sm font-semibold capitalize text-brand-dark">{MONTHS[m]} {y}</span>
@@ -91,26 +102,29 @@ export function DatePicker({ value, onChange, className = "", placeholder = "Vyb
   );
 }
 
-/** Brandový výběr MĚSÍCE. value/onChange ve formátu "YYYY-MM". */
+/** Brandový výběr jednoho MĚSÍCE. value/onChange ve formátu "YYYY-MM". */
 export function MonthPicker({ value, onChange, className = "" }: {
   value: string; onChange: (v: string) => void; className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [flip, setFlip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
   const curY = Number(value.slice(0, 4)) || new Date().getFullYear();
   const curM = Number(value.slice(5, 7)) || (new Date().getMonth() + 1);
   const [vy, setVy] = useState(curY);
   useEffect(() => { setVy(Number(value.slice(0, 4)) || new Date().getFullYear()); }, [value]);
   useOutside(ref, open, () => setOpen(false));
+  const toggle = () => { setOpen((o) => { if (!o) setFlip(measureFlip(btn.current, 230)); return !o; }); };
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button type="button" onClick={() => setOpen((o) => !o)}
+      <button ref={btn} type="button" onClick={toggle}
         className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize text-brand-dark hover:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue ${className}`}>
         <span>{MONTHS[curM - 1]} {curY}</span>{calIcon}
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl">
+        <div className={`absolute left-0 z-50 w-56 rounded-xl border border-gray-200 bg-white p-3 shadow-xl ${flip ? "bottom-full mb-1" : "top-full mt-1"}`}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" aria-label="Předchozí rok" onClick={() => setVy((v) => v - 1)} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">‹</button>
             <span className="text-sm font-semibold text-brand-dark">{vy}</span>
@@ -127,6 +141,74 @@ export function MonthPicker({ value, onChange, className = "" }: {
               );
             })}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Výběr ROZSAHU měsíců v jednom kalendáříku. from/to ve formátu "YYYY-MM".
+ *  1. klik = jeden měsíc (hotovo), případný 2. klik = rozsah od–do. */
+export function MonthRangePicker({ from, to, onChange, className = "" }: {
+  from: string; to: string; onChange: (from: string, to: string) => void; className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [flip, setFlip] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const [vy, setVy] = useState(() => Number((from || to).slice(0, 4)) || new Date().getFullYear());
+  const [pick, setPick] = useState<string | null>(null); // první vybraný měsíc (čeká na druhý klik)
+  useOutside(ref, open, () => { setOpen(false); setPick(null); });
+  useEffect(() => { if (open) setVy(Number((from || to).slice(0, 4)) || new Date().getFullYear()); }, [open, from, to]);
+  const toggle = () => { setOpen((o) => { if (!o) { setFlip(measureFlip(btn.current, 260)); setPick(null); } return !o; }); };
+
+  const label = (() => {
+    if (!from) return "Měsíc(e)";
+    const fy = from.slice(0, 4), fm = Number(from.slice(5, 7));
+    const ty = (to || from).slice(0, 4), tm = Number((to || from).slice(5, 7));
+    if (!to || from === to) return `${MONTHS[fm - 1]} ${fy}`;
+    if (fy === ty) return `${MONTHS[fm - 1]}–${MONTHS[tm - 1]} ${ty}`;
+    return `${MONTHS[fm - 1]} ${fy} – ${MONTHS[tm - 1]} ${ty}`;
+  })();
+
+  const clickMonth = (i: number) => {
+    const k = `${vy}-${pad(i + 1)}`;
+    if (pick && pick !== k) {
+      const a = pick <= k ? pick : k, b = pick <= k ? k : pick;
+      onChange(a, b); setPick(null); setOpen(false);
+    } else {
+      setPick(k); onChange(k, k); // jeden měsíc hotový; druhý klik udělá rozsah
+    }
+  };
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button ref={btn} type="button" onClick={toggle}
+        className={`inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize text-brand-dark hover:border-brand-blue focus:outline-none focus:ring-2 focus:ring-brand-blue ${className}`}>
+        <span>{label}</span>{calIcon}
+      </button>
+      {open && (
+        <div className={`absolute left-0 z-50 w-60 rounded-xl border border-gray-200 bg-white p-3 shadow-xl ${flip ? "bottom-full mb-1" : "top-full mt-1"}`}>
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" aria-label="Předchozí rok" onClick={() => setVy((v) => v - 1)} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">‹</button>
+            <span className="text-sm font-semibold text-brand-dark">{vy}</span>
+            <button type="button" aria-label="Další rok" onClick={() => setVy((v) => v + 1)} className="rounded-md px-2 py-1 text-lg leading-none text-brand-dark hover:bg-brand-light">›</button>
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {MSHORT.map((nm, i) => {
+              const k = `${vy}-${pad(i + 1)}`;
+              const lo = pick ?? from, hi = pick ? pick : to;
+              const inRange = lo && hi && k >= (lo <= hi ? lo : hi) && k <= (lo <= hi ? hi : lo);
+              const isEnd = k === from || k === to || k === pick;
+              return (
+                <button key={i} type="button" onClick={() => clickMonth(i)}
+                  className={`rounded-md py-2 text-sm font-semibold capitalize transition-colors ${isEnd ? "bg-brand-blue text-white" : inRange ? "bg-brand-light text-brand-dark" : "text-brand-dark hover:bg-gray-100"}`}>
+                  {nm}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 border-t border-gray-100 pt-2 text-[11px] text-gray-400">{pick ? "Klikni druhý měsíc pro rozsah, nebo zavři." : "Klikni měsíc. Pro rozsah pak klikni druhý."}</p>
         </div>
       )}
     </div>

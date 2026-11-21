@@ -18,7 +18,7 @@ import { BUSINESS } from "@/lib/invoice-business";
 import { buildSpayd, qrUrl, fmtCzDate, fillIntro, monthLabelCs } from "@/lib/invoice";
 import { InvoiceDocument, type InvoiceDocData } from "@/components/InvoiceDocument";
 import { VIDEO_COLS, type VideoRow } from "@/lib/content";
-import { DatePicker, MonthPicker } from "@/components/ui/DatePicker";
+import { DatePicker, MonthPicker, MonthRangePicker } from "@/components/ui/DatePicker";
 import {
   FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
 } from "@/lib/filters";
@@ -43,12 +43,13 @@ const ADMIN_TABS = [
   { k: "produkty", label: "Produkty", Icon: Package, active: "bg-slate-700 text-white", icon: "text-slate-500" },
   { k: "analytika", label: "Web", Icon: BarChart3, active: "bg-indigo-600 text-white", icon: "text-indigo-500" },
   { k: "celkem", label: "Celkem", Icon: Sigma, active: "bg-green-700 text-white", icon: "text-green-600" },
+  { k: "ucetnictvi", label: "Účetnictví", Icon: FileText, active: "bg-green-700 text-white", icon: "text-green-600" },
 ];
 // Hlavní skupiny (2. úroveň = podzáložky). Denní provoz první.
 const ADMIN_GROUPS = [
   { k: "dnes", label: "Dnešek", Icon: LayoutDashboard, active: "bg-brand-dark text-white", icon: "text-gray-500", tabs: ["dnes"] },
   { k: "provoz", label: "Provoz", Icon: CalendarDays, active: "bg-sky-600 text-white", icon: "text-sky-500", tabs: ["rozvrh", "rezervace", "dochazka"] },
-  { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika", "celkem"] },
+  { k: "penize", label: "Peníze", Icon: Receipt, active: "bg-green-700 text-white", icon: "text-green-600", tabs: ["faktury", "analytika", "celkem", "ucetnictvi"] },
   { k: "obsah", label: "Obsah", Icon: Film, active: "bg-violet-600 text-white", icon: "text-violet-500", tabs: ["videa", "live", "vyzva", "blog", "produkty"] },
   { k: "lide", label: "Lidé", Icon: Users, active: "bg-blue-600 text-white", icon: "text-blue-500", tabs: ["clenove", "recenze", "newsletter", "pruvodce"] },
 ];
@@ -3356,6 +3357,123 @@ export default function AdminPage() {
           );
         })()}
 
+        {tab === "ucetnictvi" && (() => {
+          const monthInv = invoices.filter((i) => i.month === ucetMonth).sort((a, b) => a.number - b.number);
+          const live = monthInv.filter((i) => i.status !== "storno");
+          const stornoCount = monthInv.length - live.length;
+          const vyfakturovano = live.reduce((s, i) => s + i.amount, 0);
+          const paidList = live.filter((i) => i.status === "paid");
+          const zaplaceno = paidList.reduce((s, i) => s + i.amount, 0);
+          const nezaplaceno = vyfakturovano - zaplaceno;
+          const monthIncome = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
+          const monthExpense = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
+          const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
+          const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
+          const curY = Number(ucetMonth.slice(0, 4));
+          const curM = Number(ucetMonth.slice(5, 7));
+          const years: number[] = [];
+          for (let yy = 2025; yy <= new Date().getFullYear() + 1; yy++) years.push(yy);
+          const setYM = (yy: number, mm: number) => setUcetMonth(`${yy}-${String(mm).padStart(2, "0")}`);
+          const STLBL: Record<string, string> = { issued: "vystaveno", sent: "odeslano", paid: "zaplaceno", storno: "STORNOVANO" };
+          const STBADGE: Record<string, { label: string; cls: string }> = {
+            issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
+            sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
+            paid: { label: "zaplaceno", cls: "bg-emerald-100 text-emerald-700" },
+            storno: { label: "stornováno", cls: "bg-gray-200 text-gray-500" },
+          };
+          const exportCsv = () => {
+            const head = ["Cislo", "Vystaveno", "Odberatel", "ICO", "Obdobi", "Castka Kc", "Stav", "Uhrazeno dne"];
+            const body = monthInv.map((i) => [
+              String(i.number), i.issued_on || "", i.bill_name || i.payer_name, i.ico || "", i.month,
+              String(i.amount), STLBL[i.status] || i.status, i.paid_at ? i.paid_at.slice(0, 10) : "",
+            ]);
+            const csv = [head, ...body].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+            const blob = new Blob([String.fromCharCode(0xFEFF) + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = `faktury-${ucetMonth}.csv`; a.click(); URL.revokeObjectURL(url);
+          };
+          const printRegister = () => {
+            const w = window.open("", "_blank"); if (!w) return;
+            const rows = monthInv.map((i) => `<tr style="${i.status === "storno" ? "color:#9ca3af;text-decoration:line-through" : ""}"><td>#${i.number}</td><td>${i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td><td>${i.bill_name || i.payer_name}</td><td>${i.ico || "—"}</td><td style="text-align:right">${czk(i.amount)}</td><td>${i.status === "storno" ? "STORNO" : (STLBL[i.status] || i.status)}</td><td>${i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td></tr>`).join("");
+            w.document.write(`<html><head><title>Faktury ${MONTHS[curM - 1]} ${curY}</title><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:24px}h1{color:#062A6B;font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left}th{color:#6b7280;text-transform:uppercase;font-size:10px}</style></head><body><h1>POHYB DOMA — faktury za ${MONTHS[curM - 1]} ${curY}</h1><p style="font-size:12px;color:#374151">Vyfakturováno: <b>${czk(vyfakturovano)}</b> · Zaplaceno: <b>${czk(zaplaceno)}</b> · Nezaplaceno: <b>${czk(nezaplaceno)}</b> · Stornováno: <b>${stornoCount}×</b></p><table><thead><tr><th>Číslo</th><th>Vystaveno</th><th>Odběratel</th><th>IČO</th><th style="text-align:right">Částka</th><th>Stav</th><th>Uhrazeno</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:14px;font-size:10px;color:#9ca3af">Stornované faktury si drží číslo (žádné díry v číslování) — doložené jako zrušené doklady. Vygenerováno z pohybdoma.cz.</p></body></html>`);
+            w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+          };
+          return (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-400">Období:</span>
+                <select value={curM} onChange={(e) => setYM(curY, Number(e.target.value))} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize">
+                  {MONTHS.map((nm, i) => <option key={i} value={i + 1}>{nm}</option>)}
+                </select>
+                <select value={curY} onChange={(e) => setYM(Number(e.target.value), curM)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm">
+                  {years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
+                </select>
+                <div className="ml-auto flex gap-2">
+                  <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Tabulka faktur do Excelu">⬇ CSV (Excel)</button>
+                  <button type="button" onClick={printRegister} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Hezký přehled k tisku / uložení do PDF">🖨 Tisk / PDF</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  { l: "Vyfakturováno", v: czk(vyfakturovano), sub: `${live.length}× faktura`, c: "text-brand-dark" },
+                  { l: "Zaplaceno", v: czk(zaplaceno), sub: `${paidList.length}× zaplaceno`, c: "text-emerald-600" },
+                  { l: "Nezaplaceno", v: czk(nezaplaceno), sub: `${live.length - paidList.length}× čeká`, c: "text-amber-600" },
+                  { l: "Stornováno", v: `${stornoCount}×`, sub: "zrušené doklady", c: "text-gray-400" },
+                ].map((c) => (
+                  <div key={c.l} className="rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm">
+                    <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{c.l}</div>
+                    <div className={`mt-1 text-lg font-bold ${c.c}`}>{c.v}</div>
+                    <div className="text-[11px] text-gray-400">{c.sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-emerald-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Příjmy (evidence)</div><div className="mt-1 text-lg font-bold text-emerald-700">{czk(monthIncome)}</div></div>
+                <div className="rounded-xl bg-red-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Výdaje</div><div className="mt-1 text-lg font-bold text-red-700">{czk(monthExpense)}</div></div>
+                <div className="rounded-xl bg-brand-light p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-brand-blue">Zisk</div><div className="mt-1 text-lg font-bold text-brand-dark">{czk(monthIncome - monthExpense)}</div></div>
+              </div>
+              <p className="text-[11px] text-gray-400">Příjmy/výdaje jsou z evidence financí (deník, rezervace, ruční položky) za daný měsíc — mohou se lišit od „vyfakturováno" (ne vše se fakturuje a ne vše je hned zaplaceno).</p>
+              {monthInv.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {MONTHS[curM - 1]} {curY} nejsou žádné faktury.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-400">
+                        <th className="p-2">Číslo</th><th className="p-2">Vystaveno</th><th className="p-2">Odběratel</th><th className="p-2">IČO</th>
+                        <th className="p-2 text-right">Částka</th><th className="p-2">Stav</th><th className="p-2">Uhrazeno</th><th className="p-2 text-right">Doklad</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthInv.map((i) => {
+                        const isStorno = i.status === "storno";
+                        const b = STBADGE[i.status] ?? STBADGE.issued;
+                        return (
+                          <tr key={i.id} className={`border-b border-gray-100 ${isStorno ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                            <td className="p-2 font-semibold">#{i.number}</td>
+                            <td className="p-2 whitespace-nowrap">{i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td>
+                            <td className="p-2">{i.bill_name || i.payer_name}</td>
+                            <td className="p-2">{i.ico || "—"}</td>
+                            <td className="p-2 text-right font-semibold whitespace-nowrap">{czk(i.amount)}</td>
+                            <td className="p-2 no-underline"><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${b.cls}`}>{b.label}</span></td>
+                            <td className="p-2 whitespace-nowrap">{i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td>
+                            <td className="p-2 text-right whitespace-nowrap no-underline">
+                              <a href={`/faktura/${i.token}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">náhled</a>
+                              <span className="text-gray-300"> · </span>
+                              <a href={`/api/faktura-pdf/${i.token}`} download={`faktura-${i.number}.pdf`} className="text-gray-500 hover:underline">PDF</a>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-[11px] text-gray-400">💡 Stornované faktury si drží své číslo (žádné „díry" v číslování) — jsou doložené jako zrušené doklady. Účetní tak vidí kompletní řadu.</p>
+            </div>
+          );
+        })()}
+
         {(tab === "faktury" || tab === "celkem") && (() => {
           // Lekce k vyúčtování: webové rezervace + vlastní lekce (obě s cenou).
           type Line = { date: string; time: string; client: string; what: string; amount: number; kind: "staly" | "lekce" | "web" | "blok" | "extra"; ref: string; svc: string; svcLabel: string; unit: string };
@@ -3827,7 +3945,7 @@ export default function AdminPage() {
             {/* Subzáložky + tisk měsíce */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-gray-100 p-1">
-                {([["prehled", "Přehled"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["ucetnictvi", "Účetnictví"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
+                {([["prehled", "Přehled"], ["individualy", "Individuály"], ["skupinovky", "Skupinovky"], ["fakturace", "Rozeslat"], ["nedoplatky", "Nedoplatky"], ["cenik", "Ceník"], ["archiv", "Archiv"]] as const).map(([k, l]) => (
                   <button
                     key={k}
                     type="button"
@@ -4548,21 +4666,19 @@ export default function AdminPage() {
                   </div>
                   {/* Přepínač období */}
                   <div className="mb-5 flex flex-wrap items-center gap-1.5">
-                    <span className="mr-1 text-xs text-gray-400">Období:</span>
-                    <span className="inline-flex items-center gap-1 text-xs text-gray-400">
-                      Měsíc:
-                      <MonthPicker
-                        value={analFrom ? analFrom.slice(0, 7) : new Date().toISOString().slice(0, 7)}
-                        onChange={(ym) => { const [yy, mm] = ym.split("-").map(Number); const last = new Date(yy, mm, 0).getDate(); setAnalFrom(`${ym}-01`); setAnalTo(`${ym}-${String(last).padStart(2, "0")}`); setAnalPeriod("custom"); }}
-                      />
-                    </span>
-                    <span className="text-xs text-gray-300">nebo</span>
+                    <span className="mr-1 text-xs text-gray-400">Měsíce:</span>
+                    <MonthRangePicker
+                      from={analFrom ? analFrom.slice(0, 7) : ""}
+                      to={analTo ? analTo.slice(0, 7) : ""}
+                      onChange={(a, b) => { const [by, bm] = b.split("-").map(Number); const last = new Date(by, bm, 0).getDate(); setAnalFrom(`${a}-01`); setAnalTo(`${b}-${String(last).padStart(2, "0")}`); setAnalPeriod("custom"); }}
+                    />
+                    <span className="text-xs text-gray-300">nebo dny:</span>
                     <span className={`inline-flex items-center gap-1 rounded-full px-1 py-0.5 ${analPeriod === "custom" ? "bg-brand-dark/10 ring-1 ring-brand-dark" : ""}`}>
                       <DatePicker value={analFrom} onChange={(v) => { setAnalFrom(v); setAnalPeriod("custom"); }} placeholder="od" />
                       <span className="text-xs text-gray-400">–</span>
                       <DatePicker value={analTo} onChange={(v) => { setAnalTo(v); setAnalPeriod("custom"); }} placeholder="do" />
                     </span>
-                    {([["1m", "1 měsíc"], ["3m", "3 měsíce"], ["6m", "6 měsíců"], ["12m", "12 měsíců"], ["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
+                    {([["year", "Tento rok"], ["all", "Vše"]] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => setAnalPeriod(k)} className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${analPeriod === k ? "bg-brand-dark text-white" : "bg-gray-100 text-gray-500 hover:text-brand-dark"}`}>{l}</button>
                     ))}
                   </div>
@@ -4826,130 +4942,6 @@ export default function AdminPage() {
                       )}
                     </>
                   )}
-                </div>
-              );
-            })()}
-
-            {finView === "ucetnictvi" && (() => {
-              const monthInv = invoices.filter((i) => i.month === ucetMonth).sort((a, b) => a.number - b.number);
-              const live = monthInv.filter((i) => i.status !== "storno");
-              const stornoCount = monthInv.length - live.length;
-              const vyfakturovano = live.reduce((s, i) => s + i.amount, 0);
-              const paidList = live.filter((i) => i.status === "paid");
-              const zaplaceno = paidList.reduce((s, i) => s + i.amount, 0);
-              const nezaplaceno = vyfakturovano - zaplaceno;
-              const monthIncome = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
-              const monthExpense = finEntries.filter((e) => e.kind === "expense" && String(e.at).slice(0, 7) === ucetMonth).reduce((s, e) => s + Number(e.amount_kc), 0);
-              const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
-              const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
-              const curY = Number(ucetMonth.slice(0, 4));
-              const curM = Number(ucetMonth.slice(5, 7));
-              const years: number[] = [];
-              for (let yy = 2025; yy <= new Date().getFullYear() + 1; yy++) years.push(yy);
-              const setYM = (yy: number, mm: number) => setUcetMonth(`${yy}-${String(mm).padStart(2, "0")}`);
-              const STLBL: Record<string, string> = { issued: "vystaveno", sent: "odeslano", paid: "zaplaceno", storno: "STORNOVANO" };
-              const STBADGE: Record<string, { label: string; cls: string }> = {
-                issued: { label: "vystaveno", cls: "bg-amber-100 text-amber-700" },
-                sent: { label: "odesláno", cls: "bg-blue-100 text-blue-700" },
-                paid: { label: "zaplaceno", cls: "bg-emerald-100 text-emerald-700" },
-                storno: { label: "stornováno", cls: "bg-gray-200 text-gray-500" },
-              };
-              const exportCsv = () => {
-                const head = ["Cislo", "Vystaveno", "Odberatel", "ICO", "Obdobi", "Castka Kc", "Stav", "Uhrazeno dne"];
-                const body = monthInv.map((i) => [
-                  String(i.number), i.issued_on || "", i.bill_name || i.payer_name, i.ico || "", i.month,
-                  String(i.amount), STLBL[i.status] || i.status, i.paid_at ? i.paid_at.slice(0, 10) : "",
-                ]);
-                const csv = [head, ...body].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
-                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a"); a.href = url; a.download = `faktury-${ucetMonth}.csv`; a.click(); URL.revokeObjectURL(url);
-              };
-              const printRegister = () => {
-                const w = window.open("", "_blank"); if (!w) return;
-                const rows = monthInv.map((i) => `<tr style="${i.status === "storno" ? "color:#9ca3af;text-decoration:line-through" : ""}"><td>#${i.number}</td><td>${i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td><td>${i.bill_name || i.payer_name}</td><td>${i.ico || "—"}</td><td style="text-align:right">${czk(i.amount)}</td><td>${i.status === "storno" ? "STORNO" : (STLBL[i.status] || i.status)}</td><td>${i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td></tr>`).join("");
-                w.document.write(`<html><head><title>Faktury ${MONTHS[curM - 1]} ${curY}</title><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:24px}h1{color:#062A6B;font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left}th{color:#6b7280;text-transform:uppercase;font-size:10px}</style></head><body><h1>POHYB DOMA — faktury za ${MONTHS[curM - 1]} ${curY}</h1><p style="font-size:12px;color:#374151">Vyfakturováno: <b>${czk(vyfakturovano)}</b> · Zaplaceno: <b>${czk(zaplaceno)}</b> · Nezaplaceno: <b>${czk(nezaplaceno)}</b> · Stornováno: <b>${stornoCount}×</b></p><table><thead><tr><th>Číslo</th><th>Vystaveno</th><th>Odběratel</th><th>IČO</th><th style="text-align:right">Částka</th><th>Stav</th><th>Uhrazeno</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:14px;font-size:10px;color:#9ca3af">Stornované faktury si drží číslo (žádné díry v číslování) — doložené jako zrušené doklady. Vygenerováno z pohybdoma.cz.</p></body></html>`);
-                w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
-              };
-              return (
-                <div className="space-y-5">
-                  {/* Období + export */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-gray-400">Období:</span>
-                    <select value={curM} onChange={(e) => setYM(curY, Number(e.target.value))} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm capitalize">
-                      {MONTHS.map((nm, i) => <option key={i} value={i + 1}>{nm}</option>)}
-                    </select>
-                    <select value={curY} onChange={(e) => setYM(Number(e.target.value), curM)} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm">
-                      {years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
-                    </select>
-                    <div className="ml-auto flex gap-2">
-                      <button type="button" onClick={exportCsv} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Tabulka faktur do Excelu">⬇ CSV (Excel)</button>
-                      <button type="button" onClick={printRegister} className="inline-flex items-center gap-1 rounded-lg border border-brand-dark px-3 py-1.5 text-xs font-semibold text-brand-dark hover:bg-brand-light" title="Hezký přehled k tisku / uložení do PDF">🖨 Tisk / PDF</button>
-                    </div>
-                  </div>
-
-                  {/* Souhrn faktur */}
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[
-                      { l: "Vyfakturováno", v: czk(vyfakturovano), sub: `${live.length}× faktura`, c: "text-brand-dark" },
-                      { l: "Zaplaceno", v: czk(zaplaceno), sub: `${paidList.length}× zaplaceno`, c: "text-emerald-600" },
-                      { l: "Nezaplaceno", v: czk(nezaplaceno), sub: `${live.length - paidList.length}× čeká`, c: "text-amber-600" },
-                      { l: "Stornováno", v: `${stornoCount}×`, sub: "zrušené doklady", c: "text-gray-400" },
-                    ].map((c) => (
-                      <div key={c.l} className="rounded-xl border border-gray-100 bg-white p-3 text-center shadow-sm">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{c.l}</div>
-                        <div className={`mt-1 text-lg font-bold ${c.c}`}>{c.v}</div>
-                        <div className="text-[11px] text-gray-400">{c.sub}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Příjmy / výdaje z evidence */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-xl bg-emerald-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Příjmy (evidence)</div><div className="mt-1 text-lg font-bold text-emerald-700">{czk(monthIncome)}</div></div>
-                    <div className="rounded-xl bg-red-50 p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-red-700">Výdaje</div><div className="mt-1 text-lg font-bold text-red-700">{czk(monthExpense)}</div></div>
-                    <div className="rounded-xl bg-brand-light p-3 text-center"><div className="text-[11px] font-semibold uppercase tracking-wide text-brand-blue">Zisk</div><div className="mt-1 text-lg font-bold text-brand-dark">{czk(monthIncome - monthExpense)}</div></div>
-                  </div>
-                  <p className="text-[11px] text-gray-400">Příjmy/výdaje jsou z evidence financí (deník, rezervace, ruční položky) za daný měsíc — mohou se lišit od „vyfakturováno" (ne vše se fakturuje a ne vše je hned zaplaceno).</p>
-
-                  {/* Registr faktur */}
-                  {monthInv.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {MONTHS[curM - 1]} {curY} nejsou žádné faktury.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[720px] border-collapse text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-200 text-left text-[11px] uppercase tracking-wide text-gray-400">
-                            <th className="p-2">Číslo</th><th className="p-2">Vystaveno</th><th className="p-2">Odběratel</th><th className="p-2">IČO</th>
-                            <th className="p-2 text-right">Částka</th><th className="p-2">Stav</th><th className="p-2">Uhrazeno</th><th className="p-2 text-right">Doklad</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {monthInv.map((i) => {
-                            const isStorno = i.status === "storno";
-                            const b = STBADGE[i.status] ?? STBADGE.issued;
-                            return (
-                              <tr key={i.id} className={`border-b border-gray-100 ${isStorno ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                <td className="p-2 font-semibold">#{i.number}</td>
-                                <td className="p-2 whitespace-nowrap">{i.issued_on ? fmtCzDate(i.issued_on) : "—"}</td>
-                                <td className="p-2">{i.bill_name || i.payer_name}</td>
-                                <td className="p-2">{i.ico || "—"}</td>
-                                <td className="p-2 text-right font-semibold whitespace-nowrap">{czk(i.amount)}</td>
-                                <td className="p-2 no-underline"><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${b.cls}`}>{b.label}</span></td>
-                                <td className="p-2 whitespace-nowrap">{i.paid_at ? fmtCzDate(i.paid_at.slice(0, 10)) : "—"}</td>
-                                <td className="p-2 text-right whitespace-nowrap no-underline">
-                                  <a href={`/faktura/${i.token}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">náhled</a>
-                                  <span className="text-gray-300"> · </span>
-                                  <a href={`/api/faktura-pdf/${i.token}`} download={`faktura-${i.number}.pdf`} className="text-gray-500 hover:underline">PDF</a>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  <p className="text-[11px] text-gray-400">💡 Stornované faktury si drží své číslo (žádné „díry" v číslování) — jsou doložené jako zrušené doklady. Účetní tak vidí kompletní řadu.</p>
                 </div>
               );
             })()}
