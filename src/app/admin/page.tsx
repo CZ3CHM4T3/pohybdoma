@@ -1973,6 +1973,47 @@ export default function AdminPage() {
   const finIncomeCats = ["Pronájem garsonky", "MS GEM", "MEMBER", "VIP", "Kurz", "Jiné"];
   const finExpenseCats = ["Vybavení / pomůcky", "Nájem prostor", "Doprava / auto", "Telefon / internet", "Vzdělávání", "Marketing", "Účetní", "Pojištění", "Software (Cloudflare, Vercel…)", "Doména", "Jiné"];
 
+  // Sdílený panel ručních příjmů/výdajů (finance_entries) – použit v Účetnictví i Celkem.
+  const renderFinPanel = (inPer: (at: string) => boolean, periodLbl: string, opts?: { title?: string; subtitle?: string }) => {
+    const rows = finEntries.filter((e) => inPer(String(e.at))).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    return (
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <h3 className="mb-1 text-sm font-bold text-brand-dark">{opts?.title ?? "Ruční příjmy a výdaje"} <span className="font-normal text-gray-400">· pro daňovou evidenci</span></h3>
+        <p className="mb-3 text-xs text-gray-500">{opts?.subtitle ?? "Příjmy mimo faktury (pronájem garsonky) a všechny výdaje. Datum = do kterého měsíce/roku položka spadne. Promítne se do Účetnictví i Celkem."}</p>
+        <div className="flex flex-wrap items-end gap-2">
+          <select value={finKind} onChange={(e) => { const k = e.target.value as "income" | "expense"; setFinKind(k); setFinCat(k === "income" ? finIncomeCats[0] : finExpenseCats[0]); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+            <option value="income">Příjem</option>
+            <option value="expense">Výdaj</option>
+          </select>
+          <input list="shared-fin-cats" value={finCat} onChange={(e) => setFinCat(e.target.value)} placeholder="kategorie" className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" />
+          <datalist id="shared-fin-cats">{(finKind === "income" ? finIncomeCats : finExpenseCats).map((c) => <option key={c} value={c} />)}</datalist>
+          <input value={finAmount} onChange={(e) => setFinAmount(e.target.value)} placeholder="Částka (Kč)" inputMode="decimal" className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          <DatePicker value={finDate} onChange={setFinDate} placeholder="datum" />
+          <input value={finNote} onChange={(e) => setFinNote(e.target.value)} placeholder="Poznámka (nepovinné)" className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+          <button type="button" onClick={saveFinance} className="btn-primary text-sm">{editFinId != null ? "Uložit změnu" : "Přidat"}</button>
+          {editFinId != null && <button type="button" onClick={cancelEditFinance} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">Zrušit</button>}
+        </div>
+        {rows.length > 0 ? (
+          <div className="mt-3 space-y-1">
+            {rows.map((e) => (
+              <div key={e.id} className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-xs ${editFinId === e.id ? "border-brand-blue bg-brand-light/40" : "border-gray-100"}`}>
+                <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-bold ${e.kind === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{e.kind === "income" ? "+" : "−"}</span>
+                <span className="shrink-0 font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
+                <span className="text-gray-500">{e.category}</span>
+                {e.note && <span className="min-w-0 truncate text-gray-400">· {e.note}</span>}
+                <span className="ml-auto shrink-0 text-gray-400">{new Date(e.at).toLocaleDateString("cs-CZ")}</span>
+                <button type="button" onClick={() => startEditFinance(e)} className="shrink-0 font-semibold text-gray-400 hover:text-brand-blue" title="Upravit">✎</button>
+                <button type="button" onClick={() => delFinance(e.id)} className="shrink-0 text-gray-300 hover:text-red-500" title="Smazat"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-gray-400">Za {periodLbl} zatím žádné ruční příjmy/výdaje.</p>
+        )}
+      </div>
+    );
+  };
+
   // ── Opakované lekce stálých klientů → konkrétní výskyty (pro kalendář i agendu) ──
   const recCancelSet = new Set(recCancels.map((c) => `${c.recurring_id}|${c.date}`));
   // Rozsah generování výskytů: od pondělí týdne s 1. 9. 2026 (žádné letní fantomy),
@@ -3411,6 +3452,12 @@ export default function AdminPage() {
           const zisk = prijmyCelkem - monthExpense;
           const periodFin = finEntries.filter((e) => monthSet.has(String(e.at).slice(0, 7)))
             .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+          // Pojistka proti dvojímu MS GEM: ruční příjem „MS GEM" + zároveň faktura paušálního plátce (Jirka) ve stejném měsíci
+          const fixedPayerSet = new Set(billProfiles.filter((p) => p.monthly_fixed).map((p) => p.name));
+          const msgemManual = periodFin.filter((e) => e.kind === "income" && /ms\s*gem/i.test(e.category));
+          const msgemInvoiced = live.filter((i) => fixedPayerSet.has(i.payer_name));
+          const dupWarn = msgemManual.length > 0 && msgemInvoiced.length > 0;
+          const msgemManualSum = msgemManual.reduce((s, e) => s + Number(e.amount_kc), 0);
           const czk = (n: number) => n.toLocaleString("cs-CZ") + " Kč";
           const MONTHS = ["leden", "únor", "březen", "duben", "květen", "červen", "červenec", "srpen", "září", "říjen", "listopad", "prosinec"];
           // Popisek a název souboru podle výběru (1 měsíc / celý rok / více měsíců)
@@ -3491,41 +3538,18 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              {/* Ruční příjmy a výdaje pro účetní (pronájem, nákupy, provoz…) */}
-              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                <h3 className="mb-1 text-sm font-bold text-brand-dark">Ruční příjmy a výdaje <span className="font-normal text-gray-400">· pro daňovou evidenci</span></h3>
-                <p className="mb-3 text-xs text-gray-500">Sem si dopíšeš příjmy mimo faktury (pronájem garsonky) a všechny výdaje. Rovnou se započítají do zisku výše a projeví se i v záložce <strong>Celkem</strong>. Datum = do kterého měsíce/roku položka spadne.</p>
-                <div className="flex flex-wrap items-end gap-2">
-                  <select value={finKind} onChange={(e) => { const k = e.target.value as "income" | "expense"; setFinKind(k); setFinCat(k === "income" ? finIncomeCats[0] : finExpenseCats[0]); }} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                    <option value="income">Příjem</option>
-                    <option value="expense">Výdaj</option>
-                  </select>
-                  <input list="ucet-fin-cats" value={finCat} onChange={(e) => setFinCat(e.target.value)} placeholder="kategorie" className="w-44 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" />
-                  <datalist id="ucet-fin-cats">{(finKind === "income" ? finIncomeCats : finExpenseCats).map((c) => <option key={c} value={c} />)}</datalist>
-                  <input value={finAmount} onChange={(e) => setFinAmount(e.target.value)} placeholder="Částka (Kč)" inputMode="decimal" className="w-28 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                  <DatePicker value={finDate} onChange={setFinDate} placeholder="datum" />
-                  <input value={finNote} onChange={(e) => setFinNote(e.target.value)} placeholder="Poznámka (nepovinné)" className="min-w-[120px] flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-                  <button type="button" onClick={saveFinance} className="btn-primary text-sm">{editFinId != null ? "Uložit změnu" : "Přidat"}</button>
-                  {editFinId != null && <button type="button" onClick={cancelEditFinance} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">Zrušit</button>}
-                </div>
-                {periodFin.length > 0 ? (
-                  <div className="mt-3 space-y-1">
-                    {periodFin.map((e) => (
-                      <div key={e.id} className={`flex items-center gap-3 rounded-lg border px-3 py-1.5 text-xs ${editFinId === e.id ? "border-brand-blue bg-brand-light/40" : "border-gray-100"}`}>
-                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 font-bold ${e.kind === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{e.kind === "income" ? "+" : "−"}</span>
-                        <span className="shrink-0 font-semibold text-brand-dark">{Math.round(Number(e.amount_kc)).toLocaleString("cs-CZ")} Kč</span>
-                        <span className="text-gray-500">{e.category}</span>
-                        {e.note && <span className="min-w-0 truncate text-gray-400">· {e.note}</span>}
-                        <span className="ml-auto shrink-0 text-gray-400">{new Date(e.at).toLocaleDateString("cs-CZ")}</span>
-                        <button type="button" onClick={() => startEditFinance(e)} className="shrink-0 font-semibold text-gray-400 hover:text-brand-blue" title="Upravit">✎</button>
-                        <button type="button" onClick={() => delFinance(e.id)} className="shrink-0 text-gray-300 hover:text-red-500" title="Smazat"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                    ))}
+              {/* Pojistka: upozornění na možné dvojí počítání MS GEM */}
+              {dupWarn && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                  <span className="text-base leading-none">⚠</span>
+                  <div>
+                    <strong>Možné dvojí počítání MS GEM.</strong> Ve vybraném období máš ruční příjem „MS GEM" ({czk(msgemManualSum)}) a zároveň fakturu paušálního plátce ({msgemInvoiced.map((i) => i.payer_name).join(", ")}). Pokud je to tytéž peníze, započítají se <strong>dvakrát</strong> — nech jen jedno (buď fakturu, nebo ruční příjem, ten druhý smaž níže).
                   </div>
-                ) : (
-                  <p className="mt-3 text-xs text-gray-400">Za {periodLabel} zatím žádné ruční příjmy/výdaje.</p>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Ruční příjmy a výdaje pro účetní (pronájem, nákupy, provoz…) */}
+              {renderFinPanel((at) => monthSet.has(String(at).slice(0, 7)), periodLabel)}
               {monthInv.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">Za {periodLabel} nejsou žádné faktury.</p>
               ) : (
@@ -4033,7 +4057,10 @@ export default function AdminPage() {
                     <span className={`text-lg font-bold ${profit >= 0 ? "text-emerald-700" : "text-red-500"}`}>{profit.toLocaleString("cs-CZ")} Kč</span>
                   </div>
                 </div>
-                <p className="mt-3 text-xs text-gray-400">Výdaje zapisuješ ve <strong>Web → Ruční zadávání</strong>. Zisk = příjem − výdaje za zvolené období.</p>
+                <p className="mt-3 text-xs text-gray-400">Zisk = příjem − výdaje za zvolené období. Výdaje a ruční příjmy zapisuješ rovnou níže (projeví se i v <strong>Účetnictví</strong>).</p>
+                <div className="mt-5">
+                  {renderFinPanel((at) => inCP(String(at).slice(0, 10)), periodLabel, { title: "Výdaje a ruční příjmy", subtitle: "Zapiš sem výdaje (a případné příjmy mimo faktury) s datem — spadnou do měsíce/roku podle data a rovnou se odečtou od zisku. Totéž vidíš i v Účetnictví." })}
+                </div>
               </section>
             );
           }
