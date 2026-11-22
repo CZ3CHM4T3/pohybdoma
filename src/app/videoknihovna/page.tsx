@@ -7,7 +7,7 @@ import { Search, X, SlidersHorizontal, Shuffle, Lock } from "lucide-react";
 import type { UserTier, AccessLevel, Video } from "@/types";
 import { VideoCard } from "@/components/VideoCard";
 import { TIER_STYLES, normalizeTier } from "@/lib/tiers";
-import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
+import { rowToVideo, VIDEO_COLS_PUBLIC, type VideoRow } from "@/lib/content";
 import { canAccess } from "@/lib/access";
 import {
   FILTER_DIFFICULTIES, FILTER_BODY, FILTER_SYSTEMS, FILTER_PROPS, FILTER_GOALS, FILTER_SUITABILITY,
@@ -74,7 +74,7 @@ export default function VideoknihovnaPage() {
     });
     supabase
       .from("videos")
-      .select(VIDEO_COLS)
+      .select(VIDEO_COLS_PUBLIC)
       .eq("published", true)
       .order("position", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })

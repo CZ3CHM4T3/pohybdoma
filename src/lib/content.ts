@@ -22,9 +22,20 @@ export type VideoRow = {
   created_at: string;
 };
 
-/** Sloupce pro select (sdílené server i klient). */
+/**
+ * Sloupce PRO SERVER (detail videa, token route, admin) – včetně cf_uid.
+ * cf_uid je citlivý (odemyká placené video), proto ho posíláme do prohlížeče
+ * jen serverově ověřeně přes /api/stream-token.
+ */
 export const VIDEO_COLS =
   "id, slug, title, description, body_parts, difficulty, access_level, problem_types, equipment, tags, cf_uid, duration_seconds, caution, systems, props, unsuitable_for, published, position, created_at";
+
+/**
+ * Sloupce PRO KLIENT / veřejný seznam – BEZ cf_uid. Seznam videí ho nepotřebuje
+ * (jen odkazuje na detail), tak ho nevysíláme každému návštěvníkovi.
+ */
+export const VIDEO_COLS_PUBLIC =
+  "id, slug, title, description, body_parts, difficulty, access_level, problem_types, equipment, tags, duration_seconds, caution, systems, props, unsuitable_for, published, position, created_at";
 
 export function rowToVideo(r: VideoRow): Video {
   return {

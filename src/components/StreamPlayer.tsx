@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type CFPlayer = {
@@ -10,13 +10,35 @@ type CFPlayer = {
 };
 type CFStream = (el: HTMLIFrameElement) => CFPlayer;
 
-// Cloudflare Stream přehrávač, který měří SKUTEČNĚ přehrané sekundy
-// (ne čas strávený na stránce) a posílá je do log_video_watch.
-export function StreamPlayer({ uid, slug, title }: { uid: string; slug: string; title: string }) {
+// Cloudflare Stream přehrávač. cf_uid se do prohlížeče NEposílá přímo – nejdřív
+// si od /api/stream-token/<slug> vyžádáme přehrávací token (server ověří, že na
+// video máš). Měří SKUTEČNĚ přehrané sekundy a posílá je do log_video_watch.
+export function StreamPlayer({ slug, title }: { slug: string; title: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
+  // 1) Vyžádej přehrávací token podle slugu (server ověří přístup).
   useEffect(() => {
-    if (!uid) return;
+    let alive = true;
+    fetch(`/api/stream-token/${encodeURIComponent(slug)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { token?: string } | null) => {
+        if (!alive) return;
+        if (d?.token) setToken(d.token);
+        else setFailed(true);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  // 2) Jakmile máme token a iframe, nasaď měření přehraných sekund.
+  useEffect(() => {
+    if (!token) return;
     const supabase = createClient();
     let acc = 0; // nasčítané reálně přehrané sekundy od posledního odeslání
     let last = 0; // poslední currentTime
@@ -34,7 +56,9 @@ export function StreamPlayer({ uid, slug, title }: { uid: string; slug: string; 
       const Stream = (window as unknown as { Stream?: CFStream }).Stream;
       if (!Stream || !iframeRef.current) return;
       const player = Stream(iframeRef.current);
-      const sync = () => { last = player.currentTime; };
+      const sync = () => {
+        last = player.currentTime;
+      };
       player.addEventListener("play", sync);
       player.addEventListener("seeking", sync);
       player.addEventListener("timeupdate", () => {
@@ -63,7 +87,9 @@ export function StreamPlayer({ uid, slug, title }: { uid: string; slug: string; 
       document.body.appendChild(s);
     }
 
-    const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
     document.addEventListener("visibilitychange", onHide);
 
     return () => {
@@ -71,12 +97,31 @@ export function StreamPlayer({ uid, slug, title }: { uid: string; slug: string; 
       if (timer) clearInterval(timer);
       document.removeEventListener("visibilitychange", onHide);
     };
-  }, [uid, slug]);
+  }, [token, slug]);
+
+  if (failed) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-center text-white/60">
+        <div>
+          <p className="font-semibold">Video se nepodařilo načíst</p>
+          <p className="text-sm opacity-70">Zkus to prosím za chvíli nebo obnov stránku.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center text-white/50">
+        <p className="text-sm">Načítám video…</p>
+      </div>
+    );
+  }
 
   return (
     <iframe
       ref={iframeRef}
-      src={`https://iframe.videodelivery.net/${uid}`}
+      src={`https://iframe.videodelivery.net/${token}`}
       className="absolute inset-0 h-full w-full"
       style={{ border: "none" }}
       allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"

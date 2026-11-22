@@ -47,7 +47,7 @@ export default async function VideoDetailPage({ params }: Props) {
           {accessible ? (
             <div className="relative aspect-video bg-brand-dark">
               {video.providerId ? (
-                <StreamPlayer uid={video.providerId} slug={video.slug} title={video.title} />
+                <StreamPlayer slug={video.slug} title={video.title} />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center text-center text-white/50">
                   <div>

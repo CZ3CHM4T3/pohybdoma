@@ -37,6 +37,26 @@ export default function MixerPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
+  const [curToken, setCurToken] = useState<string | null>(null);
+
+  // Přehrávací token aktuálního videa ve frontě – server ověří přístup; cf_uid
+  // se neembeduje přímo (funguje i po zapnutí „Require signed URLs").
+  useEffect(() => {
+    setCurToken(null);
+    if (!playing || !lesson) return;
+    const v = lesson[cur];
+    if (!v?.providerId) return;
+    let alive = true;
+    fetch(`/api/stream-token/${encodeURIComponent(v.slug)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { token?: string } | null) => {
+        if (alive && d?.token) setCurToken(d.token);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [playing, cur, lesson]);
 
   useEffect(() => {
     (async () => {
@@ -96,7 +116,7 @@ export default function MixerPage() {
       existing.addEventListener("load", bind);
     }
     return () => cleanup();
-  }, [playing, cur, lesson]);
+  }, [playing, cur, lesson, curToken]);
 
   function dropAt(targetIdx: number) {
     if (dragIdx === null || dragIdx === targetIdx || !lesson) { setDragIdx(null); return; }
@@ -265,14 +285,20 @@ export default function MixerPage() {
             </div>
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
               {lesson[cur].providerId ? (
-                <iframe
-                  id="mixer-iframe"
-                  key={lesson[cur].id}
-                  src={`https://iframe.cloudflarestream.com/${lesson[cur].providerId}?autoplay=true`}
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  allowFullScreen
-                  className="h-full w-full"
-                />
+                curToken ? (
+                  <iframe
+                    id="mixer-iframe"
+                    key={lesson[cur].id}
+                    src={`https://iframe.cloudflarestream.com/${curToken}?autoplay=true`}
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-white/60">
+                    <p className="text-sm">Načítám video…</p>
+                  </div>
+                )
               ) : (
                 <div className="flex h-full w-full items-center justify-center p-6 text-center text-white/70">
                   <div>
