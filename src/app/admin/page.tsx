@@ -3493,8 +3493,49 @@ export default function AdminPage() {
             w.document.write(`<html><head><title>Faktury ${periodLabel}</title><style>body{font-family:Arial,sans-serif;color:#1f2937;padding:24px}h1{color:#062A6B;font-size:18px;margin:0 0 4px}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left}th{color:#6b7280;text-transform:uppercase;font-size:10px}</style></head><body><h1>POHYB DOMA — faktury za ${periodLabel}</h1><p style="font-size:12px;color:#374151">Vyfakturováno: <b>${czk(vyfakturovano)}</b> · Zaplaceno: <b>${czk(zaplaceno)}</b> · Nezaplaceno: <b>${czk(nezaplaceno)}</b> · Stornováno: <b>${stornoCount}×</b></p><table><thead><tr><th>Číslo</th><th>Vystaveno</th><th>Odběratel</th><th>IČO</th>${perCol ? "<th>Období</th>" : ""}<th style="text-align:right">Částka</th><th>Stav</th><th>Uhrazeno</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:14px;font-size:10px;color:#9ca3af">Stornované faktury si drží číslo (žádné díry v číslování) — doložené jako zrušené doklady. Vygenerováno z pohybdoma.cz.</p></body></html>`);
             w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
           };
+          // ── Hlídač obratu DPH ── vždy aktuální kalendářní rok, NEzávisle na výběru období nahoře.
+          // Obrat ≈ uskutečněná plnění = vyfakturováno (nestornované) + ruční příjmy za daný rok.
+          const obratYear = new Date().toISOString().slice(0, 4);
+          const DPH_LIMIT = 2_000_000;      // překročení → plátce od 1. ledna příštího roku
+          const DPH_LIMIT2 = 2_536_500;     // překročení → plátce hned (do 2. dne)
+          const obratInvoices = invoices.filter((i) => i.status !== "storno" && i.month.slice(0, 4) === obratYear).reduce((s, i) => s + i.amount, 0);
+          const obratManual = finEntries.filter((e) => e.kind === "income" && String(e.at).slice(0, 4) === obratYear).reduce((s, e) => s + Number(e.amount_kc), 0);
+          const obrat = obratInvoices + obratManual;
+          const obratPct = (obrat / DPH_LIMIT) * 100;
+          const obratRemaining = DPH_LIMIT - obrat;
+          const obratZone = obrat >= DPH_LIMIT
+            ? { label: "PŘEKROČENO", border: "border-red-300", bg: "bg-red-50", text: "text-red-700", bar: "bg-red-500", badge: "bg-red-200 text-red-800" }
+            : obratPct >= 80
+            ? { label: "POZOR", border: "border-amber-300", bg: "bg-amber-50", text: "text-amber-700", bar: "bg-amber-500", badge: "bg-amber-200 text-amber-800" }
+            : { label: "V KLIDU", border: "border-emerald-200", bg: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-500", badge: "bg-emerald-200 text-emerald-800" };
           return (
             <div className="space-y-5">
+              {/* Hlídač obratu DPH — hlavní pojistka proti nechtěnému plátcovství */}
+              <div className={`rounded-2xl border p-4 shadow-sm ${obratZone.border} ${obratZone.bg}`}>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-1">
+                  <h3 className="text-sm font-bold text-brand-dark">🚦 Hlídač obratu DPH <span className="font-normal text-gray-400">· kalendářní rok {obratYear}</span></h3>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${obratZone.badge}`}>{obratZone.label}</span>
+                </div>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className={`text-2xl font-extrabold ${obratZone.text}`}>{czk(obrat)}</span>
+                  <span className="text-xs text-gray-400">z {czk(DPH_LIMIT)} (hranice plátcovství DPH)</span>
+                </div>
+                <div className="mt-2 h-3 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div className={`h-full rounded-full ${obratZone.bar} transition-all`} style={{ width: `${Math.max(2, Math.min(100, obratPct))}%` }} />
+                </div>
+                <div className="mt-2 text-xs font-semibold">
+                  {obratRemaining > 0
+                    ? <span className="text-gray-600">Zbývá <strong className={obratZone.text}>{czk(obratRemaining)}</strong> do hranice 2 mil. Kč.</span>
+                    : obrat <= DPH_LIMIT2
+                    ? <span className="text-red-700">Překročeno o {czk(obrat - DPH_LIMIT)} → plátcem DPH od 1. ledna {Number(obratYear) + 1}.</span>
+                    : <span className="text-red-800">Překročena i horní hranice {czk(DPH_LIMIT2)} → plátcem DPH hned (do 2. dne).</span>}
+                </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+                  Počítám jako <strong>vyfakturováno (nestornované) + ruční příjmy</strong> za rok {obratYear} — tedy co jsi uskutečnil, ne co je zaplacené.
+                  Pozor: <strong>pronájem bytu je osvobozený</strong> a do obratu pro DPH obvykle nepatří — pokud ho tu máš jako ruční příjem, reálný obrat je o něj nižší.
+                  Hranice: <strong>{czk(DPH_LIMIT)}</strong>/rok → plátce od příštího ledna; <strong>{czk(DPH_LIMIT2)}</strong> → plátce hned. Finální posouzení nech na účetním.
+                </p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-400">Období:</span>
                 <MonthMultiPicker value={ucetMonths} onChange={setUcetMonths} />
