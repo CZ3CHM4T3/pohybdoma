@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Wand2, Lock, Shuffle, Clock, ArrowLeft, PlayCircle, GripVertical, X } from "lucide-react";
+import { Wand2, Lock, Shuffle, Clock, ArrowLeft, PlayCircle, GripVertical, X, Video as VideoIcon, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type StreamPlayer = { addEventListener: (e: string, cb: () => void) => void; removeEventListener: (e: string, cb: () => void) => void };
@@ -13,6 +13,11 @@ import { rowToVideo, VIDEO_COLS, type VideoRow } from "@/lib/content";
 import { formatDuration } from "@/lib/access";
 import { FILTER_BODY, FILTER_SYSTEMS, FILTER_GOALS, FILTER_DIFFICULTIES } from "@/lib/filters";
 import type { Video } from "@/types";
+
+// Jedna položka ve frontě (lekci). Umí ukázat na knihovní i osobní video –
+// liší se jen tím, odkud si vyžádá přehrávací token.
+type LessonItem = { key: string; title: string; durationSeconds: number; tokenUrl: string };
+type MyVideo = { id: string; title: string | null; source: string };
 
 const DURATIONS = [
   { label: "~10 min", sec: 600 },
@@ -26,13 +31,15 @@ export default function MixerPage() {
   const supabase = createClient();
   const [phase, setPhase] = useState<"loading" | "anon" | "locked" | "ready">("loading");
   const [videos, setVideos] = useState<Video[]>([]);
+  const [mine, setMine] = useState<MyVideo[]>([]);
 
   const [body, setBody] = useState<Set<string>>(new Set());
   const [system, setSystem] = useState<Set<string>>(new Set());
   const [goal, setGoal] = useState<Set<string>>(new Set());
   const [difficulty, setDifficulty] = useState<string>("");
   const [target, setTarget] = useState<number>(1200);
-  const [lesson, setLesson] = useState<Video[] | null>(null);
+  const [lesson, setLesson] = useState<LessonItem[] | null>(null);
+  const [showMine, setShowMine] = useState(false);
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -43,19 +50,13 @@ export default function MixerPage() {
   // se neembeduje přímo (funguje i po zapnutí „Require signed URLs").
   useEffect(() => {
     setCurToken(null);
-    if (!playing || !lesson) return;
-    const v = lesson[cur];
-    if (!v?.providerId) return;
+    if (!playing || !lesson?.[cur]) return;
     let alive = true;
-    fetch(`/api/stream-token/${encodeURIComponent(v.slug)}`, { cache: "no-store" })
+    fetch(lesson[cur].tokenUrl, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { token?: string } | null) => {
-        if (alive && d?.token) setCurToken(d.token);
-      })
+      .then((d: { token?: string } | null) => { if (alive && d?.token) setCurToken(d.token); })
       .catch(() => {});
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [playing, cur, lesson]);
 
   useEffect(() => {
@@ -73,6 +74,12 @@ export default function MixerPage() {
         .eq("published", true)
         .order("position", { ascending: true, nullsFirst: false });
       setVideos((data ?? []).map((r) => rowToVideo(r as VideoRow)));
+      // Osobní videa klienta (pokud má kartu) – půjdou přidat do mixu.
+      try {
+        const r = await fetch("/api/me/videos", { cache: "no-store" });
+        const j = await r.json().catch(() => ({}));
+        setMine(j?.videos ?? []);
+      } catch { /* bez osobních videí nevadí */ }
       setPhase("ready");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,9 +97,7 @@ export default function MixerPage() {
 
   // Automatické přehrávání za sebou (reálná videa přes Cloudflare Stream)
   useEffect(() => {
-    if (!playing || !lesson) return;
-    const v = lesson[cur];
-    if (!v?.providerId) return; // bez reálného videa řešíme tlačítkem „Další"
+    if (!playing || !lesson?.[cur] || !curToken) return;
     let cleanup = () => {};
     const bind = () => {
       const w = window as unknown as { Stream?: StreamFn };
@@ -133,6 +138,7 @@ export default function MixerPage() {
     setter(n);
   }
 
+  // Sestaví lekci z knihovny. Ručně přidaná osobní videa (p:) ponechá na konci.
   function build(shuffle = false) {
     let pool = [...matching];
     if (shuffle) {
@@ -141,17 +147,30 @@ export default function MixerPage() {
         [pool[i], pool[j]] = [pool[j], pool[i]];
       }
     }
-    const out: Video[] = [];
+    const out: LessonItem[] = [];
     let total = 0;
     for (const v of pool) {
-      out.push(v);
+      out.push({ key: `l:${v.slug}`, title: v.title, durationSeconds: v.durationSeconds || 0, tokenUrl: `/api/stream-token/${encodeURIComponent(v.slug)}` });
       total += v.durationSeconds || 0;
       if (target !== Infinity && total >= target) break;
     }
-    setLesson(out);
+    setLesson((prev) => {
+      const personal = (prev ?? []).filter((it) => it.key.startsWith("p:"));
+      return [...out, ...personal];
+    });
     setPlaying(false);
     setCur(0);
   }
+
+  function addMine(v: MyVideo) {
+    const item: LessonItem = { key: `p:${v.id}`, title: v.title || "Moje video", durationSeconds: 0, tokenUrl: `/api/me/video-token/${v.id}` };
+    setLesson((prev) => {
+      const base = prev ?? [];
+      if (base.some((it) => it.key === item.key)) return base;
+      return [...base, item];
+    });
+  }
+  function inLesson(key: string) { return (lesson ?? []).some((it) => it.key === key); }
 
   if (phase === "loading") return <Centered><p className="text-gray-400">Načítám…</p></Centered>;
   if (phase === "anon") {
@@ -176,6 +195,7 @@ export default function MixerPage() {
   }
 
   const totalSec = lesson ? lesson.reduce((s, v) => s + (v.durationSeconds || 0), 0) : 0;
+  const personalCount = lesson ? lesson.filter((it) => it.key.startsWith("p:")).length : 0;
 
   return (
     <div className="min-h-screen bg-brand-light py-10">
@@ -190,7 +210,7 @@ export default function MixerPage() {
           </span>
           <div>
             <h1 className="text-2xl font-semibold text-brand-dark">Mixér</h1>
-            <p className="text-sm text-gray-500">Vyber, na co chceš cvičit, a sestavím ti lekci.</p>
+            <p className="text-sm text-gray-500">Vyber, na co chceš cvičit, a sestavím ti lekci – klidně i ze svých videí.</p>
           </div>
         </div>
 
@@ -230,25 +250,59 @@ export default function MixerPage() {
           </div>
         </div>
 
+        {/* Moje osobní videa jako zdroj do mixu */}
+        {mine.length > 0 && (
+          <div className="card p-6 mt-6">
+            <button
+              type="button"
+              onClick={() => setShowMine((s) => !s)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+            >
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-brand-dark">
+                <VideoIcon className="h-4 w-4 text-amber-500" /> Přidat moje videa <span className="text-xs font-normal text-gray-400">({mine.length})</span>
+              </span>
+              <span className="text-xs font-semibold text-brand-blue">{showMine ? "skrýt" : "zobrazit"}</span>
+            </button>
+            {showMine && (
+              <ul className="mt-3 space-y-2">
+                {mine.map((v) => {
+                  const key = `p:${v.id}`;
+                  return (
+                    <li key={v.id} className="flex items-center gap-3 rounded-lg border border-gray-100 p-2.5">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-brand-dark">{v.title || "Moje video"}</span>
+                        <span className="text-xs text-gray-400">{v.source === "client" ? "Nahráno tebou" : "Od Honzy"}</span>
+                      </span>
+                      <button onClick={() => addMine(v)} disabled={inLesson(key)} className="shrink-0 inline-flex items-center gap-1 rounded-full bg-brand-blue/10 px-2.5 py-1 text-xs font-semibold text-brand-blue hover:bg-brand-blue/20 disabled:opacity-40">
+                        <Plus className="h-3.5 w-3.5" /> {inLesson(key) ? "přidáno" : "přidat"}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
         {/* Výsledná lekce (fronta) */}
         {lesson && (
           <div className="card p-6 mt-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-brand-dark">Tvoje lekce</h2>
               <span className="inline-flex items-center gap-1 text-xs text-gray-500">
-                <Clock className="h-3.5 w-3.5" /> {formatDuration(totalSec)} · {lesson.length} cviků
+                <Clock className="h-3.5 w-3.5" /> {formatDuration(totalSec)}{personalCount ? ` + ${personalCount} os.` : ""} · {lesson.length} cviků
               </span>
             </div>
 
             {lesson.length === 0 ? (
-              <p className="text-sm text-gray-500">Tomuhle výběru nic neodpovídá. Zkus ubrat nějaký filtr. 🙂</p>
+              <p className="text-sm text-gray-500">Tomuhle výběru nic neodpovídá. Zkus ubrat nějaký filtr nebo přidej svoje video. 🙂</p>
             ) : (
               <>
                 <p className="mb-2 text-xs text-gray-400">Pořadí změníš přetažením za úchyt ⋮⋮ . Pak klikni JDEME NA TO.</p>
                 <ol className="space-y-2">
                   {lesson.map((v, i) => (
                     <li
-                      key={v.id}
+                      key={v.key}
                       draggable
                       onDragStart={() => setDragIdx(i)}
                       onDragOver={(e) => e.preventDefault()}
@@ -259,11 +313,14 @@ export default function MixerPage() {
                       <span className="cursor-grab active:cursor-grabbing text-gray-300" title="Přetáhni"><GripVertical className="h-4 w-4" /></span>
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue text-xs font-bold text-white">{i + 1}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-brand-dark">{v.title}</span>
-                        <span className="text-xs text-gray-400">{formatDuration(v.durationSeconds || 0)}</span>
+                        <span className="block truncate text-sm font-medium text-brand-dark">{v.title}{v.key.startsWith("p:") ? " · moje" : ""}</span>
+                        <span className="text-xs text-gray-400">{v.durationSeconds ? formatDuration(v.durationSeconds) : "osobní video"}</span>
                       </span>
                       <button type="button" onClick={() => { setCur(i); setPlaying(true); }} className="shrink-0 text-brand-blue" aria-label="Přehrát od tohoto">
                         <PlayCircle className="h-5 w-5" />
+                      </button>
+                      <button type="button" onClick={() => setLesson((p) => (p ?? []).filter((_, j) => j !== i))} className="shrink-0 text-gray-300 hover:text-red-500" aria-label="Odebrat">
+                        <X className="h-4 w-4" />
                       </button>
                     </li>
                   ))}
@@ -284,27 +341,18 @@ export default function MixerPage() {
               <button onClick={() => setPlaying(false)} aria-label="Zavřít" className="text-gray-400 hover:text-brand-dark"><X className="h-5 w-5" /></button>
             </div>
             <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
-              {lesson[cur].providerId ? (
-                curToken ? (
-                  <iframe
-                    id="mixer-iframe"
-                    key={lesson[cur].id}
-                    src={`https://iframe.cloudflarestream.com/${curToken}?autoplay=true`}
-                    allow="autoplay; fullscreen; picture-in-picture"
-                    allowFullScreen
-                    className="h-full w-full"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-white/60">
-                    <p className="text-sm">Načítám video…</p>
-                  </div>
-                )
+              {curToken ? (
+                <iframe
+                  id="mixer-iframe"
+                  key={lesson[cur].key}
+                  src={`https://iframe.cloudflarestream.com/${curToken}?autoplay=true`}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  className="h-full w-full"
+                />
               ) : (
-                <div className="flex h-full w-full items-center justify-center p-6 text-center text-white/70">
-                  <div>
-                    <PlayCircle className="mx-auto mb-2 h-10 w-10" />
-                    <p className="text-sm">„{lesson[cur].title}" – reálné video bude brzy. Klikni „Další →".</p>
-                  </div>
+                <div className="flex h-full w-full items-center justify-center text-white/60">
+                  <p className="text-sm">Načítám video…</p>
                 </div>
               )}
             </div>
@@ -312,7 +360,7 @@ export default function MixerPage() {
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button onClick={() => setCur((c) => Math.max(0, c - 1))} disabled={cur === 0} className="btn-outline text-sm disabled:opacity-40">← Předchozí</button>
               <button onClick={() => setCur((c) => Math.min(lesson.length - 1, c + 1))} disabled={cur >= lesson.length - 1} className="btn-primary text-sm disabled:opacity-40">Další →</button>
-              <span className="text-xs text-gray-400">Reálná videa se přehrají sama za sebou.</span>
+              <span className="text-xs text-gray-400">Videa se přehrají sama za sebou.</span>
             </div>
           </div>
         )}
