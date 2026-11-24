@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Pin, Trash2, Send, Crown, Lock, MessageCircle, HelpCircle, CornerDownRight,
   ImagePlus, X, BarChart3, Star, Plus, Check, ThumbsUp, ThumbsDown, Flame, Laugh,
-  Frown, HeartHandshake, Wand2, Radio, Users, Film, Calculator, Megaphone, type LucideIcon,
+  Frown, HeartHandshake, Wand2, Radio, Users, Film, Calculator, Megaphone, Video, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isAdminEmail } from "@/lib/admin";
@@ -571,8 +571,9 @@ export default function KlubPage() {
         </div>
 
         {/* Rozcestník VIP funkcí */}
-        <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
+            { href: "/moje-videa", label: "Moje videa", Icon: Video, desc: "Tvoje osobní videa" },
             { href: "/klub/mixer", label: "Mixér", Icon: Wand2, desc: "Sestav si lekci" },
             { href: "/klub/live", label: "LIVE", Icon: Radio, desc: "Streamy + záznam" },
             { href: "/klub/kalkulacka", label: "Kalorie", Icon: Calculator, desc: "Kalkulačka jídla" },

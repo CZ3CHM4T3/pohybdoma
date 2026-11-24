@@ -272,6 +272,7 @@ export default function AdminPage() {
   const [recurring, setRecurring] = useState<RecurringRow[]>([]);
   const [recCancels, setRecCancels] = useState<{ recurring_id: string; date: string; cancelled_by: string | null; moved: boolean }[]>([]);
   const [clients, setClients] = useState<ClientRow[]>([]);
+  const [vidUploading, setVidUploading] = useState<string | null>(null); // id klienta, kterému se právě nahrává osobní video
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
   const [editRecId, setEditRecId] = useState<string | null>(null);
@@ -858,6 +859,49 @@ export default function AdminPage() {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, bill_group: val } : c)));
     const { error } = await supabase.from("clients").update({ bill_group: val }).eq("id", id);
     if (error) setError("Uložení skupiny selhalo (spustil jsi client_billing_group.sql?): " + error.message);
+  }
+
+  // ── Osobní videa klienta (nahrávání z mobilu rovnou do Cloudflare Stream) ──
+  async function uploadClientVideo(client: ClientRow, file: File, title: string) {
+    try {
+      setVidUploading(client.id);
+      // 1) jednorázový nahrávací odkaz do Streamu (admin ověří server)
+      const r1 = await fetch("/api/admin/client-video", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const j1 = await r1.json().catch(() => ({}));
+      if (!r1.ok) throw new Error(j1?.error === "cf_not_configured"
+        ? "Cloudflare zatím není nastavený — doplň CF_STREAM_ACCOUNT_ID a CF_STREAM_API_TOKEN ve Vercelu."
+        : "Nepodařilo se připravit nahrávání.");
+      // 2) nahraj soubor PŘÍMO do Cloudflare (neteče přes náš server → bez limitu velikosti)
+      const fd = new FormData(); fd.append("file", file);
+      const r2 = await fetch(j1.uploadURL, { method: "POST", body: fd });
+      if (!r2.ok) throw new Error("Nahrávání do Cloudflare selhalo.");
+      // 3) ulož video ke klientovi
+      const r3 = await fetch("/api/admin/client-video", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: client.id, cf_uid: j1.uid, title }),
+      });
+      if (!r3.ok) throw new Error("Uložení videa se nepovedlo.");
+      window.alert(`Video pro ${client.name} nahráno ✅ (zpracování v Cloudflare chvilku trvá)`);
+    } catch (e) {
+      window.alert((e as Error).message || "Chyba při nahrávání videa.");
+    } finally {
+      setVidUploading(null);
+    }
+  }
+  function pickClientVideo(client: ClientRow) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "video/*";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const title = window.prompt(`Název videa pro ${client.name} (nepovinné):`, "") ?? "";
+      await uploadClientVideo(client, file, title);
+    };
+    input.click();
   }
 
   // ── Stálí klienti (opakované lekce) ──
@@ -2567,6 +2611,7 @@ export default function AdminPage() {
                       title="Fakturovat dohromady: zadej stejný název u obou (např. Kremsovi)"
                       className="w-16 rounded border border-gray-200 bg-white px-1 py-0.5 text-[11px] text-brand-dark placeholder:text-gray-300"
                     />
+                    <button type="button" onClick={() => pickClientVideo(c)} disabled={vidUploading === c.id} title="Nahrát osobní video (galerie / kamera)" className="text-brand-blue hover:text-brand-dark disabled:opacity-40">{vidUploading === c.id ? "⏳" : "📹"}</button>
                     <button type="button" onClick={() => deleteClient(c.id)} title="Smazat z kartotéky" className="text-gray-300 hover:text-red-500">×</button>
                   </span>
                 );
