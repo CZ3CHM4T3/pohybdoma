@@ -4380,33 +4380,42 @@ export default function AdminPage() {
 
             {/* Sloupcový graf po měsících (stacked podle zdroje) */}
             <div className="rounded-xl border border-gray-100 p-4 mb-5" onMouseLeave={() => setBarTip(null)}>
-              <div className="flex h-48 items-end gap-1.5">
+              <div className="flex items-end gap-1.5">
                 {yearMonths.map((m, i) => {
                   const cats = orderedCats.filter((c) => (monthCats[i][c] ?? 0) > 0);
                   const isSel = invMonth === `${year}-${m.mm}`;
                   const mLabel = new Date(Number(year), i, 1).toLocaleDateString("cs-CZ", { month: "long", year: "numeric" });
+                  const hPct = (m.total / maxMonth) * 100;
                   return (
                     <button
                       key={m.mm}
                       type="button"
                       onClick={() => setInvMonth(`${year}-${m.mm}`)}
-                      className="group flex h-full flex-1 flex-col items-center justify-end gap-1"
+                      className="group flex flex-1 flex-col items-center gap-1"
                     >
-                      <span className="text-[9px] font-semibold text-gray-400 group-hover:text-brand-dark">
-                        {m.total > 0 ? `${Math.round(m.total / 1000)}k` : ""}
-                      </span>
-                      <div
-                        className={`flex w-full flex-col-reverse overflow-hidden rounded-sm ${isSel ? "ring-2 ring-brand-dark ring-offset-1" : ""}`}
-                        style={{ height: `${(m.total / maxMonth) * 100}%`, minHeight: m.total > 0 ? "4px" : "0" }}
-                      >
-                        {cats.map((c) => (
-                          <div
-                            key={c}
-                            onMouseEnter={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
-                            onMouseMove={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
-                            style={{ height: `${(monthCats[i][c] / m.total) * 100}%`, background: catColor(c) }}
-                          />
-                        ))}
+                      {/* Pevně vysoká dráha sloupce – procenta se počítají proti ní, takže výška přesně odpovídá částce (popisek nad sloupcem už sloupec nekrátí). */}
+                      <div className="relative h-44 w-full">
+                        {m.total > 0 && (
+                          <span
+                            className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold text-gray-400 group-hover:text-brand-dark"
+                            style={{ bottom: `calc(${hPct}% + 3px)` }}
+                          >
+                            {`${Math.round(m.total / 1000)}k`}
+                          </span>
+                        )}
+                        <div
+                          className={`absolute inset-x-0 bottom-0 flex flex-col-reverse overflow-hidden rounded-sm ${isSel ? "ring-2 ring-brand-dark ring-offset-1" : ""}`}
+                          style={{ height: `${hPct}%`, minHeight: m.total > 0 ? "4px" : "0" }}
+                        >
+                          {cats.map((c) => (
+                            <div
+                              key={c}
+                              onMouseEnter={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
+                              onMouseMove={(e) => setBarTip({ x: e.clientX, y: e.clientY, label: c, month: mLabel, amount: monthCats[i][c] })}
+                              style={{ height: `${(monthCats[i][c] / m.total) * 100}%`, background: catColor(c) }}
+                            />
+                          ))}
+                        </div>
                       </div>
                       <span className={`text-[10px] ${isSel ? "font-bold text-brand-dark" : "text-gray-500"}`}>{MSHORT[i]}</span>
                     </button>
